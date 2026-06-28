@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNodesState, useEdgesState, ReactFlowProvider } from '@xyflow/react';
 import type { Node, Edge } from '@xyflow/react';
 import { toPng } from 'html-to-image';
@@ -62,19 +62,26 @@ function computeDynamicLayout(
     });
   });
 
+  const processedMembers = new Set<string>();
+  const processedUnions = new Set<string>();
+
   // Recursive block builder
-  const buildBlockTree = (memberId: string, visited: Set<string>): LayoutBlock => {
-    // Prevent infinite recursion in case of cyclic parentage data issues
-    if (visited.has(memberId)) {
+  const buildBlockTree = (memberId: string): LayoutBlock => {
+    if (processedMembers.has(memberId)) {
       return { id: memberId, type: 'single', memberId, children: [] };
     }
-    visited.add(memberId);
+    processedMembers.add(memberId);
 
     const mainUnion = unions.find((u) => u.spouse1Id === memberId || u.spouse2Id === memberId);
     if (mainUnion) {
-      const children = mainUnion.childrenIds.map((childId) =>
-        buildBlockTree(childId, new Set(visited))
-      );
+      processedUnions.add(mainUnion.id);
+      processedMembers.add(mainUnion.spouse1Id);
+      processedMembers.add(mainUnion.spouse2Id);
+
+      const children = mainUnion.childrenIds
+        .filter((childId) => !processedMembers.has(childId))
+        .map((childId) => buildBlockTree(childId));
+
       return {
         id: mainUnion.id,
         type: 'union',
@@ -95,67 +102,17 @@ function computeDynamicLayout(
   // Find all roots
   const rootMembers = members.filter((m) => !childToParentUnion.has(m.id));
   const rootBlocks: LayoutBlock[] = [];
-  const processedUnions = new Set<string>();
-  const processedMembers = new Set<string>();
 
+  // 1. Build trees starting from roots
   rootMembers.forEach((m) => {
     if (processedMembers.has(m.id)) return;
-
-    const mainUnion = unions.find((u) => u.spouse1Id === m.id || u.spouse2Id === m.id);
-    if (mainUnion) {
-      if (processedUnions.has(mainUnion.id)) return;
-      processedUnions.add(mainUnion.id);
-      processedMembers.add(mainUnion.spouse1Id);
-      processedMembers.add(mainUnion.spouse2Id);
-
-      const children = mainUnion.childrenIds.map((childId) =>
-        buildBlockTree(childId, new Set([mainUnion.spouse1Id, mainUnion.spouse2Id]))
-      );
-      rootBlocks.push({
-        id: mainUnion.id,
-        type: 'union',
-        spouse1Id: mainUnion.spouse1Id,
-        spouse2Id: mainUnion.spouse2Id,
-        children
-      });
-    } else {
-      processedMembers.add(m.id);
-      rootBlocks.push({
-        id: m.id,
-        type: 'single',
-        memberId: m.id,
-        children: []
-      });
-    }
+    rootBlocks.push(buildBlockTree(m.id));
   });
 
-  // Safe fallback: Process remaining members that might be in disconnected cycles/orphan state
+  // 2. Safe fallback: Process remaining disconnected members
   members.forEach((m) => {
     if (processedMembers.has(m.id)) return;
-    processedMembers.add(m.id);
-
-    const mainUnion = unions.find((u) => u.spouse1Id === m.id || u.spouse2Id === m.id);
-    if (mainUnion) {
-      if (processedUnions.has(mainUnion.id)) return;
-      processedUnions.add(mainUnion.id);
-      processedMembers.add(mainUnion.spouse1Id);
-      processedMembers.add(mainUnion.spouse2Id);
-
-      rootBlocks.push({
-        id: mainUnion.id,
-        type: 'union',
-        spouse1Id: mainUnion.spouse1Id,
-        spouse2Id: mainUnion.spouse2Id,
-        children: mainUnion.childrenIds.map((childId) => buildBlockTree(childId, new Set()))
-      });
-    } else {
-      rootBlocks.push({
-        id: m.id,
-        type: 'single',
-        memberId: m.id,
-        children: []
-      });
-    }
+    rootBlocks.push(buildBlockTree(m.id));
   });
 
   // Calculate block widths
@@ -386,6 +343,37 @@ function AppContent() {
     });
   };
 
+  // Compute sequential member rank (BFS from roots, stable order)
+  const memberRanks = useMemo<{ [id: string]: number }>(() => {
+    const ranks: { [id: string]: number } = {};
+    let counter = 1;
+    // Find root members (no union has them as a child)
+    const allChildIds = new Set(unions.flatMap(u => u.childrenIds));
+    const roots = members.filter(m => !allChildIds.has(m.id));
+    const queue = [...roots.map(m => m.id)];
+    const visited = new Set<string>();
+    while (queue.length > 0) {
+      const id = queue.shift()!;
+      if (visited.has(id)) continue;
+      visited.add(id);
+      ranks[id] = counter++;
+      // Enqueue spouses then children
+      const memberUnions = unions.filter(u => u.spouse1Id === id || u.spouse2Id === id);
+      for (const u of memberUnions) {
+        const spouseId = u.spouse1Id === id ? u.spouse2Id : u.spouse1Id;
+        if (!visited.has(spouseId)) queue.push(spouseId);
+        for (const cid of u.childrenIds) {
+          if (!visited.has(cid)) queue.push(cid);
+        }
+      }
+    }
+    // Assign any remaining (disconnected) members
+    for (const m of members) {
+      if (!ranks[m.id]) ranks[m.id] = counter++;
+    }
+    return ranks;
+  }, [members, unions]);
+
   // Recalculate nodes and edges when states mutate
   useEffect(() => {
     const hiddenNodeIds = getHiddenEntities(collapsedUnions);
@@ -423,7 +411,8 @@ function AppContent() {
             setSelectedMember(member);
           },
           isDimmed,
-          isHighlighted: highlightedMemberId === m.id
+          isHighlighted: highlightedMemberId === m.id,
+          displayId: `#${memberRanks[m.id] ?? '?'}`
         }
       });
     });
@@ -619,6 +608,7 @@ function AppContent() {
 
       <ProfileModal
         member={selectedMember}
+        displayId={selectedMember ? `#${memberRanks[selectedMember.id] ?? '?'}` : undefined}
         onClose={() => setSelectedMember(null)}
         onUpdate={handleUpdateMember}
         onDelete={handleDeleteMember}
@@ -646,6 +636,7 @@ function AppContent() {
         onSave={handleAddMemberSave}
         members={members}
         unions={unions}
+        memberRanks={memberRanks}
       />
     </div>
   );

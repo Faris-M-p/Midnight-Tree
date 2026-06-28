@@ -8,11 +8,12 @@ interface MemberCardProps {
     onSelect: (member: FamilyMember) => void;
     isDimmed?: boolean;
     isHighlighted?: boolean;
+    displayId?: string;
   };
 }
 
 export const MemberCard: React.FC<MemberCardProps> = ({ data }) => {
-  const { member, onSelect, isDimmed, isHighlighted } = data;
+  const { member, onSelect, isDimmed, isHighlighted, displayId } = data;
 
   // Set colors based on relationship
   const getBadgeStyles = (relation: string) => {
@@ -64,7 +65,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({ data }) => {
         type="source"
         position={Position.Right}
         id="right"
-        className="!opacity-0 !w-0 !h-0" // Invisibly route connections to clean up the graph lines
+        className="!opacity-0 !w-0 !h-0"
       />
 
       {/* Left Handle (for connecting from marriage node on the left) */}
@@ -81,7 +82,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({ data }) => {
           <img
             src={member.avatar}
             alt={member.name}
-            className="w-full h-full object-cover"
+            className={`w-full h-full object-cover ${member.isDeceased ? 'grayscale' : ''}`}
             loading="lazy"
           />
         </div>
@@ -89,9 +90,16 @@ export const MemberCard: React.FC<MemberCardProps> = ({ data }) => {
       </div>
 
       {/* Member Metadata Info */}
-      <div className="min-w-0 flex flex-col justify-center gap-1.5">
-        <h3 className="font-serif font-semibold text-slate-100 text-sm tracking-wide leading-tight truncate">
-          {member.name}
+      <div className="min-w-0 flex flex-col justify-center gap-1">
+        <h3 className="font-serif font-semibold text-slate-100 text-sm tracking-wide leading-tight truncate flex items-center gap-1.5">
+          {displayId && <span className="text-emerald-400 font-sans text-xs font-bold shrink-0">{displayId}</span>}
+          <span className="truncate">{member.name}</span>
+          {member.isDeceased && (
+            <span 
+              className="w-2 h-2 rounded-full bg-red-500 border border-red-400 shrink-0 inline-block animate-pulse" 
+              title="Deceased" 
+            />
+          )}
         </h3>
         <div className="flex flex-wrap gap-1">
           <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wider ${getBadgeStyles(member.relation)}`}>

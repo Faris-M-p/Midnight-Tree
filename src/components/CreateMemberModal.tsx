@@ -8,6 +8,7 @@ interface CreateMemberModalProps {
   onSave: (memberData: Omit<FamilyMember, 'id'>, placement: MemberPlacement) => void;
   members: FamilyMember[];
   unions: MarriageUnion[];
+  memberRanks?: { [id: string]: number };
 }
 
 export interface MemberPlacement {
@@ -20,7 +21,8 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
   onClose,
   onSave,
   members,
-  unions
+  unions,
+  memberRanks
 }) => {
   if (!isOpen) return null;
 
@@ -56,7 +58,9 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
   const getUnionName = (u: MarriageUnion) => {
     const s1 = members.find(m => m.id === u.spouse1Id);
     const s2 = members.find(m => m.id === u.spouse2Id);
-    return `${s1?.name || u.spouse1Id} & ${s2?.name || u.spouse2Id}`;
+    const id1 = memberRanks && s1 ? `#${memberRanks[s1.id]} ` : '';
+    const id2 = memberRanks && s2 ? `#${memberRanks[s2.id]} ` : '';
+    return `${id1}${s1?.name || u.spouse1Id} & ${id2}${s2?.name || u.spouse2Id}`;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -394,7 +398,9 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
                       className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
                     >
                       {singleMembers.map(m => (
-                        <option key={m.id} value={m.id}>{m.name} ({m.relation})</option>
+                        <option key={m.id} value={m.id}>
+                          {memberRanks ? `#${memberRanks[m.id]} ` : ''}{m.name} ({m.relation})
+                        </option>
                       ))}
                     </select>
                   ) : (

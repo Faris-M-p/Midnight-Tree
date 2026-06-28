@@ -13,6 +13,7 @@ export const familyMembers: FamilyMember[] = [
     bio: 'Ramesh is the patriarch of the family. He spent 35 years designing state highways and bridges across Kerala. An avid chess player, gardener, and writer, he loves sharing historical anecdotes with his grandchildren.',
     education: 'B.Tech in Civil Engineering, College of Engineering Guindy (1967)',
     career: 'Chief Engineer, Kerala Public Works Department (1970 - 2005)',
+    isDeceased: true,
     photos: [
       'https://images.unsplash.com/photo-1473186578172-c141e6798cf4?w=500&auto=format&fit=crop&q=60',
       'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=500&auto=format&fit=crop&q=60'
@@ -30,6 +31,7 @@ export const familyMembers: FamilyMember[] = [
     bio: 'Savita taught Sanskrit literature for over three decades. She is a culinary master, a classical Carnatic singer, and the glue that keeps the family traditions alive and active across generations.',
     education: 'M.A. & Ph.D. in Sanskrit Literature, Madras University (1972)',
     career: 'Head of Sanskrit Department, University College Trivandrum (1975 - 2010)',
+    isDeceased: true,
     photos: [
       'https://images.unsplash.com/photo-1464306208223-e0b4495a5553?w=500&auto=format&fit=crop&q=60',
       'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=500&auto=format&fit=crop&q=60'

@@ -4,6 +4,7 @@ import type { FamilyMember } from '../types';
 
 interface ProfileModalProps {
   member: FamilyMember | null;
+  displayId?: string;
   onClose: () => void;
   onUpdate: (id: string, updatedData: Partial<FamilyMember>) => void;
   onDelete: (id: string) => void;
@@ -32,6 +33,7 @@ const WhatsAppIcon = () => (
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
   member,
+  displayId,
   onClose,
   onUpdate,
   onDelete
@@ -379,6 +381,11 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
               <div className="pb-1 space-y-1.5">
                 <div className="flex items-center gap-2 flex-wrap">
+                  {displayId && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-mono font-bold tracking-wider shrink-0">
+                      {displayId}
+                    </span>
+                  )}
                   <h2 className="font-serif text-2xl font-bold text-slate-100 leading-tight">
                     {member.name}
                   </h2>
@@ -386,7 +393,11 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     {member.relation}
                   </span>
                   {member.isDeceased && (
-                    <span className="text-[10px] px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider bg-slate-800 border border-slate-700 text-slate-500">
+                    <span
+                      className="flex items-center gap-1.5 text-[10px] text-red-400 font-semibold"
+                      title="Deceased"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-red-500 border border-red-400 animate-pulse inline-block" />
                       Deceased
                     </span>
                   )}
