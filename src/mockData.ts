@@ -365,26 +365,4 @@ export const familyMilestones: Milestone[] = [
   }
 ];
 
-// Grid Coordinates for layout
-export const layoutCoordinates: { [id: string]: { x: number; y: number } } = {
-  // Generation 1 (y = 60)
-  ramesh: { x: 185, y: 60 },
-  savita: { x: 505, y: 60 },
-  m_ramesh_savita: { x: 443, y: 98 }, // centered between 185 and 505
-
-  // Generation 2 (y = 260)
-  suresh: { x: 145, y: 260 },
-  rajesh: { x: 385, y: 260 },
-  kavita: { x: 705, y: 260 },
-  m_rajesh_kavita: { x: 643, y: 298 }, // centered between 385 and 705
-
-  // Generation 3 (y = 460)
-  amit: { x: 210, y: 460 },
-  pooja: { x: 530, y: 460 },
-  m_amit_pooja: { x: 468, y: 498 }, // centered between 210 and 530
-  rahul: { x: 800, y: 460 }, // single, balanced with Amit+Pooja union center
-
-  // Generation 4 (y = 660)
-  aarav: { x: 220, y: 660 },
-  ananya: { x: 520, y: 660 }
-};
+// Grid Coordinates for layout are now calculated dynamically.
