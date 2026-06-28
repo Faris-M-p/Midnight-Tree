@@ -98,6 +98,13 @@ export const familyMembers: FamilyMember[] = [
     bio: 'Amit works at a tech unicorn in Bengaluru building cloud infrastructure. In his free time, he plays electric guitar in a local band and goes long-distance cycling.',
     education: 'B.Tech in Computer Science, NIT Trichy (2023)',
     career: 'Software Engineer, CloudLabs India (2023 - Present)',
+    isDeceased: false,
+    socials: {
+      instagram: 'https://instagram.com/amit.mehta.codes',
+      facebook: 'https://facebook.com/amit.mehta.nit',
+      whatsapp: '9876543214',
+      gmail: 'amit.mehta@cloudlabs.in'
+    },
     photos: [
       'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=500&auto=format&fit=crop&q=60',
       'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60'
@@ -115,6 +122,13 @@ export const familyMembers: FamilyMember[] = [
     bio: 'Pooja conducts user research for an edtech platform. She is highly passionate about accessible digital design and spends her weekends testing interfaces with diverse user groups.',
     education: 'M.Sc. in Human-Computer Interaction, IIT Bombay (2024)',
     career: 'Associate UX Researcher, LearnSmart Tech (2024 - Present)',
+    isDeceased: false,
+    socials: {
+      instagram: 'https://instagram.com/pooja.verma.uxr',
+      facebook: 'https://facebook.com/pooja.verma.design',
+      whatsapp: '9876543215',
+      gmail: 'pooja.verma@learnsmarttech.com'
+    },
     photos: [
       'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=500&auto=format&fit=crop&q=60',
       'https://images.unsplash.com/photo-1551434678-e076c223a692?w=500&auto=format&fit=crop&q=60'
@@ -132,6 +146,13 @@ export const familyMembers: FamilyMember[] = [
     bio: 'I am a final year college student currently interning as a Data Analyst. I built this family tree web application to store and visualize our lineage. I enjoy coding, swimming, and street photography.',
     education: 'B.Sc. in Data Science, Christ University, Bengaluru (Expected 2026)',
     career: 'Data Science Intern, RetailCorp Analytics (2025 - Present)',
+    isDeceased: false,
+    socials: {
+      instagram: 'https://instagram.com/rahul.mehta.data',
+      facebook: 'https://facebook.com/rahul.mehta.student',
+      whatsapp: '9876543216',
+      gmail: 'rahul.mehta@christuniversity.in'
+    },
     photos: [
       'https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=500&auto=format&fit=crop&q=60',
       'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&auto=format&fit=crop&q=60'
@@ -149,6 +170,12 @@ export const familyMembers: FamilyMember[] = [
     bio: 'Aarav is the newest addition to the Mehta family. He enjoys playing with blocks, chasing the family cat, and mimicking his uncle guitar playing.',
     education: 'Preschool Student',
     career: 'Professional Toddler & Explorer (2023 - Present)',
+    isDeceased: false,
+    socials: {
+      instagram: 'https://instagram.com/aarav.mehta.baby',
+      facebook: 'https://facebook.com/aarav.mehta.2023',
+      gmail: 'aarav.mehta.family@gmail.com'
+    },
     photos: [
       'https://images.unsplash.com/photo-1519689680058-324335c77ebe?w=500&auto=format&fit=crop&q=60',
       'https://images.unsplash.com/photo-1510154221590-ff63e90a136f?w=500&auto=format&fit=crop&q=60'
@@ -166,6 +193,12 @@ export const familyMembers: FamilyMember[] = [
     bio: 'Ananya is an incredibly cheerful infant who spreads joy with her bright smile. She is just learning to crawl and loves listening to classical lullabies sung by her grandmother.',
     education: 'Not Yet Enrolled',
     career: 'Chief Joy Officer (2024 - Present)',
+    isDeceased: false,
+    socials: {
+      instagram: 'https://instagram.com/ananya.mehta.joy',
+      facebook: 'https://facebook.com/ananya.mehta.2024',
+      gmail: 'ananya.mehta.family@gmail.com'
+    },
     photos: [
       'https://images.unsplash.com/photo-1519689680058-324335c77ebe?w=500&auto=format&fit=crop&q=60',
       'https://images.unsplash.com/photo-1485546246426-74dc88dec4d9?w=500&auto=format&fit=crop&q=60'
@@ -349,7 +382,7 @@ export const layoutCoordinates: { [id: string]: { x: number; y: number } } = {
   amit: { x: 210, y: 460 },
   pooja: { x: 530, y: 460 },
   m_amit_pooja: { x: 468, y: 498 }, // centered between 210 and 530
-  rahul: { x: 720, y: 460 }, // single, balanced with Amit+Pooja union center
+  rahul: { x: 800, y: 460 }, // single, balanced with Amit+Pooja union center
 
   // Generation 4 (y = 660)
   aarav: { x: 220, y: 660 },

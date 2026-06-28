@@ -21,6 +21,13 @@ export interface FamilyMember {
   education: string;
   career: string;
   photos: string[];
+  isDeceased?: boolean;
+  socials?: {
+    facebook?: string;
+    instagram?: string;
+    whatsapp?: string;
+    gmail?: string;
+  };
 }
 
 export interface MarriageUnion {
