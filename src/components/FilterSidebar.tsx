@@ -55,6 +55,19 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    const handleOpenFromNavbar = () => {
+      if (window.innerWidth < 768) {
+        setIsBottomSheetOpen(true);
+      } else {
+        setIsDesktopExpanded(true);
+      }
+    };
+
+    window.addEventListener('open-filter-sidebar', handleOpenFromNavbar);
+    return () => window.removeEventListener('open-filter-sidebar', handleOpenFromNavbar);
+  }, []);
+
   const generations = [
     { label: '1st Gen (Grandparents)', val: 1 },
     { label: '2nd Gen (Parents / Uncle)', val: 2 },
@@ -101,25 +114,6 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
   if (isMobile) {
     return (
       <>
-        {/* Floating Pills Filter FAB trigger */}
-        <div className="fixed top-[180px] left-4 z-30">
-          <button
-            type="button"
-            onClick={() => setIsBottomSheetOpen(true)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-full border shadow-lg transition-all text-xs font-semibold cursor-pointer ${
-              hasActiveFilters
-                ? 'bg-emerald-600 border-emerald-500 text-slate-950'
-                : 'bg-slate-900/90 backdrop-blur-md border-slate-800 text-slate-300'
-            }`}
-          >
-            <Filter size={13} className={hasActiveFilters ? 'fill-slate-950' : ''} />
-            <span>Filters</span>
-            {hasActiveFilters && (
-              <span className="w-2 h-2 rounded-full bg-slate-950 animate-ping"></span>
-            )}
-          </button>
-        </div>
-
         {/* Bottom Sheet Modal backdrop overlay */}
         {isBottomSheetOpen && (
           <div
@@ -386,25 +380,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
           </div>
 
         </div>
-      ) : (
-        /* Slim floating Filters toggle tab */
-        <button
-          type="button"
-          onClick={() => setIsDesktopExpanded(true)}
-          className={`flex items-center gap-2 px-3 py-2 bg-slate-950 border rounded-xl text-xs transition-all shadow-xl cursor-pointer ${
-            hasActiveFilters
-              ? 'bg-emerald-600 border-emerald-500 text-slate-950 font-bold'
-              : 'border-slate-900 text-slate-300 hover:text-slate-100 hover:border-slate-800'
-          }`}
-          title="Expand filters panel"
-        >
-          <Filter size={13} className={hasActiveFilters ? 'fill-slate-950' : ''} />
-          <span>Filters</span>
-          {hasActiveFilters && (
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-950 animate-ping"></span>
-          )}
-        </button>
-      )}
+      ) : null}
     </div>
   );
 };

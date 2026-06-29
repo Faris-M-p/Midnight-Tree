@@ -570,6 +570,10 @@ function AppContent() {
       });
   };
 
+  const handleOpenFilters = () => {
+    window.dispatchEvent(new Event('open-filter-sidebar'));
+  };
+
   return (
     <div className="w-full h-full bg-slate-950 flex flex-col relative select-none">
       <SearchHeader
@@ -585,6 +589,8 @@ function AppContent() {
         }}
         onExportPNG={handleExportPNG}
         onAddMember={() => setIsCreateOpen(true)}
+        onOpenFilters={handleOpenFilters}
+        hasActiveFilters={selectedGenerations.length > 0 || selectedLocations.length > 0}
       />
 
       <main className="flex-1 w-full h-full pt-20 relative">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, BarChart3, Clock, Download, X, UserPlus } from 'lucide-react';
+import { Search, BarChart3, Clock, Download, X, UserPlus, Filter } from 'lucide-react';
 import type { FamilyMember } from '../types';
 
 interface SearchHeaderProps {
@@ -9,6 +9,8 @@ interface SearchHeaderProps {
   onOpenTimeline: () => void;
   onExportPNG: () => void;
   onAddMember: () => void;
+  onOpenFilters: () => void;
+  hasActiveFilters: boolean;
 }
 
 export const SearchHeader: React.FC<SearchHeaderProps> = ({
@@ -17,7 +19,9 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
   onOpenAnalytics,
   onOpenTimeline,
   onExportPNG,
-  onAddMember
+  onAddMember,
+  onOpenFilters,
+  hasActiveFilters
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState<FamilyMember[]>([]);
@@ -76,66 +80,81 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
         </div>
       </div>
 
-      {/* Center Search Bar with Autocomplete Suggestions */}
-      <div className="relative w-full max-w-md" ref={containerRef}>
-        <div className="relative flex items-center">
-          <Search className="absolute left-3.5 text-slate-500 w-4 h-4" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setIsOpen(true);
-            }}
-            onFocus={() => setIsOpen(true)}
-            placeholder="Search relative, role, or location..."
-            className="w-full pl-10 pr-10 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 text-sm focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30 focus:outline-none transition-all placeholder-slate-500"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 p-1 rounded-full text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-            >
-              <X size={14} />
-            </button>
+      {/* Filter + Search Row */}
+      <div className="w-full max-w-md flex items-center gap-2">
+        <button
+          onClick={onOpenFilters}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-medium transition-all cursor-pointer shrink-0 ${
+            hasActiveFilters
+              ? 'bg-emerald-600 border-emerald-500 text-slate-950'
+              : 'bg-slate-900 hover:bg-slate-800 border-slate-800 hover:border-slate-750 text-slate-300 hover:text-slate-100'
+          }`}
+          title="Open Filters"
+        >
+          <Filter size={14} className={hasActiveFilters ? 'fill-slate-950' : 'text-emerald-500'} />
+          <span className="hidden sm:inline">Filter</span>
+        </button>
+
+        <div className="relative flex-1" ref={containerRef}>
+          <div className="relative flex items-center">
+            <Search className="absolute left-3.5 text-slate-500 w-4 h-4" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsOpen(true);
+              }}
+              onFocus={() => setIsOpen(true)}
+              placeholder="Search relative, role, or location..."
+              className="w-full pl-10 pr-10 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 text-sm focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30 focus:outline-none transition-all placeholder-slate-500"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 p-1 rounded-full text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Suggestion Dropdown Panel */}
+          {isOpen && suggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800">
+              {suggestions.map((m) => (
+                <div
+                  key={m.id}
+                  onClick={() => handleSelect(m.id)}
+                  className="px-4 py-3 hover:bg-slate-800/60 border-b border-slate-900/50 last:border-b-0 cursor-pointer flex items-center gap-3 transition-colors"
+                >
+                  <img
+                    src={m.avatar}
+                    alt={m.name}
+                    className="w-8 h-8 rounded-full object-cover border border-slate-800 shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-slate-200 truncate">{m.name}</p>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 border border-slate-750 text-slate-400 font-medium">
+                        {m.relation}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 truncate mt-0.5">
+                      {m.profession} &bull; {m.location}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {isOpen && searchQuery.trim() && suggestions.length === 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 p-4 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl text-center text-slate-500 text-sm">
+              No relatives match your search.
+            </div>
           )}
         </div>
-
-        {/* Suggestion Dropdown Panel */}
-        {isOpen && suggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800">
-            {suggestions.map((m) => (
-              <div
-                key={m.id}
-                onClick={() => handleSelect(m.id)}
-                className="px-4 py-3 hover:bg-slate-800/60 border-b border-slate-900/50 last:border-b-0 cursor-pointer flex items-center gap-3 transition-colors"
-              >
-                <img
-                  src={m.avatar}
-                  alt={m.name}
-                  className="w-8 h-8 rounded-full object-cover border border-slate-800 shrink-0"
-                />
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-slate-200 truncate">{m.name}</p>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 border border-slate-750 text-slate-400 font-medium">
-                      {m.relation}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 truncate mt-0.5">
-                    {m.profession} &bull; {m.location}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {isOpen && searchQuery.trim() && suggestions.length === 0 && (
-          <div className="absolute top-full left-0 right-0 mt-2 p-4 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl text-center text-slate-500 text-sm">
-            No relatives match your search.
-          </div>
-        )}
       </div>
 
       {/* Right Controls (Add Member, Dashboard, Timeline, PDF export) */}
