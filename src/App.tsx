@@ -20,6 +20,8 @@ import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { TimelinePanel } from './components/TimelinePanel';
 import { CreateMemberModal } from './components/CreateMemberModal';
 import type { MemberPlacement } from './components/CreateMemberModal';
+import { RegisterPage } from './pages/RegisterPage';
+import { LoginPage } from './pages/LoginPage';
 
 import '@xyflow/react/dist/style.css';
 
@@ -649,6 +651,32 @@ function AppContent() {
 }
 
 export default function App() {
+  const [routePath, setRoutePath] = useState(() => window.location.pathname);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setRoutePath(window.location.pathname);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigate = (path: '/' | '/register' | '/login') => {
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+      setRoutePath(path);
+    }
+  };
+
+  if (routePath === '/register') {
+    return <RegisterPage onNavigate={navigate} />;
+  }
+
+  if (routePath === '/login') {
+    return <LoginPage onNavigate={navigate} />;
+  }
+
   return (
     <ReactFlowProvider>
       <AppContent />
