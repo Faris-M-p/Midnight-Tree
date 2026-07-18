@@ -3,13 +3,7 @@ import { useNodesState, useEdgesState, ReactFlowProvider } from '@xyflow/react';
 import type { Node, Edge } from '@xyflow/react';
 import { toPng } from 'html-to-image';
 import confetti from 'canvas-confetti';
-
-import {
-  familyMembers as initialFamilyMembers,
-  marriageUnions as initialMarriageUnions,
-  familyMilestones
-} from './mockData';
-import type { FamilyMember, MarriageUnion } from './types';
+import type { FamilyMember, MarriageUnion, Milestone } from './types';
 
 // Import Custom components
 import { SearchHeader } from './components/SearchHeader';
@@ -25,6 +19,11 @@ import { LoginPage } from './pages/LoginPage';
 import { LandingPage } from './pages/LandingPage';
 import { ProtectedShellPage } from './pages/ProtectedShellPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { DashboardPage } from './pages/DashboardPage';
+import { FamilyPage } from './pages/FamilyPage';
+import { MembersPage } from './pages/MembersPage';
+import { ApiClientError } from './services/apiClient';
+import { getFamilyTreeData } from './services/treeService';
 
 import '@xyflow/react/dist/style.css';
 
@@ -190,8 +189,11 @@ function AppContent() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
   // Lifiting family tree states
-  const [members, setMembers] = useState<FamilyMember[]>(initialFamilyMembers);
-  const [unions, setUnions] = useState<MarriageUnion[]>(initialMarriageUnions);
+  const [members, setMembers] = useState<FamilyMember[]>([]);
+  const [unions, setUnions] = useState<MarriageUnion[]>([]);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [isTreeLoading, setIsTreeLoading] = useState(true);
+  const [treeError, setTreeError] = useState('');
 
   // Visibility states
   const [collapsedUnions, setCollapsedUnions] = useState<string[]>([]);
@@ -266,6 +268,37 @@ function AppContent() {
       prev.includes(unionId) ? prev.filter((id) => id !== unionId) : [...prev, unionId]
     );
   };
+
+  const loadTreeData = async () => {
+    setIsTreeLoading(true);
+    setTreeError('');
+
+    try {
+      const data = await getFamilyTreeData();
+      setMembers(data.members);
+      setUnions(data.unions);
+      setMilestones(data.milestones);
+    } catch (error) {
+      setMembers([]);
+      setUnions([]);
+      setMilestones([]);
+      if (error instanceof ApiClientError) {
+        setTreeError(
+          error.statusCode >= 500
+            ? 'Unable to load family tree right now. Please try again.'
+            : error.message
+        );
+      } else {
+        setTreeError('Unable to load family tree right now. Please try again.');
+      }
+    } finally {
+      setIsTreeLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadTreeData();
+  }, []);
 
   // Dynamic CRUD Operators
   const handleAddMemberSave = (
@@ -599,14 +632,58 @@ function AppContent() {
       />
 
       <main className="flex-1 w-full h-full pt-20 relative">
-        <FamilyTreeCanvas
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          focusedNodeId={focusedNodeId}
-          onClearFocus={() => setFocusedNodeId(null)}
-        />
+        {isTreeLoading ? (
+          <div className="h-full w-full flex items-center justify-center px-4">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 px-5 py-4 text-sm text-slate-300 inline-flex items-center gap-3">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+              Loading family tree...
+            </div>
+          </div>
+        ) : null}
+
+        {!isTreeLoading && treeError ? (
+          <div className="h-full w-full flex items-center justify-center px-4">
+            <div className="max-w-md rounded-2xl border border-rose-500/40 bg-rose-950/30 p-5 text-center">
+              <p className="text-sm text-rose-300">{treeError}</p>
+              <button
+                type="button"
+                onClick={() => void loadTreeData()}
+                className="mt-4 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {!isTreeLoading && !treeError && members.length === 0 ? (
+          <div className="h-full w-full flex items-center justify-center px-4">
+            <div className="max-w-md rounded-2xl border border-slate-800 bg-slate-900/70 p-5 text-center">
+              <h3 className="text-lg font-semibold text-slate-100">No family members found.</h3>
+              <p className="mt-2 text-sm text-slate-400">
+                Start by adding the first member to build your family tree.
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsCreateOpen(true)}
+                className="mt-4 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+              >
+                Add First Member
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {!isTreeLoading && !treeError && members.length > 0 ? (
+          <FamilyTreeCanvas
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            focusedNodeId={focusedNodeId}
+            onClearFocus={() => setFocusedNodeId(null)}
+          />
+        ) : null}
       </main>
 
       <FilterSidebar
@@ -632,7 +709,7 @@ function AppContent() {
       />
 
       <TimelinePanel
-        milestones={familyMilestones}
+        milestones={milestones}
         isOpen={isTimelineOpen}
         onClose={() => setIsTimelineOpen(false)}
         onSelectMember={(id) => {
@@ -761,10 +838,7 @@ function AppRouter() {
 
   if (routePath === '/dashboard') {
     return (
-      <ProtectedShellPage
-        title="Dashboard"
-        description="Your authenticated home for navigating family modules."
-        currentPath="/dashboard"
+      <DashboardPage
         onNavigate={navigate}
         onLogout={handleLogout}
         currentUser={currentUser}
@@ -775,10 +849,7 @@ function AppRouter() {
 
   if (routePath === '/family') {
     return (
-      <ProtectedShellPage
-        title="Family"
-        description="Family management space is secured and ready for integration."
-        currentPath="/family"
+      <FamilyPage
         onNavigate={navigate}
         onLogout={handleLogout}
         currentUser={currentUser}
@@ -789,10 +860,7 @@ function AppRouter() {
 
   if (routePath === '/members') {
     return (
-      <ProtectedShellPage
-        title="Members"
-        description="Member management module is protected and awaiting backend integration."
-        currentPath="/members"
+      <MembersPage
         onNavigate={navigate}
         onLogout={handleLogout}
         currentUser={currentUser}

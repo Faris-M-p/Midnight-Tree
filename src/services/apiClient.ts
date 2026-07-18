@@ -28,7 +28,17 @@ const fieldAliasMap: Record<string, string> = {
   "confirm password": "confirmPassword",
   "family code": "familyCode",
   "family name": "familyName",
-  description: "description"
+  description: "description",
+  "first name": "firstName",
+  "last name": "lastName",
+  "phone number": "phone",
+  gender: "gender",
+  "date of birth": "dateOfBirth",
+  "date of death": "dateOfDeath",
+  biography: "biography",
+  profession: "profession",
+  "parent id": "parentId",
+  "spouse id": "spouseId"
 };
 
 function normalizeFieldName(field?: string | null): string | null {
