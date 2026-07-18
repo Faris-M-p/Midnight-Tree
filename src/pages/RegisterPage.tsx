@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import { ArrowLeft, GitBranch } from "lucide-react";
 import { ApiClientError } from "../services/apiClient";
 import { registerAccount } from "../services/authService";
 
@@ -16,7 +17,7 @@ type RegisterFormValues = Record<FormField, string>;
 type FormErrors = Partial<Record<FormField, string>>;
 
 interface RegisterPageProps {
-  onNavigate: (path: "/" | "/register" | "/login") => void;
+  onNavigate: (path: "/" | "/register" | "/login" | "/tree") => void;
 }
 
 const initialValues: RegisterFormValues = {
@@ -177,7 +178,26 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
 
   return (
     <div className="h-full w-full overflow-y-auto bg-slate-950 px-4 py-8 text-slate-100">
-      <div className="mx-auto w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30 backdrop-blur">
+      <div className="mx-auto w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30 backdrop-blur sm:p-7">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => onNavigate("/")}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 transition hover:border-emerald-500 hover:text-emerald-300"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Home
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate("/")}
+            className="inline-flex items-center gap-2 text-emerald-300 transition hover:text-emerald-200"
+          >
+            <GitBranch className="h-4 w-4" />
+            <span className="text-xs font-semibold uppercase tracking-[0.18em]">Midnight</span>
+          </button>
+        </div>
+
         <div className="mb-6 space-y-2">
           <p className="text-xs uppercase tracking-[0.2em] text-emerald-400">Midnight Chronicle</p>
           <h1 className="font-serif text-3xl text-slate-100">Create your account</h1>

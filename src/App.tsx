@@ -22,6 +22,7 @@ import { CreateMemberModal } from './components/CreateMemberModal';
 import type { MemberPlacement } from './components/CreateMemberModal';
 import { RegisterPage } from './pages/RegisterPage';
 import { LoginPage } from './pages/LoginPage';
+import { LandingPage } from './pages/LandingPage';
 
 import '@xyflow/react/dist/style.css';
 
@@ -662,12 +663,16 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const navigate = (path: '/' | '/register' | '/login') => {
+  const navigate = (path: '/' | '/register' | '/login' | '/tree') => {
     if (window.location.pathname !== path) {
       window.history.pushState({}, '', path);
       setRoutePath(path);
     }
   };
+
+  if (routePath === '/') {
+    return <LandingPage onNavigate={navigate} />;
+  }
 
   if (routePath === '/register') {
     return <RegisterPage onNavigate={navigate} />;
@@ -677,9 +682,13 @@ export default function App() {
     return <LoginPage onNavigate={navigate} />;
   }
 
-  return (
-    <ReactFlowProvider>
-      <AppContent />
-    </ReactFlowProvider>
-  );
+  if (routePath === '/tree') {
+    return (
+      <ReactFlowProvider>
+        <AppContent />
+      </ReactFlowProvider>
+    );
+  }
+
+  return <LandingPage onNavigate={navigate} />;
 }

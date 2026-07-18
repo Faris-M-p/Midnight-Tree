@@ -22,4 +22,21 @@ export interface LoginResponse {
   accessToken: string;
   expiresAtUtc: string;
   tokenType: string;
+  refreshToken?: string;
+  user?: AuthUser;
+}
+
+export interface AuthUser {
+  id?: number;
+  username?: string;
+  email?: string;
+  [key: string]: unknown;
+}
+
+export interface AuthSession {
+  accessToken: string;
+  expiresAtUtc: string;
+  tokenType: string;
+  refreshToken?: string | null;
+  user?: AuthUser | null;
 }
