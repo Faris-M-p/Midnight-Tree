@@ -17,7 +17,7 @@ type RegisterFormValues = Record<FormField, string>;
 type FormErrors = Partial<Record<FormField, string>>;
 
 interface RegisterPageProps {
-  onNavigate: (path: "/" | "/register" | "/login" | "/tree") => void;
+  onNavigate: (path: "/" | "/register" | "/login" | "/dashboard" | "/family" | "/members" | "/timeline" | "/gallery" | "/analytics" | "/tree") => void;
 }
 
 const initialValues: RegisterFormValues = {

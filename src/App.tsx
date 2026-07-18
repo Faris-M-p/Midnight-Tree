@@ -23,6 +23,8 @@ import type { MemberPlacement } from './components/CreateMemberModal';
 import { RegisterPage } from './pages/RegisterPage';
 import { LoginPage } from './pages/LoginPage';
 import { LandingPage } from './pages/LandingPage';
+import { ProtectedShellPage } from './pages/ProtectedShellPage';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 import '@xyflow/react/dist/style.css';
 
@@ -651,7 +653,31 @@ function AppContent() {
   );
 }
 
-export default function App() {
+type AppRoute =
+  | '/'
+  | '/register'
+  | '/login'
+  | '/dashboard'
+  | '/family'
+  | '/members'
+  | '/timeline'
+  | '/gallery'
+  | '/analytics'
+  | '/tree';
+
+const protectedRoutes = new Set<AppRoute>([
+  '/dashboard',
+  '/family',
+  '/members',
+  '/timeline',
+  '/gallery',
+  '/analytics',
+  '/tree'
+]);
+
+function AppRouter() {
+  const { isAuthenticated, isLoading, currentUser, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
 
   useEffect(() => {
@@ -663,15 +689,66 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const navigate = (path: '/' | '/register' | '/login' | '/tree') => {
+  const navigate = (path: AppRoute) => {
     if (window.location.pathname !== path) {
       window.history.pushState({}, '', path);
       setRoutePath(path);
     }
   };
 
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
+    const currentPath = routePath as AppRoute;
+    const isProtectedPath = protectedRoutes.has(currentPath);
+
+    if (!isAuthenticated && isProtectedPath) {
+      window.history.replaceState({}, '', '/login');
+      setRoutePath('/login');
+    }
+  }, [isAuthenticated, isLoading, routePath]);
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
+    if (isAuthenticated && (routePath === '/login' || routePath === '/register')) {
+      window.history.replaceState({}, '', '/dashboard');
+      setRoutePath('/dashboard');
+    }
+  }, [isAuthenticated, isLoading, routePath]);
+
+  const handleLogout = () => {
+    setIsLoggingOut(true);
+    logout();
+    window.history.replaceState({}, '', '/login');
+    setRoutePath('/login');
+    setIsLoggingOut(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-200">
+        <div className="inline-flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+          <span className="text-sm">Restoring session...</span>
+        </div>
+      </div>
+    );
+  }
+
   if (routePath === '/') {
-    return <LandingPage onNavigate={navigate} />;
+    return (
+      <LandingPage
+        onNavigate={navigate}
+        isAuthenticated={isAuthenticated}
+        onLogout={handleLogout}
+        isLoggingOut={isLoggingOut}
+      />
+    );
   }
 
   if (routePath === '/register') {
@@ -682,6 +759,90 @@ export default function App() {
     return <LoginPage onNavigate={navigate} />;
   }
 
+  if (routePath === '/dashboard') {
+    return (
+      <ProtectedShellPage
+        title="Dashboard"
+        description="Your authenticated home for navigating family modules."
+        currentPath="/dashboard"
+        onNavigate={navigate}
+        onLogout={handleLogout}
+        currentUser={currentUser}
+        isLoggingOut={isLoggingOut}
+      />
+    );
+  }
+
+  if (routePath === '/family') {
+    return (
+      <ProtectedShellPage
+        title="Family"
+        description="Family management space is secured and ready for integration."
+        currentPath="/family"
+        onNavigate={navigate}
+        onLogout={handleLogout}
+        currentUser={currentUser}
+        isLoggingOut={isLoggingOut}
+      />
+    );
+  }
+
+  if (routePath === '/members') {
+    return (
+      <ProtectedShellPage
+        title="Members"
+        description="Member management module is protected and awaiting backend integration."
+        currentPath="/members"
+        onNavigate={navigate}
+        onLogout={handleLogout}
+        currentUser={currentUser}
+        isLoggingOut={isLoggingOut}
+      />
+    );
+  }
+
+  if (routePath === '/timeline') {
+    return (
+      <ProtectedShellPage
+        title="Timeline"
+        description="Timeline module is protected and ready for your authenticated data."
+        currentPath="/timeline"
+        onNavigate={navigate}
+        onLogout={handleLogout}
+        currentUser={currentUser}
+        isLoggingOut={isLoggingOut}
+      />
+    );
+  }
+
+  if (routePath === '/gallery') {
+    return (
+      <ProtectedShellPage
+        title="Gallery"
+        description="Gallery module is protected and ready for implementation."
+        currentPath="/gallery"
+        onNavigate={navigate}
+        onLogout={handleLogout}
+        currentUser={currentUser}
+        isLoggingOut={isLoggingOut}
+      />
+    );
+  }
+
+  if (routePath === '/analytics') {
+    return (
+      <ProtectedShellPage
+        title="Analytics"
+        description="Analytics module is protected and prepared for upcoming integrations."
+        currentPath="/analytics"
+        onNavigate={navigate}
+        onLogout={handleLogout}
+        currentUser={currentUser}
+        isLoggingOut={isLoggingOut}
+      />
+    );
+  }
+
   if (routePath === '/tree') {
     return (
       <ReactFlowProvider>
@@ -690,5 +851,20 @@ export default function App() {
     );
   }
 
-  return <LandingPage onNavigate={navigate} />;
+  return (
+    <LandingPage
+      onNavigate={navigate}
+      isAuthenticated={isAuthenticated}
+      onLogout={handleLogout}
+      isLoggingOut={isLoggingOut}
+    />
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppRouter />
+    </AuthProvider>
+  );
 }

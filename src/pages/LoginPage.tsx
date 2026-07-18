@@ -1,15 +1,15 @@
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { ArrowLeft, GitBranch } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import { ApiClientError } from "../services/apiClient";
-import { loginAndPersistSession } from "../services/authService";
 
 type LoginField = "username" | "password";
 type LoginFormValues = Record<LoginField, string>;
 type LoginErrors = Partial<Record<LoginField, string>>;
 
 interface LoginPageProps {
-  onNavigate: (path: "/" | "/register" | "/login" | "/tree") => void;
+  onNavigate: (path: "/" | "/register" | "/login" | "/dashboard" | "/family" | "/members" | "/timeline" | "/gallery" | "/analytics" | "/tree") => void;
 }
 
 const initialValues: LoginFormValues = {
@@ -34,12 +34,13 @@ function validateLogin(values: LoginFormValues): LoginErrors {
 }
 
 export function LoginPage({ onNavigate }: LoginPageProps) {
+  const { login, isLoading } = useAuth();
   const [values, setValues] = useState<LoginFormValues>(initialValues);
   const [errors, setErrors] = useState<LoginErrors>({});
   const [serverError, setServerError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const canSubmit = useMemo(() => !isSubmitting, [isSubmitting]);
+  const canSubmit = useMemo(() => !isSubmitting && !isLoading, [isLoading, isSubmitting]);
 
   const handleChange = (field: LoginField, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
@@ -63,12 +64,12 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
     setServerError("");
 
     try {
-      await loginAndPersistSession({
+      await login({
         username: values.username.trim(),
         password: values.password
       });
 
-      onNavigate("/tree");
+      onNavigate("/dashboard");
     } catch (error) {
       if (error instanceof ApiClientError) {
         if (Object.keys(error.fieldErrors).length > 0) {
@@ -191,6 +192,8 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
                 Signing in...
               </>
+            ) : isLoading ? (
+              "Checking session..."
             ) : (
               "Login"
             )}

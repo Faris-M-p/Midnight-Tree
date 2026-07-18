@@ -15,7 +15,10 @@ import {
 } from "lucide-react";
 
 interface LandingPageProps {
-  onNavigate: (path: "/" | "/register" | "/login" | "/tree") => void;
+  onNavigate: (path: "/" | "/register" | "/login" | "/dashboard" | "/family" | "/members" | "/timeline" | "/gallery" | "/analytics" | "/tree") => void;
+  isAuthenticated: boolean;
+  onLogout: () => void;
+  isLoggingOut: boolean;
 }
 
 const features = [
@@ -101,7 +104,7 @@ function SocialIcon(props: { type: "github" | "linkedin" | "facebook" | "x" }) {
   );
 }
 
-export function LandingPage({ onNavigate }: LandingPageProps) {
+export function LandingPage({ onNavigate, isAuthenticated, onLogout, isLoggingOut }: LandingPageProps) {
   const [activeSection, setActiveSection] = useState<"home" | "features" | "about">("home");
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -181,20 +184,42 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             <button type="button" onClick={() => navigateToSection("about")} className={navLinkClass("about")}>
               About
             </button>
-            <button
-              type="button"
-              onClick={() => onNavigate("/login")}
-              className="rounded-lg px-3 py-2 text-sm text-slate-300 transition hover:text-emerald-300"
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate("/register")}
-              className="rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
-            >
-              Register
-            </button>
+            {isAuthenticated ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onNavigate("/dashboard")}
+                  className="rounded-lg px-3 py-2 text-sm text-slate-300 transition hover:text-emerald-300"
+                >
+                  Dashboard
+                </button>
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  disabled={isLoggingOut}
+                  className="rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+                >
+                  {isLoggingOut ? "Logging out..." : "Logout"}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onNavigate("/login")}
+                  className="rounded-lg px-3 py-2 text-sm text-slate-300 transition hover:text-emerald-300"
+                >
+                  Login
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onNavigate("/register")}
+                  className="rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+                >
+                  Register
+                </button>
+              </>
+            )}
           </div>
         </nav>
       </header>
@@ -213,21 +238,44 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
               Midnight Chronicle helps families map generations, document milestones, and preserve relationships in a modern visual experience.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => onNavigate("/login")}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
-              >
-                Login
-                <ArrowRight className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => onNavigate("/register")}
-                className="rounded-xl border border-slate-700 bg-slate-900/70 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-500 hover:text-emerald-300"
-              >
-                Register
-              </button>
+              {isAuthenticated ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate("/dashboard")}
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+                  >
+                    Open Dashboard
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    disabled={isLoggingOut}
+                    className="rounded-xl border border-slate-700 bg-slate-900/70 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-500 hover:text-emerald-300"
+                  >
+                    {isLoggingOut ? "Logging out..." : "Logout"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate("/login")}
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+                  >
+                    Login
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate("/register")}
+                    className="rounded-xl border border-slate-700 bg-slate-900/70 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-500 hover:text-emerald-300"
+                  >
+                    Register
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -358,20 +406,42 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             Create your account and begin building a timeless, shareable history of your family journey.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => onNavigate("/login")}
-              className="rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate("/register")}
-              className="rounded-xl border border-slate-700 bg-slate-900/80 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-500 hover:text-emerald-300"
-            >
-              Register
-            </button>
+            {isAuthenticated ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onNavigate("/dashboard")}
+                  className="rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+                >
+                  Open Dashboard
+                </button>
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  disabled={isLoggingOut}
+                  className="rounded-xl border border-slate-700 bg-slate-900/80 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-500 hover:text-emerald-300"
+                >
+                  {isLoggingOut ? "Logging out..." : "Logout"}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onNavigate("/login")}
+                  className="rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+                >
+                  Login
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onNavigate("/register")}
+                  className="rounded-xl border border-slate-700 bg-slate-900/80 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-500 hover:text-emerald-300"
+                >
+                  Register
+                </button>
+              </>
+            )}
           </div>
         </section>
       </main>
@@ -442,14 +512,24 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                 </button>
               </li>
               <li>
-                <button type="button" onClick={() => onNavigate("/login")} className="text-slate-400 transition hover:text-emerald-300">
-                  Login
+                <button
+                  type="button"
+                  onClick={() => onNavigate(isAuthenticated ? "/dashboard" : "/login")}
+                  className="text-slate-400 transition hover:text-emerald-300"
+                >
+                  {isAuthenticated ? "Dashboard" : "Login"}
                 </button>
               </li>
               <li>
-                <button type="button" onClick={() => onNavigate("/register")} className="text-slate-400 transition hover:text-emerald-300">
-                  Register
-                </button>
+                {isAuthenticated ? (
+                  <button type="button" onClick={onLogout} className="text-slate-400 transition hover:text-emerald-300">
+                    {isLoggingOut ? "Logging out..." : "Logout"}
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => onNavigate("/register")} className="text-slate-400 transition hover:text-emerald-300">
+                    Register
+                  </button>
+                )}
               </li>
             </ul>
           </section>

@@ -30,6 +30,8 @@ export interface AuthUser {
   id?: number;
   username?: string;
   email?: string;
+  familyId?: number;
+  role?: string;
   [key: string]: unknown;
 }
 

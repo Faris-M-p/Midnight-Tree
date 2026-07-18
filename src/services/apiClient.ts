@@ -1,4 +1,5 @@
 import { env } from "../config/env";
+import { AUTH_UNAUTHORIZED_EVENT, getAccessToken } from "./authSessionService";
 import type { ApiErrorItem, ApiResponse } from "../types/api";
 
 export class ApiClientError extends Error {
@@ -84,10 +85,14 @@ export async function apiRequest<TResponse, TBody = unknown>(
     headers?: Record<string, string>;
   } = {}
 ): Promise<TResponse> {
+  const accessToken = getAccessToken();
+  const authHeaders = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+
   const response = await fetch(`${env.apiBaseUrl}${path}`, {
     method: options.method ?? "GET",
     headers: {
       "Content-Type": "application/json",
+      ...authHeaders,
       ...(options.headers ?? {})
     },
     body: options.body ? JSON.stringify(options.body) : undefined
@@ -104,6 +109,10 @@ export async function apiRequest<TResponse, TBody = unknown>(
     const friendlyMessage = response.status >= 500
       ? "Something went wrong. Please try again."
       : (apiMessage || fallbackMessage);
+
+    if (response.status === 401 || response.status === 403) {
+      window.dispatchEvent(new CustomEvent(AUTH_UNAUTHORIZED_EVENT));
+    }
 
     throw new ApiClientError(
       friendlyMessage,
