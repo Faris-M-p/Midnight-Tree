@@ -1,3 +1,13 @@
+/**
+ * =============================================================================
+ * FILE: src/pages/LoginPage.tsx
+ * ROLE: Sign-in screen
+ * =============================================================================
+ * Validates username/password, calls authService.loginAndPersistSession(),
+ * then navigates to /tree on success.
+ * =============================================================================
+ */
+
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { ArrowLeft, GitBranch } from "lucide-react";

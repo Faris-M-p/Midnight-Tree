@@ -1,3 +1,13 @@
+/**
+ * =============================================================================
+ * FILE: src/pages/LandingPage.tsx
+ * ROLE: Public marketing / home page (static)
+ * =============================================================================
+ * Default route "/". No API calls. Links to Login and Register.
+ * Sticky navbar + feature sections + footer.
+ * =============================================================================
+ */
+
 import { useEffect, useState } from "react";
 import {
   ArrowRight,

@@ -1,3 +1,23 @@
+/**
+ * =============================================================================
+ * FILE: src/layout/computeFamilyTreeLayout.ts
+ * ROLE: Pure layout math for the genealogy canvas (no React / no UI)
+ * =============================================================================
+ * Input:  members[] + unions[]
+ * Output: { [nodeId]: { x, y } } for every member card and marriage node
+ *
+ * Rules this algorithm enforces:
+ *   1. One horizontal row per generation
+ *   2. Spouses sit side-by-side on the same row
+ *   3. Children are centered under the couple midpoint
+ *   4. Child unions are NEVER re-added as separate roots
+ *      (that bug caused the "kids shifted to the right" look)
+ *
+ * NOTE: App.tsx currently also contains an inline computeDynamicLayout().
+ * Prefer consolidating on this module when cleaning up — same algorithm.
+ * =============================================================================
+ */
+
 import type { FamilyMember, MarriageUnion } from '../types';
 
 export interface LayoutCoords {

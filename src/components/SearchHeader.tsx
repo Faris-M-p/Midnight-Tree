@@ -1,3 +1,12 @@
+/**
+ * =============================================================================
+ * FILE: src/components/SearchHeader.tsx
+ * ROLE: Top toolbar on the Family Tree screen
+ * =============================================================================
+ * Search relatives, open filters / analytics / timeline, add member, export PNG.
+ * =============================================================================
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, BarChart3, Clock, Download, X, UserPlus, Filter } from 'lucide-react';
 import type { FamilyMember } from '../types';

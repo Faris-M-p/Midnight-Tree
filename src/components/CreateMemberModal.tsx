@@ -1,3 +1,14 @@
+/**
+ * =============================================================================
+ * FILE: src/components/CreateMemberModal.tsx
+ * ROLE: "Add New Family Member" popup form
+ * =============================================================================
+ * Collects biographical fields + placement (root / child of union / spouse).
+ * Does NOT call the API itself — it calls props.onSave(...).
+ * App.tsx handleAddMemberSave() performs the real POST /api/members.
+ * =============================================================================
+ */
+
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import type { FamilyMember, MarriageUnion } from '../types';

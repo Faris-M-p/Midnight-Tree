@@ -1,3 +1,17 @@
+/**
+ * =============================================================================
+ * FILE: src/types/auth.ts
+ * ROLE: Authentication request/response TypeScript models
+ * =============================================================================
+ * Matches MidnightApi account endpoints:
+ *   POST /api/accounts/register
+ *   POST /api/accounts/login
+ *
+ * After login we store an AuthSession (token + user) in localStorage
+ * via authSessionService.ts.
+ * =============================================================================
+ */
+
 export interface RegisterRequest {
   username: string;
   email: string;
@@ -33,6 +47,7 @@ export interface AuthUser {
   [key: string]: unknown;
 }
 
+/** Persisted login session kept in the browser */
 export interface AuthSession {
   accessToken: string;
   expiresAtUtc: string;

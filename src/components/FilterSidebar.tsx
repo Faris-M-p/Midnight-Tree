@@ -1,3 +1,12 @@
+/**
+ * =============================================================================
+ * FILE: src/components/FilterSidebar.tsx
+ * ROLE: Left filter drawer (generation + location)
+ * =============================================================================
+ * Dims unmatched tree cards when filters are active (logic in App.tsx).
+ * =============================================================================
+ */
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Filter, ChevronDown, RefreshCw, Layers, MapPin, X } from 'lucide-react';
 

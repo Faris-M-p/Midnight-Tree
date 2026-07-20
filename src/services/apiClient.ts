@@ -1,7 +1,28 @@
+/**
+ * =============================================================================
+ * FILE: src/services/apiClient.ts
+ * ROLE: Central HTTP helper for all API calls
+ * =============================================================================
+ * Every service (auth, members, tree) should call `apiRequest()` instead of
+ * using fetch() directly. This file is responsible for:
+ *
+ *   1. Prefixing the path with env.apiBaseUrl
+ *   2. Attaching the JWT Bearer token when the user is logged in
+ *   3. Parsing the MidnightApi response envelope
+ *   4. Throwing ApiClientError with friendly messages + fieldErrors
+ *
+ * UI pages catch ApiClientError and show validation messages next to inputs.
+ * =============================================================================
+ */
+
 import { env } from "../config/env";
 import { getAccessToken } from "./authSessionService";
 import type { ApiErrorItem, ApiResponse } from "../types/api";
 
+/**
+ * Error thrown when the API returns success=false or a non-OK HTTP status.
+ * `fieldErrors` maps form field names → messages (e.g. email: "already exists").
+ */
 export class ApiClientError extends Error {
   statusCode: number;
   fieldErrors: Record<string, string>;
@@ -21,6 +42,7 @@ export class ApiClientError extends Error {
   }
 }
 
+/** Maps backend Display names / labels onto frontend form field keys */
 const fieldAliasMap: Record<string, string> = {
   username: "username",
   email: "email",
@@ -48,6 +70,7 @@ function normalizeFieldName(field?: string | null): string | null {
   return fieldAliasMap[normalized] ?? normalized;
 }
 
+/** Convert API errors array into { fieldName: message } for forms */
 function extractFieldErrors(errors?: ApiErrorItem[], message?: string): Record<string, string> {
   const mapped: Record<string, string> = {};
 
@@ -85,6 +108,12 @@ async function parseResponse<T>(response: Response): Promise<ApiResponse<T> | nu
   return (await response.json()) as ApiResponse<T>;
 }
 
+/**
+ * Main entry used by all services.
+ * @param path  API path starting with /api/...
+ * @param options method/body/headers
+ * @returns unwrapped `data` from the API envelope
+ */
 export async function apiRequest<TResponse, TBody = unknown>(
   path: string,
   options: {

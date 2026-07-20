@@ -1,3 +1,21 @@
+/**
+ * =============================================================================
+ * FILE: src/components/FamilyTreeCanvas.tsx
+ * ROLE: React Flow canvas wrapper for the family tree
+ * =============================================================================
+ * Receives already-positioned nodes + edges from App.tsx and only renders them.
+ * Also handles:
+ *   - zoom / pan controls
+ *   - minimap
+ *   - fitView when the tree changes
+ *   - focusing/centering when search selects a member
+ *
+ * Custom types registered here:
+ *   nodeTypes.memberCard / marriageNode
+ *   edgeTypes.genealogy
+ * =============================================================================
+ */
+
 import React, { useEffect } from 'react';
 import {
   ReactFlow,

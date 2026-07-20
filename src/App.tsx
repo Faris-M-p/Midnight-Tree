@@ -1,3 +1,32 @@
+/**
+ * =============================================================================
+ * FILE: src/App.tsx
+ * ROLE: App router + Family Tree screen (main orchestrator)
+ * =============================================================================
+ * This is the largest frontend file. It has two jobs:
+ *
+ * 1) ROUTING (export default function App)
+ *    Reads the browser URL and shows:
+ *      /          → LandingPage
+ *      /login     → LoginPage
+ *      /register  → RegisterPage
+ *      /tree      → Family Tree (AppContent + ReactFlowProvider)
+ *
+ * 2) FAMILY TREE (function AppContent)
+ *    - Loads members/unions from treeService
+ *    - Runs layout (computeDynamicLayout) to get X/Y positions
+ *    - Builds React Flow nodes + edges
+ *    - Opens modals (Add Member, Profile, Analytics, Timeline)
+ *
+ * Architecture reminder:
+ *   services/   → API
+ *   layout/     → position math
+ *   components/ → visual pieces only
+ *
+ * See also: ARCHITECTURE.md in the project root of "Midnight Tree".
+ * =============================================================================
+ */
+
 import { useState, useEffect, useMemo } from 'react';
 import { useNodesState, useEdgesState, ReactFlowProvider } from '@xyflow/react';
 import type { Node, Edge } from '@xyflow/react';
@@ -28,13 +57,19 @@ import type { MemberProfile } from './types/member';
 
 import '@xyflow/react/dist/style.css';
 
-// ─────────────────────────────────────────────────────────────────
-// DYNAMIC LAYOUT ALGORITHM
-// ─────────────────────────────────────────────────────────────────
+// =============================================================================
+// LAYOUT ALGORITHM (positions only — does not draw anything)
+// Converts members + unions into { id → { x, y } } for React Flow nodes.
+// =============================================================================
 interface LayoutCoords {
   [id: string]: { x: number; y: number };
 }
 
+/**
+ * Builds a hierarchical family layout.
+ * Important: only true roots become top-level trees; children stay nested
+ * so they render under their parents (not beside them).
+ */
 function computeDynamicLayout(
   members: FamilyMember[],
   unions: MarriageUnion[]
@@ -293,6 +328,10 @@ function computeDynamicLayout(
   return coords;
 }
 
+/**
+ * Family Tree screen (protected visually by going through /tree after login).
+ * Holds React state for members, unions, filters, modals, and canvas nodes.
+ */
 function AppContent() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -932,6 +971,10 @@ function AppContent() {
   );
 }
 
+/**
+ * Tiny client-side router.
+ * Uses the browser History API (pushState / popstate) so Back/Forward work.
+ */
 export default function App() {
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
 

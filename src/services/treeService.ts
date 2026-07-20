@@ -1,3 +1,24 @@
+/**
+ * =============================================================================
+ * FILE: src/services/treeService.ts
+ * ROLE: Convert API member data into tree canvas data
+ * =============================================================================
+ * The Family Tree UI needs two arrays:
+ *   - members[]  → person cards
+ *   - unions[]   → couples + children links
+ *
+ * Primary path:
+ *   GET /api/members/tree  → nested root/spouse/children
+ *   mapFromNestedTree()    → members + unions
+ *
+ * Fallback path (if tree endpoint fails):
+ *   GET /api/members + GET /api/members/{id} for each
+ *   buildUnions() from parent/spouse/children fields
+ *
+ * Used by: App.tsx → loadTreeData()
+ * =============================================================================
+ */
+
 import { getFamilyTree, getMemberDetails, getMembers } from "./memberService";
 import type { FamilyMember, MarriageUnion } from "../types";
 import type { ApiTreeNode, MemberProfile, TreeDataResponse } from "../types/member";
@@ -309,6 +330,10 @@ function mapFromNestedTree(root: ApiTreeNode): TreeDataResponse {
   };
 }
 
+/**
+ * Main entry used by the Tree screen.
+ * Prefers nested API tree; falls back to profile stitching.
+ */
 export async function getFamilyTreeData(): Promise<TreeDataResponse> {
   // Prefer explicit backend tree graph when available.
   const nested = await getFamilyTree().catch(() => null);

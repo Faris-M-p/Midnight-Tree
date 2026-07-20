@@ -1,16 +1,23 @@
+/**
+ * =============================================================================
+ * FILE: src/components/GenealogyEdge.tsx
+ * ROLE: Custom React Flow edge for parent → child lines
+ * =============================================================================
+ * Draws a genealogy "T" connector instead of a sideways L-bend:
+ *
+ *        parent couple (marriage node)
+ *                 |
+ *          -------+-------   ← shared horizontal rail (same Y for siblings)
+ *          |      |      |
+ *        child  child  child
+ *
+ * Registered in FamilyTreeCanvas as edge type: "genealogy"
+ * =============================================================================
+ */
+
 import { BaseEdge } from '@xyflow/react';
 import type { EdgeProps } from '@xyflow/react';
 
-/**
- * Genealogy connector:
- *   parent
- *     |
- *  ---+---   shared horizontal rail
- *  |  |  |
- * child child child
- *
- * Avoids React Flow smoothstep L-bends that drift sideways.
- */
 export function GenealogyEdge({
   id,
   sourceX,

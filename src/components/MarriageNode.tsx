@@ -1,3 +1,15 @@
+/**
+ * =============================================================================
+ * FILE: src/components/MarriageNode.tsx
+ * ROLE: Small circle between two spouses on the tree
+ * =============================================================================
+ * Acts as the "junction" for:
+ *   - dashed horizontal spouse connectors
+ *   - solid vertical child connectors (from bottom handle)
+ *   - expand / collapse children (+ / −)
+ * =============================================================================
+ */
+
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 

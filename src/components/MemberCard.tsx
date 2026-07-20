@@ -1,3 +1,14 @@
+/**
+ * =============================================================================
+ * FILE: src/components/MemberCard.tsx
+ * ROLE: One person card drawn on the React Flow canvas
+ * =============================================================================
+ * Shows avatar, name, relation badge, and connection handles
+ * (top = child link target, left/right = spouse links).
+ * Clicking the card opens ProfileModal via data.onSelect.
+ * =============================================================================
+ */
+
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { FamilyMember } from '../types';

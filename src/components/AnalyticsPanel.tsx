@@ -1,3 +1,12 @@
+/**
+ * =============================================================================
+ * FILE: src/components/AnalyticsPanel.tsx
+ * ROLE: Right-side family statistics panel
+ * =============================================================================
+ * Currently computes simple counts from the in-memory members array.
+ * =============================================================================
+ */
+
 import React from 'react';
 import { X, Users, Compass, ShieldAlert, Award } from 'lucide-react';
 import type { FamilyMember } from '../types';

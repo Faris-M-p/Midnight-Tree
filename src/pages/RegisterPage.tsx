@@ -1,3 +1,13 @@
+/**
+ * =============================================================================
+ * FILE: src/pages/RegisterPage.tsx
+ * ROLE: Create-account screen
+ * =============================================================================
+ * Client-side validation + POST /api/accounts/register via authService.
+ * On success, redirects to Login (does not auto-login).
+ * =============================================================================
+ */
+
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { ArrowLeft, GitBranch } from "lucide-react";

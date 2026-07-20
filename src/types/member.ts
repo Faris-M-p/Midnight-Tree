@@ -1,5 +1,22 @@
+/**
+ * =============================================================================
+ * FILE: src/types/member.ts
+ * ROLE: Member / Family Tree API models (backend contract)
+ * =============================================================================
+ * These interfaces mirror MidnightApi member endpoints:
+ *   GET  /api/members
+ *   GET  /api/members/{id}
+ *   GET  /api/members/tree
+ *   POST /api/members
+ *
+ * After loading, treeService.ts converts these into UI models
+ * (FamilyMember + MarriageUnion) used by the canvas.
+ * =============================================================================
+ */
+
 import type { FamilyMember, MarriageUnion } from "../types";
 
+/** One row from the paged members list */
 export interface MemberListItem {
   id: number;
   firstName: string;
@@ -20,6 +37,7 @@ export interface PagedMembersResponse {
   totalPages: number;
 }
 
+/** Lightweight relative (parent / spouse / child) on a profile */
 export interface MemberRelationSummary {
   id: number;
   firstName: string;
@@ -45,6 +63,7 @@ export interface MemberSocialLinkItem {
   username?: string | null;
 }
 
+/** Full member profile returned by GET /api/members/{id} */
 export interface MemberProfile {
   id: number;
   firstName: string;
@@ -65,6 +84,7 @@ export interface MemberProfile {
   socialLinks: MemberSocialLinkItem[];
 }
 
+/** Body for POST /api/members (create) */
 export interface CreateMemberPayload {
   firstName: string;
   lastName: string;
@@ -78,11 +98,13 @@ export interface CreateMemberPayload {
   spouseId?: number;
 }
 
+/** What the tree screen needs after mapping from API */
 export interface TreeDataResponse {
   members: FamilyMember[];
   unions: MarriageUnion[];
 }
 
+/** Nested tree node from GET /api/members/tree */
 export interface ApiTreeNode {
   id: number;
   firstName: string;

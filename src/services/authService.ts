@@ -1,3 +1,15 @@
+/**
+ * =============================================================================
+ * FILE: src/services/authService.ts
+ * ROLE: Account register / login API calls
+ * =============================================================================
+ * Thin wrappers around MidnightApi account endpoints.
+ * Login also saves the JWT session via authSessionService.
+ *
+ * Used by: LoginPage, RegisterPage
+ * =============================================================================
+ */
+
 import { apiRequest } from "./apiClient";
 import { saveAuthSession } from "./authSessionService";
 import type {
@@ -9,6 +21,7 @@ import type {
 
 const AUTH_BASE = "/api/accounts";
 
+/** Create a new family admin account */
 export function registerAccount(payload: RegisterRequest): Promise<RegisterResponse> {
   return apiRequest<RegisterResponse, RegisterRequest>(`${AUTH_BASE}/register`, {
     method: "POST",
@@ -16,6 +29,7 @@ export function registerAccount(payload: RegisterRequest): Promise<RegisterRespo
   });
 }
 
+/** Authenticate and return tokens (does not store them) */
 export function loginAccount(payload: LoginRequest): Promise<LoginResponse> {
   return apiRequest<LoginResponse, LoginRequest>(`${AUTH_BASE}/login`, {
     method: "POST",
@@ -23,6 +37,7 @@ export function loginAccount(payload: LoginRequest): Promise<LoginResponse> {
   });
 }
 
+/** Login + save session to localStorage in one step */
 export async function loginAndPersistSession(payload: LoginRequest): Promise<LoginResponse> {
   const response = await loginAccount(payload);
 

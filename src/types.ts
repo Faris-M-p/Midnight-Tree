@@ -1,3 +1,18 @@
+/**
+ * =============================================================================
+ * FILE: src/types.ts
+ * ROLE: UI / canvas domain models for the Family Tree screen
+ * =============================================================================
+ * These shapes are used by React Flow UI components (MemberCard, layout, etc.).
+ * They are NOT the raw ASP.NET API models — those live in `src/types/member.ts`.
+ *
+ * Flow:
+ *   API (member.ts)  →  treeService maps to  →  FamilyMember / MarriageUnion
+ *                                               then App.tsx renders them
+ * =============================================================================
+ */
+
+/** One person shown as a card on the tree canvas */
 export interface FamilyMember {
   id: string;
   name: string;
@@ -12,6 +27,7 @@ export interface FamilyMember {
   career: string;
   photos: string[];
   isDeceased?: boolean;
+  /** True when this person is the family root ancestor */
   isRoot?: boolean;
   socials?: {
     facebook?: string;
@@ -21,6 +37,11 @@ export interface FamilyMember {
   };
 }
 
+/**
+ * A married couple (or partner pair) plus their children.
+ * The layout algorithm uses unions to place spouses side-by-side
+ * and hang children underneath the couple center.
+ */
 export interface MarriageUnion {
   id: string;
   spouse1Id: string;
@@ -28,6 +49,7 @@ export interface MarriageUnion {
   childrenIds: string[];
 }
 
+/** Timeline / history event shown in the Timeline panel */
 export interface Milestone {
   id: string;
   year: number;

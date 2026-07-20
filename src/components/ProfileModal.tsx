@@ -1,3 +1,14 @@
+/**
+ * =============================================================================
+ * FILE: src/components/ProfileModal.tsx
+ * ROLE: Member details popup (view / edit / delete)
+ * =============================================================================
+ * Opens when a MemberCard is clicked.
+ * Currently edit/delete still update local React state in App.tsx;
+ * wire them to PUT/DELETE APIs in a later task if needed.
+ * =============================================================================
+ */
+
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Calendar, Briefcase, GraduationCap, Mail, Edit, Trash2, Save, RotateCcw } from 'lucide-react';
 import type { FamilyMember } from '../types';

@@ -1,3 +1,12 @@
+/**
+ * =============================================================================
+ * FILE: src/components/TimelinePanel.tsx
+ * ROLE: Family history / milestones drawer
+ * =============================================================================
+ * Shows chronological events; clicking an event can focus that member on the tree.
+ * =============================================================================
+ */
+
 import React, { useState } from 'react';
 import { X, Calendar, GraduationCap, Briefcase, Heart, PlusCircle } from 'lucide-react';
 import type { Milestone } from '../types';
