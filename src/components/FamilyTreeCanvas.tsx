@@ -9,6 +9,7 @@ import {
 import type { Node, Edge } from '@xyflow/react';
 import { MemberCard } from './MemberCard';
 import { MarriageNode } from './MarriageNode';
+import { GenealogyEdge } from './GenealogyEdge';
 
 import '@xyflow/react/dist/style.css';
 
@@ -26,6 +27,10 @@ const nodeTypes = {
   marriageNode: MarriageNode
 };
 
+const edgeTypes = {
+  genealogy: GenealogyEdge
+};
+
 export const FamilyTreeCanvas: React.FC<FamilyTreeCanvasProps> = ({
   nodes,
   edges,
@@ -34,7 +39,7 @@ export const FamilyTreeCanvas: React.FC<FamilyTreeCanvasProps> = ({
   focusedNodeId,
   onClearFocus
 }) => {
-  const { setCenter } = useReactFlow();
+  const { setCenter, fitView } = useReactFlow();
 
   // Handle focus node transitions
   useEffect(() => {
@@ -63,19 +68,14 @@ export const FamilyTreeCanvas: React.FC<FamilyTreeCanvasProps> = ({
     return () => clearTimeout(timer);
   }, [focusedNodeId, nodes, setCenter, onClearFocus]);
 
-  // Handle initial viewport center for mobile vs desktop
-  const handleInit = () => {
-    setTimeout(() => {
-      const isMobile = window.innerWidth < 768;
-      if (isMobile) {
-        // Root marriage node center: x = 455, y = 110 (Ramesh & Savita midpoint)
-        setCenter(455, 110, { zoom: 0.9, duration: 0 });
-      } else {
-        // Center of the entire graph layout
-        setCenter(455, 330, { zoom: 1.0, duration: 0 });
-      }
-    }, 100);
-  };
+  // Keep the full hierarchical tree framed whenever nodes change
+  useEffect(() => {
+    if (nodes.length === 0) return;
+    const timer = setTimeout(() => {
+      fitView({ padding: 0.22, duration: 350 });
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [nodes, fitView]);
 
   return (
     <div className="w-full h-full relative" id="family-tree-canvas-wrapper">
@@ -85,9 +85,10 @@ export const FamilyTreeCanvas: React.FC<FamilyTreeCanvasProps> = ({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
-        onInit={handleInit}
-        fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.3}
+        edgeTypes={edgeTypes}
+        fitView
+        fitViewOptions={{ padding: 0.22 }}
+        minZoom={0.25}
         maxZoom={2.0}
         // Enable drag panning and zoom
         panOnScroll={false}

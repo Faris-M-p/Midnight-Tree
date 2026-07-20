@@ -1,4 +1,5 @@
 import { env } from "../config/env";
+import { getAccessToken } from "./authSessionService";
 import type { ApiErrorItem, ApiResponse } from "../types/api";
 
 export class ApiClientError extends Error {
@@ -27,7 +28,15 @@ const fieldAliasMap: Record<string, string> = {
   "confirm password": "confirmPassword",
   "family code": "familyCode",
   "family name": "familyName",
-  description: "description"
+  description: "description",
+  "first name": "firstName",
+  "last name": "lastName",
+  "date of birth": "dateOfBirth",
+  "date of death": "dateOfDeath",
+  profession: "profession",
+  biography: "biography",
+  "parent id": "parentId",
+  "spouse id": "spouseId"
 };
 
 function normalizeFieldName(field?: string | null): string | null {
@@ -84,10 +93,13 @@ export async function apiRequest<TResponse, TBody = unknown>(
     headers?: Record<string, string>;
   } = {}
 ): Promise<TResponse> {
+  const token = getAccessToken();
+
   const response = await fetch(`${env.apiBaseUrl}${path}`, {
     method: options.method ?? "GET",
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers ?? {})
     },
     body: options.body ? JSON.stringify(options.body) : undefined

@@ -1,18 +1,8 @@
 export interface FamilyMember {
   id: string;
   name: string;
-  relation:
-    | 'Grandfather'
-    | 'Grandmother'
-    | 'Father'
-    | 'Mother'
-    | 'Uncle'
-    | 'Brother'
-    | 'Sister-in-Law'
-    | 'Me'
-    | 'Nephew'
-    | 'Niece';
-  gender: 'male' | 'female';
+  relation: string;
+  gender: 'male' | 'female' | 'other';
   dob: string;
   location: string;
   profession: string;
@@ -22,6 +12,7 @@ export interface FamilyMember {
   career: string;
   photos: string[];
   isDeceased?: boolean;
+  isRoot?: boolean;
   socials?: {
     facebook?: string;
     instagram?: string;

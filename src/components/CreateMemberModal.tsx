@@ -5,7 +5,7 @@ import type { FamilyMember, MarriageUnion } from '../types';
 interface CreateMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (memberData: Omit<FamilyMember, 'id'>, placement: MemberPlacement) => void;
+  onSave: (input: CreateMemberSubmitInput) => Promise<CreateMemberSubmitResult>;
   members: FamilyMember[];
   unions: MarriageUnion[];
   memberRanks?: { [id: string]: number };
@@ -13,7 +13,18 @@ interface CreateMemberModalProps {
 
 export interface MemberPlacement {
   type: 'root' | 'child' | 'spouse';
-  targetId: string; // unionId for 'child', spouse memberId for 'spouse'
+  targetId?: string; // unionId for 'child', spouse memberId for 'spouse'
+}
+
+export interface CreateMemberSubmitInput {
+  memberData: Omit<FamilyMember, 'id'>;
+  placement: MemberPlacement;
+}
+
+export interface CreateMemberSubmitResult {
+  success: boolean;
+  message?: string;
+  fieldErrors?: Record<string, string>;
 }
 
 export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
@@ -48,6 +59,11 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
   // Placement states
   const [placementType, setPlacementType] = useState<'root' | 'child' | 'spouse'>('root');
   const [placementTarget, setPlacementTarget] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const hasRootMember = members.some((m) => m.isRoot);
 
   // Helper: Find potential single members who can marry
   const singleMembers = members.filter(m => {
@@ -63,9 +79,11 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
     return `${id1}${s1?.name || u.spouse1Id} & ${id2}${s2?.name || u.spouse2Id}`;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || isSubmitting) return;
+    setSubmitError('');
+    setFieldErrors({});
 
     // Use default avatar if empty
     const finalAvatar = avatar.trim() || `https://images.unsplash.com/photo-${gender === 'male' ? '1500648767791-00dcc994a43e' : '1494790108377-be9c29b29330'}?w=150&h=150&fit=crop&crop=faces&q=80`;
@@ -91,10 +109,19 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
       }
     };
 
-    onSave(memberData, {
-      type: placementType,
-      targetId: placementTarget
-    });
+    const placement: MemberPlacement = { type: placementType };
+    if (placementType !== 'root') {
+      placement.targetId = placementTarget;
+    }
+
+    setIsSubmitting(true);
+    const result = await onSave({ memberData, placement });
+    setIsSubmitting(false);
+    if (!result.success) {
+      setSubmitError(result.message || 'Unable to save member. Please try again.');
+      setFieldErrors(result.fieldErrors || {});
+      return;
+    }
 
     // Reset form
     setName('');
@@ -104,6 +131,10 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
     setFacebook('');
     setWhatsapp('');
     setGmail('');
+    setPlacementType(hasRootMember ? 'child' : 'root');
+    setPlacementTarget('');
+    setSubmitError('');
+    setFieldErrors({});
     onClose();
   };
 
@@ -334,6 +365,7 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
                     type="radio"
                     name="placement"
                     checked={placementType === 'root'}
+                    disabled={hasRootMember}
                     onChange={() => {
                       setPlacementType('root');
                       setPlacementTarget('');
@@ -410,8 +442,20 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
                   )}
                 </div>
               )}
+
+              {hasRootMember && placementType === 'root' && (
+                <p className="text-xs text-amber-500 font-semibold bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
+                  Root member already exists. Add this member as a child or spouse.
+                </p>
+              )}
             </div>
           </div>
+
+          {(submitError || Object.keys(fieldErrors).length > 0) && (
+            <div className="rounded-lg border border-rose-500/40 bg-rose-950/30 px-3 py-2 text-xs text-rose-300">
+              {submitError || fieldErrors.firstName || fieldErrors.lastName || 'Please check the form values.'}
+            </div>
+          )}
 
           {/* Action buttons */}
           <div className="pt-4 flex justify-end gap-3 border-t border-slate-800">
@@ -424,10 +468,10 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={placementType === 'spouse' && singleMembers.length === 0}
+              disabled={isSubmitting || (placementType === 'spouse' && singleMembers.length === 0) || (placementType === 'child' && unions.length === 0) || (placementType === 'root' && hasRootMember)}
               className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-semibold text-sm transition-colors shadow-lg shadow-emerald-950 cursor-pointer"
             >
-              Save Member
+              {isSubmitting ? 'Saving...' : 'Save Member'}
             </button>
           </div>
 
