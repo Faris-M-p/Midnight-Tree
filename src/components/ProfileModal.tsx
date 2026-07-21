@@ -4,8 +4,13 @@
  * ROLE: Member details popup (view / edit / delete)
  * =============================================================================
  * Opens when a MemberCard is clicked.
- * Currently edit/delete still update local React state in App.tsx;
- * wire them to PUT/DELETE APIs in a later task if needed.
+ *
+ * Flow:
+ *   1. View mode shows live details (loaded by App via GET /api/members/{id})
+ *   2. Edit → Save calls props.onUpdate (App → PUT /api/members/{id})
+ *   3. Delete calls props.onDelete (App → DELETE /api/members/{id})
+ *
+ * UI design is preserved; this file focuses on form state + loading/errors.
  * =============================================================================
  */
 
@@ -13,12 +18,21 @@ import React, { useState, useEffect } from 'react';
 import { X, MapPin, Calendar, Briefcase, GraduationCap, Mail, Edit, Trash2, Save, RotateCcw } from 'lucide-react';
 import type { FamilyMember } from '../types';
 
+/** Result returned by App after an API update/delete attempt */
+export interface ProfileActionResult {
+  success: boolean;
+  message?: string;
+  fieldErrors?: Record<string, string>;
+}
+
 interface ProfileModalProps {
   member: FamilyMember | null;
   displayId?: string;
+  /** True while GET /api/members/{id} is in flight */
+  isLoadingDetails?: boolean;
   onClose: () => void;
-  onUpdate: (id: string, updatedData: Partial<FamilyMember>) => void;
-  onDelete: (id: string) => void;
+  onUpdate: (id: string, updatedData: Partial<FamilyMember>) => Promise<ProfileActionResult>;
+  onDelete: (id: string) => Promise<ProfileActionResult>;
 }
 
 /* ─── Inline SVG social brand icons ─── */
@@ -45,14 +59,16 @@ const WhatsAppIcon = () => (
 export const ProfileModal: React.FC<ProfileModalProps> = ({
   member,
   displayId,
+  isLoadingDetails = false,
   onClose,
   onUpdate,
   onDelete
 }) => {
-  if (!member) return null;
-
   // Editing state
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   // Form states
   const [name, setName] = useState('');
@@ -74,41 +90,62 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
   // Sync form states with selected member
   useEffect(() => {
-    if (member) {
-      setName(member.name);
-      setRelation(member.relation);
-      setDob(member.dob);
-      setLocation(member.location);
-      setProfession(member.profession);
-      setAvatar(member.avatar);
-      setBio(member.bio);
-      setEducation(member.education);
-      setCareer(member.career);
-      setIsDeceased(!!member.isDeceased);
-
-      setInstagram(member.socials?.instagram || '');
-      setFacebook(member.socials?.facebook || '');
-      setWhatsapp(member.socials?.whatsapp || '');
-      setGmail(member.socials?.gmail || '');
-      
-      setIsEditing(false); // Reset editing mode when swapping profiles
+    if (!member) {
+      return;
     }
+
+    setName(member.name);
+    setRelation(member.relation);
+    setDob(member.dob);
+    setLocation(member.location);
+    setProfession(member.profession);
+    setAvatar(member.avatar);
+    setBio(member.bio);
+    setEducation(member.education);
+    setCareer(member.career);
+    setIsDeceased(!!member.isDeceased);
+
+    setInstagram(member.socials?.instagram || '');
+    setFacebook(member.socials?.facebook || '');
+    setWhatsapp(member.socials?.whatsapp || '');
+    setGmail(member.socials?.gmail || '');
+
+    setIsEditing(false);
+    setActionError('');
+    setIsSaving(false);
+    setIsDeleting(false);
   }, [member]);
 
-  const handleDeleteClick = () => {
+  if (!member) return null;
+
+  const busy = isSaving || isDeleting || isLoadingDetails;
+
+  const handleDeleteClick = async () => {
+    if (busy) return;
+
     const confirmDelete = window.confirm(
       `Are you sure you want to delete ${member.name} from the family tree? This cannot be undone.`
     );
-    if (confirmDelete) {
-      onDelete(member.id);
+    if (!confirmDelete) return;
+
+    setActionError('');
+    setIsDeleting(true);
+    const result = await onDelete(member.id);
+    setIsDeleting(false);
+
+    if (!result.success) {
+      setActionError(result.message || 'Unable to delete member. Please try again.');
     }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || busy) return;
 
-    onUpdate(member.id, {
+    setActionError('');
+    setIsSaving(true);
+
+    const result = await onUpdate(member.id, {
       name,
       relation,
       dob,
@@ -126,6 +163,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         gmail: gmail.trim() || undefined
       }
     });
+
+    setIsSaving(false);
+
+    if (!result.success) {
+      setActionError(result.message || 'Unable to save changes. Please try again.');
+      return;
+    }
 
     setIsEditing(false);
   };
@@ -145,11 +189,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   };
 
   const hasSocials = member.socials && Object.values(member.socials).some(Boolean);
+  const bornLabel = member.dob
+    ? new Date(member.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'Unknown';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={busy ? undefined : onClose} />
 
       {/* Modal */}
       <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col z-10 animate-in fade-in zoom-in-95 duration-200">
@@ -161,19 +208,24 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               <>
                 <button
                   type="button"
-                  onClick={() => setIsEditing(true)}
-                  className="px-3 py-1.5 rounded-lg bg-slate-950/60 hover:bg-slate-950/90 text-slate-300 hover:text-white border border-slate-800/80 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer shadow-lg"
+                  disabled={busy}
+                  onClick={() => {
+                    setActionError('');
+                    setIsEditing(true);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-slate-950/60 hover:bg-slate-950/90 text-slate-300 hover:text-white border border-slate-800/80 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Edit size={12} />
                   <span>Edit Profile</span>
                 </button>
                 <button
                   type="button"
-                  onClick={handleDeleteClick}
-                  className="px-3 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900/90 text-red-400 hover:text-red-100 border border-red-900/30 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer shadow-lg"
+                  disabled={busy}
+                  onClick={() => void handleDeleteClick()}
+                  className="px-3 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900/90 text-red-400 hover:text-red-100 border border-red-900/30 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Trash2 size={12} />
-                  <span>Delete</span>
+                  <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
                 </button>
               </>
             )}
@@ -181,201 +233,222 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
           <button
             type="button"
+            disabled={busy}
             onClick={onClose}
-            className="p-2 rounded-full bg-slate-950/60 hover:bg-slate-950/90 text-slate-400 hover:text-slate-100 transition-colors border border-slate-800 cursor-pointer"
+            className="p-2 rounded-full bg-slate-950/60 hover:bg-slate-950/90 text-slate-400 hover:text-slate-100 transition-colors border border-slate-800 cursor-pointer disabled:opacity-50"
           >
             <X size={16} />
           </button>
         </div>
 
+        {isLoadingDetails && (
+          <div className="px-6 py-2 text-xs text-emerald-300 border-b border-slate-800 bg-emerald-950/20 inline-flex items-center gap-2">
+            <span className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+            Loading latest member details...
+          </div>
+        )}
+
+        {actionError && (
+          <div className="mx-6 mt-4 rounded-lg border border-rose-500/40 bg-rose-950/30 px-3 py-2 text-xs text-rose-300">
+            {actionError}
+          </div>
+        )}
+
         {/* Modal Body */}
         {isEditing ? (
           /* EDITING FORM MODE */
-          <form onSubmit={handleSave} className="px-6 py-6 overflow-y-auto flex-1 space-y-5">
+          <form onSubmit={(e) => void handleSave(e)} className="px-6 py-6 overflow-y-auto flex-1 space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="font-serif text-lg font-bold text-slate-100">Edit {member.name}'s Details</h3>
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsEditing(false)}
-                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                  disabled={busy}
+                  onClick={() => {
+                    setIsEditing(false);
+                    setActionError('');
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   <RotateCcw size={12} />
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                  disabled={busy}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save size={12} />
-                  Save Changes
+                  {isSaving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </div>
 
             <hr className="border-slate-800" />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Relationship Role</label>
-                <select
-                  value={relation}
-                  onChange={e => setRelation(e.target.value as FamilyMember['relation'])}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
-                >
-                  <option value="Grandfather">Grandfather</option>
-                  <option value="Grandmother">Grandmother</option>
-                  <option value="Father">Father</option>
-                  <option value="Mother">Mother</option>
-                  <option value="Uncle">Uncle</option>
-                  <option value="Brother">Brother</option>
-                  <option value="Sister-in-Law">Sister-in-Law</option>
-                  <option value="Me">Me</option>
-                  <option value="Nephew">Nephew</option>
-                  <option value="Niece">Niece</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Date of Birth</label>
-                <input
-                  type="date"
-                  value={dob}
-                  onChange={e => setDob(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Location</label>
-                <input
-                  type="text"
-                  value={location}
-                  onChange={e => setLocation(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Profession</label>
-                <input
-                  type="text"
-                  value={profession}
-                  onChange={e => setProfession(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Avatar URL</label>
-                <input
-                  type="url"
-                  value={avatar}
-                  onChange={e => setAvatar(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Biography</label>
-              <textarea
-                value={bio}
-                onChange={e => setBio(e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500 resize-none"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Education</label>
-                <input
-                  type="text"
-                  value={education}
-                  onChange={e => setEducation(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Career Timeline</label>
-                <input
-                  type="text"
-                  value={career}
-                  onChange={e => setCareer(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 pt-2">
-              <input
-                type="checkbox"
-                id="isDeceasedEdit"
-                checked={isDeceased}
-                onChange={e => setIsDeceased(e.target.checked)}
-                className="w-4 h-4 rounded bg-slate-950 border-slate-800 text-emerald-500"
-              />
-              <label htmlFor="isDeceasedEdit" className="text-xs font-semibold text-slate-400 cursor-pointer">
-                Mark as Deceased
-              </label>
-            </div>
-
-            <hr className="border-slate-800" />
-
-            <div className="space-y-4">
-              <h4 className="text-xs uppercase tracking-wider font-bold text-slate-500">Social Links</h4>
+            <fieldset disabled={busy} className="space-y-5 disabled:opacity-80">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Instagram</label>
-                  <input
-                    type="url"
-                    value={instagram}
-                    onChange={e => setInstagram(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Facebook</label>
-                  <input
-                    type="url"
-                    value={facebook}
-                    onChange={e => setFacebook(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">WhatsApp</label>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Full Name</label>
                   <input
                     type="text"
-                    value={whatsapp}
-                    onChange={e => setWhatsapp(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm"
+                    required
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Email / Gmail</label>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Relationship Role</label>
+                  <select
+                    value={relation}
+                    onChange={e => setRelation(e.target.value as FamilyMember['relation'])}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="Grandfather">Grandfather</option>
+                    <option value="Grandmother">Grandmother</option>
+                    <option value="Father">Father</option>
+                    <option value="Mother">Mother</option>
+                    <option value="Uncle">Uncle</option>
+                    <option value="Brother">Brother</option>
+                    <option value="Sister-in-Law">Sister-in-Law</option>
+                    <option value="Me">Me</option>
+                    <option value="Nephew">Nephew</option>
+                    <option value="Niece">Niece</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Date of Birth</label>
                   <input
-                    type="email"
-                    value={gmail}
-                    onChange={e => setGmail(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm"
+                    type="date"
+                    value={dob}
+                    onChange={e => setDob(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Location</label>
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={e => setLocation(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Profession</label>
+                  <input
+                    type="text"
+                    value={profession}
+                    onChange={e => setProfession(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Avatar URL</label>
+                  <input
+                    type="url"
+                    value={avatar}
+                    onChange={e => setAvatar(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>
-            </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">Biography</label>
+                <textarea
+                  value={bio}
+                  onChange={e => setBio(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500 resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Education</label>
+                  <input
+                    type="text"
+                    value={education}
+                    onChange={e => setEducation(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Career Timeline</label>
+                  <input
+                    type="text"
+                    value={career}
+                    onChange={e => setCareer(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="isDeceasedEdit"
+                  checked={isDeceased}
+                  onChange={e => setIsDeceased(e.target.checked)}
+                  className="w-4 h-4 rounded bg-slate-950 border-slate-800 text-emerald-500"
+                />
+                <label htmlFor="isDeceasedEdit" className="text-xs font-semibold text-slate-400 cursor-pointer">
+                  Mark as Deceased
+                </label>
+              </div>
+
+              <hr className="border-slate-800" />
+
+              <div className="space-y-4">
+                <h4 className="text-xs uppercase tracking-wider font-bold text-slate-500">Social Links</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1">Instagram</label>
+                    <input
+                      type="url"
+                      value={instagram}
+                      onChange={e => setInstagram(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1">Facebook</label>
+                    <input
+                      type="url"
+                      value={facebook}
+                      onChange={e => setFacebook(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1">WhatsApp</label>
+                    <input
+                      type="text"
+                      value={whatsapp}
+                      onChange={e => setWhatsapp(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1">Email / Gmail</label>
+                    <input
+                      type="email"
+                      value={gmail}
+                      onChange={e => setGmail(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            </fieldset>
           </form>
         ) : (
           /* READ-ONLY DETAIL MODE */
@@ -416,11 +489,11 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 <p className="text-slate-400 text-xs flex flex-wrap gap-4">
                   <span className="flex items-center gap-1">
                     <Calendar size={12} className="text-emerald-500" />
-                    Born: {new Date(member.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    Born: {bornLabel}
                   </span>
                   <span className="flex items-center gap-1">
                     <MapPin size={12} className="text-emerald-500" />
-                    {member.location}
+                    {member.location || 'Unknown'}
                   </span>
                 </p>
               </div>

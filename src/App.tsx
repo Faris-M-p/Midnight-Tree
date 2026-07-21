@@ -43,6 +43,7 @@ import { SearchHeader } from './components/SearchHeader';
 import { FilterSidebar } from './components/FilterSidebar';
 import { FamilyTreeCanvas } from './components/FamilyTreeCanvas';
 import { ProfileModal } from './components/ProfileModal';
+import type { ProfileActionResult } from './components/ProfileModal';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { TimelinePanel } from './components/TimelinePanel';
 import { CreateMemberModal } from './components/CreateMemberModal';
@@ -51,9 +52,9 @@ import { RegisterPage } from './pages/RegisterPage';
 import { LoginPage } from './pages/LoginPage';
 import { LandingPage } from './pages/LandingPage';
 import { ApiClientError } from './services/apiClient';
-import { createMember, getMemberDetails } from './services/memberService';
+import { createMember, deleteMember, getMemberDetails, updateMember } from './services/memberService';
 import { getFamilyTreeData } from './services/treeService';
-import type { MemberProfile } from './types/member';
+import type { MemberProfile, UpdateMemberPayload } from './types/member';
 
 import '@xyflow/react/dist/style.css';
 
@@ -350,6 +351,9 @@ function AppContent() {
 
   // Panels and Modals
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
+  /** Raw API profile for the open modal — needed so update keeps parent/spouse/isRoot */
+  const [selectedProfile, setSelectedProfile] = useState<MemberProfile | null>(null);
+  const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -545,44 +549,175 @@ function AppContent() {
     }
   };
 
-  const handleUpdateMember = (id: string, updatedData: Partial<FamilyMember>) => {
-    setMembers((prev) =>
-      prev.map((m) => {
-        if (m.id === id) {
-          return { ...m, ...updatedData };
-        }
-        return m;
-      })
-    );
+  /**
+   * Update member via PUT /api/members/{id}, then refresh the tree.
+   * Preserves parentId / spouseId / isRoot from the loaded API profile.
+   */
+  const handleUpdateMember = async (
+    id: string,
+    updatedData: Partial<FamilyMember>
+  ): Promise<ProfileActionResult> => {
+    const memberId = Number(id);
+    if (!Number.isFinite(memberId)) {
+      return { success: false, message: 'Invalid member id.' };
+    }
 
-    // Sync currently selected card if open
-    setSelectedMember((current) => {
-      if (current && current.id === id) {
-        return { ...current, ...updatedData };
+    // Prefer latest profile from API so we do not wipe parent/spouse links
+    let profile = selectedProfile;
+    if (!profile || profile.id !== memberId) {
+      try {
+        profile = await getMemberDetails(memberId);
+      } catch {
+        return { success: false, message: 'Unable to load member before saving. Please try again.' };
       }
-      return current;
-    });
+    }
+
+    const fullName = (updatedData.name ?? profile.fullName).trim();
+    const tokens = fullName.split(/\s+/).filter(Boolean);
+    const firstName = tokens.shift() || fullName;
+    const lastName = tokens.join(' ') || firstName;
+
+    const genderRaw = (updatedData.gender ?? profile.gender ?? 'Male').toString().toLowerCase();
+    const gender =
+      genderRaw === 'female' ? 'Female' : genderRaw === 'other' ? 'Other' : 'Male';
+
+    const socialLinks: UpdateMemberPayload['socialLinks'] = [];
+    const nextSocials = updatedData.socials ?? {};
+    const pushSocial = (platform: string, url?: string, existingId?: number) => {
+      if (!url?.trim()) return;
+      socialLinks.push({
+        id: existingId,
+        platform,
+        url: url.trim()
+      });
+    };
+
+    const findExistingSocialId = (needle: string) =>
+      profile!.socialLinks?.find((s) => s.platform.toLowerCase().includes(needle))?.id;
+
+    pushSocial('Instagram', nextSocials.instagram, findExistingSocialId('instagram'));
+    pushSocial('Facebook', nextSocials.facebook, findExistingSocialId('facebook'));
+    // API requires Url attribute — store WhatsApp as a wa.me link when user enters digits
+    if (nextSocials.whatsapp?.trim()) {
+      const raw = nextSocials.whatsapp.trim();
+      const waUrl = raw.startsWith('http') ? raw : `https://wa.me/91${raw.replace(/\D/g, '')}`;
+      pushSocial('WhatsApp', waUrl, findExistingSocialId('whatsapp'));
+    }
+    // Gmail is often stored as Email platform in API social links
+    pushSocial('Email', nextSocials.gmail, findExistingSocialId('gmail') ?? findExistingSocialId('email'));
+
+    const payload: UpdateMemberPayload = {
+      firstName,
+      lastName,
+      gender,
+      dateOfBirth: updatedData.dob || profile.dateOfBirth || undefined,
+      dateOfDeath: updatedData.isDeceased
+        ? profile.dateOfDeath || new Date().toISOString().slice(0, 10)
+        : undefined,
+      isRoot: profile.isRoot,
+      biography: updatedData.bio ?? profile.biography ?? undefined,
+      profession: updatedData.profession ?? profile.profession ?? undefined,
+      parentId: profile.parent?.id,
+      spouseId: profile.spouse?.id,
+      email: profile.email ?? undefined,
+      phone: profile.phone ?? undefined,
+      socialLinks
+    };
+
+    // If marked not deceased, clear death date
+    if (updatedData.isDeceased === false) {
+      payload.dateOfDeath = undefined;
+    }
+
+    try {
+      const updated = await updateMember(memberId, payload);
+      await loadTreeData();
+
+      const fallbackMember =
+        selectedMember ??
+        members.find((m) => m.id === id) ?? {
+          id,
+          name: fullName,
+          relation: 'Member',
+          gender: 'other' as const,
+          dob: '',
+          location: 'Unknown',
+          profession: 'Not specified',
+          avatar: '',
+          bio: '',
+          education: 'Not Specified',
+          career: 'Not Specified',
+          photos: []
+        };
+
+      const mapped = mapProfileToMember(updated, {
+        ...fallbackMember,
+        ...updatedData,
+        id,
+        education: updatedData.education ?? fallbackMember.education,
+        career: updatedData.career ?? fallbackMember.career,
+        location: updatedData.location ?? fallbackMember.location,
+        relation: updatedData.relation ?? fallbackMember.relation,
+        avatar: updatedData.avatar || fallbackMember.avatar
+      });
+
+      setSelectedProfile(updated);
+      setSelectedMember(mapped);
+      setTreeSuccessMessage('Member updated successfully.');
+      setTimeout(() => setTreeSuccessMessage(''), 2500);
+      return { success: true };
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        return {
+          success: false,
+          message: error.statusCode >= 500 ? 'Unable to update member right now. Please try again.' : error.message,
+          fieldErrors: error.fieldErrors
+        };
+      }
+      return { success: false, message: 'Unable to update member right now. Please try again.' };
+    }
   };
 
-  const handleDeleteMember = (id: string) => {
-    setMembers((prev) => prev.filter((m) => m.id !== id));
-    setSelectedMember(null);
+  /**
+   * Delete member via DELETE /api/members/{id}.
+   * Frontend also blocks when the member still has children in the local tree.
+   */
+  const handleDeleteMember = async (id: string): Promise<ProfileActionResult> => {
+    const memberId = Number(id);
+    if (!Number.isFinite(memberId)) {
+      return { success: false, message: 'Invalid member id.' };
+    }
 
-    // Cleanup unions
-    setUnions((prev) => {
-      // 1. Remove unions where deleted member was a spouse
-      const filteredUnions = prev.filter((u) => u.spouse1Id !== id && u.spouse2Id !== id);
-      // 2. Remove deleted member from children lists
-      return filteredUnions.map((u) => {
-        if (u.childrenIds.includes(id)) {
-          return {
-            ...u,
-            childrenIds: u.childrenIds.filter((cid) => cid !== id)
-          };
-        }
-        return u;
-      });
-    });
+    const childCountFromProfile =
+      selectedProfile?.id === memberId ? selectedProfile.children?.length ?? 0 : 0;
+    const hasUnionChildren = unions.some(
+      (u) => (u.spouse1Id === id || u.spouse2Id === id) && u.childrenIds.length > 0
+    );
+
+    if (childCountFromProfile > 0 || hasUnionChildren) {
+      return {
+        success: false,
+        message: 'Cannot delete this member because they have children. Remove or reassign children first.'
+      };
+    }
+
+    try {
+      await deleteMember(memberId);
+      setSelectedMember(null);
+      setSelectedProfile(null);
+      await loadTreeData();
+      setTreeSuccessMessage('Member deleted successfully.');
+      setTimeout(() => setTreeSuccessMessage(''), 2500);
+      return { success: true };
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        return {
+          success: false,
+          message: error.statusCode >= 500 ? 'Unable to delete member right now. Please try again.' : error.message
+        };
+      }
+      return { success: false, message: 'Unable to delete member right now. Please try again.' };
+    }
   };
 
   // Compute sequential member rank (BFS from roots, stable order)
@@ -841,11 +976,16 @@ function AppContent() {
 
   const handleMemberSelect = async (member: FamilyMember) => {
     setSelectedMember(member);
+    setSelectedProfile(null);
+    setIsDetailsLoading(true);
     try {
       const profile = await getMemberDetails(Number(member.id));
+      setSelectedProfile(profile);
       setSelectedMember(mapProfileToMember(profile, member));
     } catch {
       // keep fallback selected member details if API detail request fails
+    } finally {
+      setIsDetailsLoading(false);
     }
   };
 
@@ -938,7 +1078,11 @@ function AppContent() {
       <ProfileModal
         member={selectedMember}
         displayId={selectedMember ? `#${memberRanks[selectedMember.id] ?? '?'}` : undefined}
-        onClose={() => setSelectedMember(null)}
+        isLoadingDetails={isDetailsLoading}
+        onClose={() => {
+          setSelectedMember(null);
+          setSelectedProfile(null);
+        }}
         onUpdate={handleUpdateMember}
         onDelete={handleDeleteMember}
       />

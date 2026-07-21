@@ -96,6 +96,18 @@ export interface CreateMemberPayload {
   profession?: string;
   parentId?: number;
   spouseId?: number;
+  email?: string;
+  phone?: string;
+}
+
+/** Body for PUT /api/members/{id} (update) — same core fields as create */
+export interface UpdateMemberPayload extends CreateMemberPayload {
+  socialLinks?: Array<{
+    id?: number;
+    platform: string;
+    url: string;
+    username?: string;
+  }>;
 }
 
 /** What the tree screen needs after mapping from API */

@@ -8,9 +8,11 @@
  *   GET    /api/members/{id}
  *   GET    /api/members/tree
  *   POST   /api/members
+ *   PUT    /api/members/{id}
+ *   DELETE /api/members/{id}
  *
  * No UI logic here — only network + typing.
- * Used by: treeService, App (Add Member), ProfileModal flows.
+ * Used by: treeService, App (Add / Edit / Delete Member), ProfileModal flows.
  * =============================================================================
  */
 
@@ -19,7 +21,8 @@ import type {
   ApiFamilyTreeResponse,
   CreateMemberPayload,
   MemberProfile,
-  PagedMembersResponse
+  PagedMembersResponse,
+  UpdateMemberPayload
 } from "../types/member";
 
 const MEMBERS_BASE = "/api/members";
@@ -64,5 +67,20 @@ export function createMember(payload: CreateMemberPayload): Promise<MemberProfil
   return apiRequest<MemberProfile, CreateMemberPayload>(MEMBERS_BASE, {
     method: "POST",
     body: payload
+  });
+}
+
+/** Update an existing member profile */
+export function updateMember(memberId: number, payload: UpdateMemberPayload): Promise<MemberProfile> {
+  return apiRequest<MemberProfile, UpdateMemberPayload>(`${MEMBERS_BASE}/${memberId}`, {
+    method: "PUT",
+    body: payload
+  });
+}
+
+/** Soft-delete a member (API may reject if they still have children) */
+export function deleteMember(memberId: number): Promise<void> {
+  return apiRequest<void>(`${MEMBERS_BASE}/${memberId}`, {
+    method: "DELETE"
   });
 }
