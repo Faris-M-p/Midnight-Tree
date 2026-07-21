@@ -5,7 +5,8 @@
  * =============================================================================
  * Acts as the "junction" for:
  *   - dashed horizontal spouse connectors
- *   - solid vertical child connectors (from bottom handle)
+ *   - solid vertical child connectors from the bottom handle
+ *     (parent → this child generation always lands on member cards)
  *   - expand / collapse children (+ / −)
  * =============================================================================
  */
@@ -44,13 +45,7 @@ export const MarriageNode: React.FC<MarriageNodeProps> = ({ data }) => {
         }
       }}
     >
-      {/* Invisible routing handles for connection lines */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="top"
-        className="!opacity-0 !w-0 !h-0"
-      />
+      {/* Spouse line handles (parent→child lines attach to member cards, not here) */}
       <Handle
         type="target"
         position={Position.Left}
@@ -63,8 +58,8 @@ export const MarriageNode: React.FC<MarriageNodeProps> = ({ data }) => {
         id="right"
         className="!opacity-0 !w-0 !h-0"
       />
-      
-      {/* Bottom handle to connect to children's top handle */}
+
+      {/* Children branch starts from the center of the couple */}
       {hasChildren && !collapsed && (
         <Handle
           type="source"

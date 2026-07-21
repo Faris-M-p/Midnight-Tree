@@ -5,11 +5,14 @@
  * =============================================================================
  * Draws a genealogy "T" connector instead of a sideways L-bend:
  *
- *        parent couple (marriage node)
+ *        parent couple (− button)
  *                 |
  *          -------+-------   ← shared horizontal rail (same Y for siblings)
  *          |      |      |
- *        child  child  child
+ *       child*  child*  child*   ← lands on bloodline member cards
+ *
+ * Incoming lines never attach to a married child's couple midpoint —
+ * only to that child's own card (spouse stays linked by the dotted line).
  *
  * Registered in FamilyTreeCanvas as edge type: "genealogy"
  * =============================================================================

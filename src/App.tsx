@@ -873,23 +873,15 @@ function AppContent() {
         });
       }
 
-      // Vertical descendants connectors (shared genealogy rail under the couple)
+      // Vertical descendants: leave from couple center (−), land on each
+      // bloodline child's card — never on the midpoint between that child and their spouse.
       const isCollapsed = collapsedUnions.includes(u.id);
       if (!isCollapsed) {
         const linkedTargets: string[] = [];
         u.childrenIds.forEach((childId) => {
-          // Prefer connecting to the child's marriage junction when married,
-          // so lines drop to the couple center (genealogy style).
-          const childUnion = unions.find(
-            (cu) => cu.spouse1Id === childId || cu.spouse2Id === childId
-          );
-          const targetId = childUnion
-            ? `m_${childUnion.spouse1Id}_${childUnion.spouse2Id}`
-            : childId;
-
-          if (linkedTargets.includes(targetId)) return;
-          if (!activeNodes.some((n) => n.id === targetId)) return;
-          linkedTargets.push(targetId);
+          if (linkedTargets.includes(childId)) return;
+          if (!activeNodes.some((n) => n.id === childId)) return;
+          linkedTargets.push(childId);
         });
 
         if (linkedTargets.length > 0) {
