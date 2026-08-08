@@ -12,6 +12,8 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import type { FamilyMember, MarriageUnion } from '../types';
+import { DatePicker } from './DatePicker';
+import { resolveAvatarUrl } from '../utils/defaultAvatar';
 
 interface CreateMemberModalProps {
   isOpen: boolean;
@@ -50,7 +52,7 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
 
   // Form states
   const [name, setName] = useState('');
-  const [relation, setRelation] = useState<FamilyMember['relation']>('Me');
+  const [nickname, setNickname] = useState('');
   const [gender, setGender] = useState<'male' | 'female'>('male');
   const [dob, setDob] = useState('');
   const [location, setLocation] = useState('');
@@ -75,6 +77,8 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const hasRootMember = members.some((m) => m.isRoot);
+  const previewAvatar = resolveAvatarUrl(avatar, gender);
+  const today = new Date().toISOString().split('T')[0];
 
   // Helper: Find potential single members who can marry
   const singleMembers = members.filter(m => {
@@ -96,12 +100,13 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
     setSubmitError('');
     setFieldErrors({});
 
-    // Use default avatar if empty
-    const finalAvatar = avatar.trim() || `https://images.unsplash.com/photo-${gender === 'male' ? '1500648767791-00dcc994a43e' : '1494790108377-be9c29b29330'}?w=150&h=150&fit=crop&crop=faces&q=80`;
+    const finalAvatar = resolveAvatarUrl(avatar, gender);
+    const trimmedNickname = nickname.trim();
 
     const memberData: Omit<FamilyMember, 'id'> = {
       name,
-      relation,
+      nickname: trimmedNickname || undefined,
+      relation: trimmedNickname || 'Member',
       gender,
       dob: dob || new Date().toISOString().split('T')[0],
       location: location || 'Unknown',
@@ -136,6 +141,8 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
 
     // Reset form
     setName('');
+    setNickname('');
+    setDob('');
     setAvatar('');
     setBio('');
     setInstagram('');
@@ -186,23 +193,15 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Relationship Role *</label>
-                <select
-                  value={relation}
-                  onChange={e => setRelation(e.target.value as FamilyMember['relation'])}
+                <label className="block text-xs font-semibold text-slate-400 mb-1">Nickname</label>
+                <input
+                  type="text"
+                  value={nickname}
+                  onChange={e => setNickname(e.target.value)}
+                  placeholder="e.g. Rohu"
+                  maxLength={100}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-                >
-                  <option value="Grandfather">Grandfather</option>
-                  <option value="Grandmother">Grandmother</option>
-                  <option value="Father">Father</option>
-                  <option value="Mother">Mother</option>
-                  <option value="Uncle">Uncle</option>
-                  <option value="Brother">Brother</option>
-                  <option value="Sister-in-Law">Sister-in-Law</option>
-                  <option value="Me">Me</option>
-                  <option value="Nephew">Nephew</option>
-                  <option value="Niece">Niece</option>
-                </select>
+                />
               </div>
 
               <div>
@@ -219,11 +218,11 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1">Date of Birth</label>
-                <input
-                  type="date"
+                <DatePicker
                   value={dob}
-                  onChange={e => setDob(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                  onChange={setDob}
+                  max={today}
+                  placeholder="Select date of birth"
                 />
               </div>
 
@@ -252,13 +251,25 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-slate-400 mb-1">Avatar Image URL</label>
-              <input
-                type="url"
-                value={avatar}
-                onChange={e => setAvatar(e.target.value)}
-                placeholder="https://images.unsplash.com/... (optional)"
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-              />
+              <div className="flex items-center gap-3">
+                <img
+                  src={previewAvatar}
+                  alt="Avatar preview"
+                  className="w-12 h-12 rounded-full object-cover border border-emerald-500/30 shrink-0"
+                />
+                <input
+                  type="url"
+                  value={avatar}
+                  onChange={e => setAvatar(e.target.value)}
+                  placeholder="Leave empty to use gender default portrait"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+              </div>
+              {!avatar.trim() && (
+                <p className="mt-1.5 text-[11px] text-slate-500">
+                  No URL entered — a standard {gender === 'male' ? 'male' : 'female'} portrait will be used.
+                </p>
+              )}
             </div>
 
             <div>
@@ -442,7 +453,8 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
                     >
                       {singleMembers.map(m => (
                         <option key={m.id} value={m.id}>
-                          {memberRanks ? `#${memberRanks[m.id]} ` : ''}{m.name} ({m.relation})
+                          {memberRanks ? `#${memberRanks[m.id]} ` : ''}{m.name}
+                          {m.nickname ? ` (${m.nickname})` : ''}
                         </option>
                       ))}
                     </select>

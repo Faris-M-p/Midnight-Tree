@@ -16,6 +16,9 @@
 export interface FamilyMember {
   id: string;
   name: string;
+  /** Optional display nickname shown on the card badge */
+  nickname?: string;
+  /** Computed / legacy relationship label (fallback when nickname is empty) */
   relation: string;
   gender: 'male' | 'female' | 'other';
   dob: string;

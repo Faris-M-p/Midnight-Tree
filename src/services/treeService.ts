@@ -22,22 +22,13 @@
 import { getFamilyTree, getMemberDetails, getMembers } from "./memberService";
 import type { FamilyMember, MarriageUnion } from "../types";
 import type { ApiTreeNode, MemberProfile, TreeDataResponse } from "../types/member";
+import { defaultAvatar } from "../utils/defaultAvatar";
 
 function mapGender(value?: string | null): "male" | "female" | "other" {
   const normalized = (value ?? "").toLowerCase();
   if (normalized === "male") return "male";
   if (normalized === "female") return "female";
   return "other";
-}
-
-function defaultAvatar(gender: "male" | "female" | "other"): string {
-  if (gender === "male") {
-    return "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=faces&q=80";
-  }
-  if (gender === "female") {
-    return "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=faces&q=80";
-  }
-  return "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150&h=150&fit=crop&crop=faces&q=80";
 }
 
 function mapSocials(profile: MemberProfile): FamilyMember["socials"] {
@@ -115,7 +106,8 @@ function toFamilyMember(profile: MemberProfile, generationMap: Map<number, numbe
   return {
     id: String(profile.id),
     name: profile.fullName,
-    relation: relationFromGeneration(generation, gender, profile.isRoot),
+    nickname: profile.nickname?.trim() || undefined,
+    relation: profile.nickname?.trim() || relationFromGeneration(generation, gender, profile.isRoot),
     gender,
     dob: profile.dateOfBirth ?? "",
     location: "Unknown",
@@ -250,10 +242,12 @@ async function fetchAllProfiles(): Promise<MemberProfile[]> {
 
 function toFamilyMemberFromTree(node: ApiTreeNode, generation: number): FamilyMember {
   const gender = mapGender(node.gender);
+  const nickname = node.nickname?.trim() || undefined;
   return {
     id: String(node.id),
     name: node.fullName || `${node.firstName} ${node.lastName}`.trim(),
-    relation: relationFromGeneration(generation, gender, node.isRoot),
+    nickname,
+    relation: nickname || relationFromGeneration(generation, gender, node.isRoot),
     gender,
     dob: node.dateOfBirth ?? "",
     location: "Unknown",

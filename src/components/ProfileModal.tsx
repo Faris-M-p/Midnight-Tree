@@ -17,6 +17,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Calendar, Briefcase, GraduationCap, Mail, Edit, Trash2, Save, RotateCcw } from 'lucide-react';
 import type { FamilyMember } from '../types';
+import { DatePicker } from './DatePicker';
+import { resolveAvatarUrl } from '../utils/defaultAvatar';
 
 /** Result returned by App after an API update/delete attempt */
 export interface ProfileActionResult {
@@ -72,7 +74,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
   // Form states
   const [name, setName] = useState('');
-  const [relation, setRelation] = useState<FamilyMember['relation']>('Me');
+  const [nickname, setNickname] = useState('');
   const [dob, setDob] = useState('');
   const [location, setLocation] = useState('');
   const [profession, setProfession] = useState('');
@@ -95,7 +97,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     }
 
     setName(member.name);
-    setRelation(member.relation);
+    setNickname(member.nickname || '');
     setDob(member.dob);
     setLocation(member.location);
     setProfession(member.profession);
@@ -147,11 +149,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
     const result = await onUpdate(member.id, {
       name,
-      relation,
+      nickname: nickname.trim() || undefined,
+      relation: nickname.trim() || member.relation,
       dob,
       location,
       profession,
-      avatar,
+      avatar: resolveAvatarUrl(avatar, member.gender),
       bio,
       education,
       career,
@@ -300,32 +303,24 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Relationship Role</label>
-                  <select
-                    value={relation}
-                    onChange={e => setRelation(e.target.value as FamilyMember['relation'])}
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Nickname</label>
+                  <input
+                    type="text"
+                    value={nickname}
+                    onChange={e => setNickname(e.target.value)}
+                    placeholder="e.g. Rohu"
+                    maxLength={100}
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
-                  >
-                    <option value="Grandfather">Grandfather</option>
-                    <option value="Grandmother">Grandmother</option>
-                    <option value="Father">Father</option>
-                    <option value="Mother">Mother</option>
-                    <option value="Uncle">Uncle</option>
-                    <option value="Brother">Brother</option>
-                    <option value="Sister-in-Law">Sister-in-Law</option>
-                    <option value="Me">Me</option>
-                    <option value="Nephew">Nephew</option>
-                    <option value="Niece">Niece</option>
-                  </select>
+                  />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">Date of Birth</label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={dob}
-                    onChange={e => setDob(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
+                    onChange={setDob}
+                    max={new Date().toISOString().split('T')[0]}
+                    placeholder="Select date of birth"
                   />
                 </div>
 
@@ -473,8 +468,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   <h2 className="font-serif text-2xl font-bold text-slate-100 leading-tight">
                     {member.name}
                   </h2>
-                  <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider ${getBadgeStyles(member.relation)}`}>
-                    {member.relation}
+                  <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider ${getBadgeStyles(member.nickname || member.relation)}`}>
+                    {member.nickname || member.relation}
                   </span>
                   {member.isDeceased && (
                     <span

@@ -113,8 +113,8 @@ export const MemberCard: React.FC<MemberCardProps> = ({ data }) => {
           )}
         </h3>
         <div className="flex flex-wrap gap-1">
-          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wider ${getBadgeStyles(member.relation)}`}>
-            {member.relation}
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wider ${getBadgeStyles(member.nickname || member.relation)}`}>
+            {member.nickname || member.relation}
           </span>
         </div>
       </div>

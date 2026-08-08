@@ -380,11 +380,13 @@ function AppContent() {
     const photos = (profile.images ?? []).map((x) => x.imageUrl);
     const avatar = profile.images?.find((x) => x.isPrimary)?.imageUrl || photos[0] || fallback?.avatar || defaultAvatar(gender);
     const findSocial = (needle: string) => profile.socialLinks?.find((x) => x.platform.toLowerCase().includes(needle))?.url;
+    const nickname = profile.nickname?.trim() || fallback?.nickname;
 
     return {
       id: String(profile.id),
       name: profile.fullName,
-      relation: fallback?.relation || (profile.isRoot ? (gender === 'male' ? 'Grandfather' : 'Grandmother') : 'Member'),
+      nickname,
+      relation: nickname || fallback?.relation || (profile.isRoot ? (gender === 'male' ? 'Grandfather' : 'Grandmother') : 'Member'),
       gender,
       dob: profile.dateOfBirth || fallback?.dob || '',
       location: fallback?.location || 'Unknown',
@@ -522,11 +524,15 @@ function AppContent() {
         gender: memberData.gender === 'other' ? 'Other' : memberData.gender === 'male' ? 'Male' : 'Female',
         dateOfBirth: memberData.dob || undefined,
         dateOfDeath: memberData.isDeceased ? new Date().toISOString().slice(0, 10) : undefined,
+        nickname: memberData.nickname || undefined,
         profession: memberData.profession || undefined,
         biography: memberData.bio || undefined,
         isRoot,
         parentId,
-        spouseId
+        spouseId,
+        images: memberData.avatar
+          ? [{ imageUrl: memberData.avatar, isPrimary: true, sortOrder: 0, caption: 'Profile' }]
+          : undefined
       });
 
       await loadTreeData();
@@ -615,6 +621,7 @@ function AppContent() {
         ? profile.dateOfDeath || new Date().toISOString().slice(0, 10)
         : undefined,
       isRoot: profile.isRoot,
+      nickname: updatedData.nickname ?? profile.nickname ?? undefined,
       biography: updatedData.bio ?? profile.biography ?? undefined,
       profession: updatedData.profession ?? profile.profession ?? undefined,
       parentId: profile.parent?.id,

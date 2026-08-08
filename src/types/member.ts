@@ -75,6 +75,7 @@ export interface MemberProfile {
   dateOfBirth?: string | null;
   dateOfDeath?: string | null;
   isRoot: boolean;
+  nickname?: string | null;
   biography?: string | null;
   profession?: string | null;
   parent?: MemberRelationSummary | null;
@@ -92,12 +93,19 @@ export interface CreateMemberPayload {
   dateOfBirth?: string;
   dateOfDeath?: string;
   isRoot: boolean;
+  nickname?: string;
   biography?: string;
   profession?: string;
   parentId?: number;
   spouseId?: number;
   email?: string;
   phone?: string;
+  images?: Array<{
+    imageUrl: string;
+    caption?: string;
+    isPrimary?: boolean;
+    sortOrder?: number;
+  }>;
 }
 
 /** Body for PUT /api/members/{id} (update) — same core fields as create */
@@ -126,6 +134,7 @@ export interface ApiTreeNode {
   dateOfBirth?: string | null;
   dateOfDeath?: string | null;
   isRoot: boolean;
+  nickname?: string | null;
   photoUrl?: string | null;
   spouse?: ApiTreeNode | null;
   children: ApiTreeNode[];
