@@ -38,8 +38,8 @@ function mapSocials(profile: MemberProfile): FamilyMember["socials"] {
   return {
     instagram: findBy("instagram"),
     facebook: findBy("facebook"),
-    whatsapp: findBy("whatsapp"),
-    gmail: findBy("gmail")
+    whatsapp: findBy("whatsapp") || profile.phone || undefined,
+    gmail: findBy("gmail") || findBy("email") || profile.email || undefined
   };
 }
 
@@ -251,11 +251,11 @@ function toFamilyMemberFromTree(node: ApiTreeNode, generation: number): FamilyMe
     gender,
     dob: node.dateOfBirth ?? "",
     location: "Unknown",
-    profession: "Not specified",
+    profession: node.profession || "Not specified",
     avatar: node.photoUrl || defaultAvatar(gender),
-    bio: "No biography available.",
+    bio: node.biography || "No biography available.",
     education: "Not Specified",
-    career: "Not Specified",
+    career: node.profession || "Not Specified",
     photos: node.photoUrl ? [node.photoUrl] : [],
     isDeceased: Boolean(node.dateOfDeath),
     isRoot: node.isRoot,

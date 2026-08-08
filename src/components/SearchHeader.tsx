@@ -48,6 +48,7 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
     const filtered = members.filter(
       (m) =>
         m.name.toLowerCase().includes(query) ||
+        (m.nickname || '').toLowerCase().includes(query) ||
         m.relation.toLowerCase().includes(query) ||
         m.location.toLowerCase().includes(query) ||
         m.profession.toLowerCase().includes(query)

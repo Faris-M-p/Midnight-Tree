@@ -55,6 +55,7 @@ const fieldAliasMap: Record<string, string> = {
   "last name": "lastName",
   "date of birth": "dateOfBirth",
   "date of death": "dateOfDeath",
+  nickname: "nickname",
   profession: "profession",
   biography: "biography",
   "parent id": "parentId",

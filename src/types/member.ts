@@ -101,15 +101,12 @@ export interface CreateMemberPayload {
   email?: string;
   phone?: string;
   images?: Array<{
+    id?: number;
     imageUrl: string;
     caption?: string;
     isPrimary?: boolean;
     sortOrder?: number;
   }>;
-}
-
-/** Body for PUT /api/members/{id} (update) — same core fields as create */
-export interface UpdateMemberPayload extends CreateMemberPayload {
   socialLinks?: Array<{
     id?: number;
     platform: string;
@@ -117,6 +114,9 @@ export interface UpdateMemberPayload extends CreateMemberPayload {
     username?: string;
   }>;
 }
+
+/** Body for PUT /api/members/{id} (update) — same core fields as create */
+export type UpdateMemberPayload = CreateMemberPayload;
 
 /** What the tree screen needs after mapping from API */
 export interface TreeDataResponse {
@@ -135,6 +135,8 @@ export interface ApiTreeNode {
   dateOfDeath?: string | null;
   isRoot: boolean;
   nickname?: string | null;
+  profession?: string | null;
+  biography?: string | null;
   photoUrl?: string | null;
   spouse?: ApiTreeNode | null;
   children: ApiTreeNode[];

@@ -89,8 +89,6 @@ function computeDynamicLayout(
 
   const CARD_WIDTH = 220;
   const CARD_HEIGHT = 100;
-  const HORIZONTAL_GAP = 80;
-  const VERTICAL_GAP = 120;
   const SPOUSE_GAP = 120;
   const MARRIAGE_WIDTH = 24;
   const MARRIAGE_HEIGHT = 24;
@@ -401,10 +399,70 @@ function AppContent() {
       socials: {
         instagram: findSocial('instagram'),
         facebook: findSocial('facebook'),
-        whatsapp: findSocial('whatsapp'),
-        gmail: findSocial('gmail')
+        whatsapp: findSocial('whatsapp') || profile.phone || undefined,
+        gmail: findSocial('gmail') || findSocial('email') || profile.email || undefined
       }
     };
+  };
+
+  const buildSocialLinks = (
+    socials?: FamilyMember['socials'],
+    existing?: MemberProfile['socialLinks']
+  ): UpdateMemberPayload['socialLinks'] => {
+    const links: NonNullable<UpdateMemberPayload['socialLinks']> = [];
+    const findExistingId = (needle: string) =>
+      existing?.find((s) => s.platform.toLowerCase().includes(needle))?.id;
+
+    const push = (platform: string, url?: string, existingId?: number) => {
+      if (!url?.trim()) return;
+      links.push({ id: existingId, platform, url: url.trim() });
+    };
+
+    push('Instagram', socials?.instagram, findExistingId('instagram'));
+    push('Facebook', socials?.facebook, findExistingId('facebook'));
+
+    if (socials?.whatsapp?.trim()) {
+      const raw = socials.whatsapp.trim();
+      const waUrl = raw.startsWith('http') ? raw : `https://wa.me/91${raw.replace(/\D/g, '')}`;
+      push('WhatsApp', waUrl, findExistingId('whatsapp'));
+    }
+
+    if (socials?.gmail?.trim()) {
+      const raw = socials.gmail.trim();
+      const mailUrl = raw.startsWith('mailto:') || raw.startsWith('http') ? raw : `mailto:${raw}`;
+      push('Email', mailUrl, findExistingId('gmail') ?? findExistingId('email'));
+    }
+
+    return links;
+  };
+
+  const buildImagePayload = (
+    profile: MemberProfile,
+    nextAvatar?: string
+  ): UpdateMemberPayload['images'] | undefined => {
+    const existing = profile.images ?? [];
+    const avatar = nextAvatar?.trim();
+    const currentAvatar = existing.find((x) => x.isPrimary)?.imageUrl || existing[0]?.imageUrl;
+
+    if (!avatar || avatar === currentAvatar) {
+      return undefined;
+    }
+
+    return [
+      ...existing.map((img) => ({
+        id: img.id,
+        imageUrl: img.imageUrl,
+        caption: img.caption ?? undefined,
+        isPrimary: false,
+        sortOrder: img.sortOrder
+      })),
+      {
+        imageUrl: avatar,
+        caption: 'Profile',
+        isPrimary: true,
+        sortOrder: existing.length
+      }
+    ];
   };
 
   const loadTreeData = async () => {
@@ -530,9 +588,12 @@ function AppContent() {
         isRoot,
         parentId,
         spouseId,
+        email: memberData.socials?.gmail?.replace(/^mailto:/i, '') || undefined,
+        phone: memberData.socials?.whatsapp?.replace(/\D/g, '') || undefined,
         images: memberData.avatar
           ? [{ imageUrl: memberData.avatar, isPrimary: true, sortOrder: 0, caption: 'Profile' }]
-          : undefined
+          : undefined,
+        socialLinks: buildSocialLinks(memberData.socials)
       });
 
       await loadTreeData();
@@ -587,30 +648,12 @@ function AppContent() {
     const gender =
       genderRaw === 'female' ? 'Female' : genderRaw === 'other' ? 'Other' : 'Male';
 
-    const socialLinks: UpdateMemberPayload['socialLinks'] = [];
-    const nextSocials = updatedData.socials ?? {};
-    const pushSocial = (platform: string, url?: string, existingId?: number) => {
-      if (!url?.trim()) return;
-      socialLinks.push({
-        id: existingId,
-        platform,
-        url: url.trim()
-      });
+    const nextSocials = updatedData.socials ?? {
+      instagram: profile.socialLinks?.find((s) => s.platform.toLowerCase().includes('instagram'))?.url,
+      facebook: profile.socialLinks?.find((s) => s.platform.toLowerCase().includes('facebook'))?.url,
+      whatsapp: profile.phone || undefined,
+      gmail: profile.email || undefined
     };
-
-    const findExistingSocialId = (needle: string) =>
-      profile!.socialLinks?.find((s) => s.platform.toLowerCase().includes(needle))?.id;
-
-    pushSocial('Instagram', nextSocials.instagram, findExistingSocialId('instagram'));
-    pushSocial('Facebook', nextSocials.facebook, findExistingSocialId('facebook'));
-    // API requires Url attribute — store WhatsApp as a wa.me link when user enters digits
-    if (nextSocials.whatsapp?.trim()) {
-      const raw = nextSocials.whatsapp.trim();
-      const waUrl = raw.startsWith('http') ? raw : `https://wa.me/91${raw.replace(/\D/g, '')}`;
-      pushSocial('WhatsApp', waUrl, findExistingSocialId('whatsapp'));
-    }
-    // Gmail is often stored as Email platform in API social links
-    pushSocial('Email', nextSocials.gmail, findExistingSocialId('gmail') ?? findExistingSocialId('email'));
 
     const payload: UpdateMemberPayload = {
       firstName,
@@ -626,9 +669,10 @@ function AppContent() {
       profession: updatedData.profession ?? profile.profession ?? undefined,
       parentId: profile.parent?.id,
       spouseId: profile.spouse?.id,
-      email: profile.email ?? undefined,
-      phone: profile.phone ?? undefined,
-      socialLinks
+      email: (nextSocials.gmail || profile.email || undefined)?.replace(/^mailto:/i, ''),
+      phone: nextSocials.whatsapp?.replace(/\D/g, '') || profile.phone || undefined,
+      socialLinks: buildSocialLinks(nextSocials, profile.socialLinks),
+      images: buildImagePayload(profile, updatedData.avatar)
     };
 
     // If marked not deceased, clear death date

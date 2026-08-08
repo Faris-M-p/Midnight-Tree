@@ -62,7 +62,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({ data }) => {
     >
       {/* Node Handles */}
       {/* Top Handle (input connection for children) */}
-      {member.relation !== 'Grandfather' && member.relation !== 'Grandmother' && (
+      {!member.isRoot && (
         <Handle
           type="target"
           position={Position.Top}
