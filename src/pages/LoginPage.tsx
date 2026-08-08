@@ -4,7 +4,7 @@
  * ROLE: Sign-in screen
  * =============================================================================
  * Validates username/password, calls authService.loginAndPersistSession(),
- * then navigates to /tree on success.
+ * then navigates to /home on success. Family token login is UI-only (mock tokens).
  * =============================================================================
  */
 
@@ -14,13 +14,15 @@ import { ArrowLeft, GitBranch } from "lucide-react";
 import { ApiClientError } from "../services/apiClient";
 import { loginAndPersistSession } from "../services/authService";
 import { notify } from "../utils/notify";
+import { mockLoginTokens } from "../data/mockAccessTokens";
+import { markPasswordLoginAdmin, saveTokenSession } from "../auth/session";
 
 type LoginField = "username" | "password";
 type LoginFormValues = Record<LoginField, string>;
 type LoginErrors = Partial<Record<LoginField, string>>;
 
 interface LoginPageProps {
-  onNavigate: (path: "/" | "/register" | "/login" | "/tree") => void;
+  onNavigate: (path: string) => void;
 }
 
 const initialValues: LoginFormValues = {
@@ -45,8 +47,11 @@ function validateLogin(values: LoginFormValues): LoginErrors {
 }
 
 export function LoginPage({ onNavigate }: LoginPageProps) {
+  const [mode, setMode] = useState<"password" | "token">("password");
   const [values, setValues] = useState<LoginFormValues>(initialValues);
   const [errors, setErrors] = useState<LoginErrors>({});
+  const [familyToken, setFamilyToken] = useState("");
+  const [tokenError, setTokenError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canSubmit = useMemo(() => !isSubmitting, [isSubmitting]);
@@ -76,8 +81,9 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
         password: values.password
       });
 
+      markPasswordLoginAdmin(values.username.trim());
       notify.success("You have signed in successfully.");
-      onNavigate("/tree");
+      onNavigate("/home");
     } catch (error) {
       if (error instanceof ApiClientError) {
         notify.fromApiError(error);
@@ -115,9 +121,78 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
         <div className="mb-6 space-y-2 text-center">
           <p className="text-xs uppercase tracking-[0.2em] text-emerald-400">Midnight Chronicle</p>
           <h1 className="text-3xl font-semibold text-slate-100">Sign in</h1>
-          <p className="text-sm text-slate-400">Use your admin account to open your family dashboard.</p>
+          <p className="text-sm text-slate-400">Use your family account or a family access token.</p>
         </div>
 
+        <div className="mb-5 grid grid-cols-2 rounded-xl border border-slate-800 p-1">
+          <button
+            type="button"
+            onClick={() => setMode("password")}
+            className={`rounded-lg px-3 py-2 text-sm ${mode === "password" ? "bg-emerald-500 text-slate-950" : "text-slate-300"}`}
+          >
+            Password
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("token")}
+            className={`rounded-lg px-3 py-2 text-sm ${mode === "token" ? "bg-emerald-500 text-slate-950" : "text-slate-300"}`}
+          >
+            Family token
+          </button>
+        </div>
+
+        {mode === "token" ? (
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const value = familyToken.trim();
+              if (!value) {
+                setTokenError("Family token is required.");
+                return;
+              }
+              const found = mockLoginTokens.find((item) => item.value === value);
+              if (!found) {
+                setTokenError("This token is invalid.");
+                return;
+              }
+              if (found.expiresOn < new Date().toISOString().slice(0, 10)) {
+                setTokenError("This token has expired.");
+                return;
+              }
+              saveTokenSession({
+                token: found.value,
+                name: found.name,
+                permission: found.permission,
+                scope: found.scope,
+                expiresOn: found.expiresOn
+              });
+              notify.success("Family token accepted.");
+              onNavigate("/home");
+            }}
+          >
+            <label className="block text-sm">
+              Family token
+              <input
+                value={familyToken}
+                onChange={(e) => {
+                  setFamilyToken(e.target.value);
+                  setTokenError("");
+                }}
+                placeholder="FAM-MEHTA-VIEW-2026"
+                className={`mt-1 w-full rounded-xl border px-4 py-3 outline-none ${
+                  tokenError ? "border-rose-500 bg-rose-950/20" : "border-slate-700 bg-slate-900/80 focus:border-emerald-500"
+                }`}
+              />
+            </label>
+            <p className={`min-h-[1.25rem] text-xs ${tokenError ? "text-rose-400" : "text-slate-500"}`}>
+              {tokenError || "Demo tokens: FAM-MEHTA-VIEW-2026 or FAM-MEHTA-EDIT-2026"}
+            </p>
+            <button type="submit" className="w-full rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
+              Validate token
+            </button>
+          </form>
+        ) : (
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <fieldset disabled={isSubmitting} className="space-y-4 disabled:opacity-100">
             <div className="space-y-2">
@@ -196,6 +271,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
             </button>
           </p>
         </form>
+        )}
       </div>
     </div>
   );

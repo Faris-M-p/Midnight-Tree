@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 
 interface LandingPageProps {
-  onNavigate: (path: "/" | "/register" | "/login" | "/tree") => void;
+  onNavigate: (path: string) => void;
 }
 
 const features = [
@@ -140,16 +140,6 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const navigateToSection = (section: "home" | "features" | "about") => {
-    const sectionElement = document.getElementById(section);
-    if (sectionElement) {
-      sectionElement.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-
-    window.history.replaceState({}, "", `/#${section}`);
-    setActiveSection(section);
-  };
-
   const navLinkClass = (section: "home" | "features" | "about") =>
     `rounded-lg px-3 py-2 text-sm transition ${
       activeSection === section
@@ -182,13 +172,13 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
           </button>
 
           <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
-            <button type="button" onClick={() => navigateToSection("home")} className={navLinkClass("home")}>
+            <button type="button" onClick={() => onNavigate("/")} className={navLinkClass("home")}>
               Home
             </button>
-            <button type="button" onClick={() => navigateToSection("features")} className={navLinkClass("features")}>
+            <button type="button" onClick={() => onNavigate("/features")} className={navLinkClass("features")}>
               Features
             </button>
-            <button type="button" onClick={() => navigateToSection("about")} className={navLinkClass("about")}>
+            <button type="button" onClick={() => onNavigate("/about")} className={navLinkClass("about")}>
               About
             </button>
             <button
@@ -437,17 +427,17 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             <h3 className="text-sm font-semibold text-slate-200">Quick Links</h3>
             <ul className="mt-3 space-y-2 text-sm">
               <li>
-                <button type="button" onClick={() => navigateToSection("home")} className="text-slate-400 transition hover:text-emerald-300">
+                <button type="button" onClick={() => onNavigate("/")} className="text-slate-400 transition hover:text-emerald-300">
                   Home
                 </button>
               </li>
               <li>
-                <button type="button" onClick={() => navigateToSection("features")} className="text-slate-400 transition hover:text-emerald-300">
+                <button type="button" onClick={() => onNavigate("/features")} className="text-slate-400 transition hover:text-emerald-300">
                   Features
                 </button>
               </li>
               <li>
-                <button type="button" onClick={() => navigateToSection("about")} className="text-slate-400 transition hover:text-emerald-300">
+                <button type="button" onClick={() => onNavigate("/about")} className="text-slate-400 transition hover:text-emerald-300">
                   About
                 </button>
               </li>
