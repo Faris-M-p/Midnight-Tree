@@ -54,6 +54,7 @@ import { LandingPage } from './pages/LandingPage';
 import { ApiClientError } from './services/apiClient';
 import { createMember, deleteMember, getMemberDetails, updateMember } from './services/memberService';
 import { getFamilyTreeData } from './services/treeService';
+import { notify } from './utils/notify';
 import type { MemberProfile, UpdateMemberPayload } from './types/member';
 
 import '@xyflow/react/dist/style.css';
@@ -340,7 +341,6 @@ function AppContent() {
   const [unions, setUnions] = useState<MarriageUnion[]>([]);
   const [isTreeLoading, setIsTreeLoading] = useState(true);
   const [treeError, setTreeError] = useState('');
-  const [treeSuccessMessage, setTreeSuccessMessage] = useState('');
 
   // Visibility states
   const [collapsedUnions, setCollapsedUnions] = useState<string[]>([]);
@@ -474,10 +474,11 @@ function AppContent() {
       setUnions(data.unions);
     } catch (error) {
       if (error instanceof ApiClientError) {
-        setTreeError(error.statusCode >= 500 ? 'Unable to load family tree right now. Please try again.' : error.message);
+        notify.fromApiError(error);
       } else {
-        setTreeError('Unable to load family tree right now. Please try again.');
+        notify.error('Unable to load family tree right now. Please try again.');
       }
+      setTreeError('Unable to load family tree right now. Please try again.');
       setMembers([]);
       setUnions([]);
     } finally {
@@ -561,6 +562,7 @@ function AppContent() {
     if (placement.type === 'child') {
       const union = unions.find((x) => x.id === placement.targetId);
       if (!union) {
+        notify.error('Please select a valid couple for child placement.');
         return { success: false, message: 'Please select a valid couple for child placement.' };
       }
       parentId = Number(union.spouse1Id);
@@ -569,6 +571,7 @@ function AppContent() {
 
     if (placement.type === 'spouse') {
       if (!placement.targetId) {
+        notify.error('Please select a member to attach spouse.');
         return { success: false, message: 'Please select a member to attach spouse.' };
       }
       spouseId = Number(placement.targetId);
@@ -597,20 +600,17 @@ function AppContent() {
       });
 
       await loadTreeData();
-      setTreeSuccessMessage('Member created successfully.');
+      notify.success('Member created successfully.');
       const createdId = String(created.id);
       setFocusedNodeId(createdId);
       setHighlightedMemberId(createdId);
       setTimeout(() => setHighlightedMemberId((current) => (current === createdId ? null : current)), 3000);
-      setTimeout(() => setTreeSuccessMessage(''), 2500);
       return { success: true };
     } catch (error) {
       if (error instanceof ApiClientError) {
-        return {
-          success: false,
-          message: error.statusCode >= 500 ? 'Unable to save member right now. Please try again.' : error.message,
-          fieldErrors: error.fieldErrors
-        };
+        notify.fromApiError(error);
+      } else {
+        notify.error('Unable to save member right now. Please try again.');
       }
       return { success: false, message: 'Unable to save member right now. Please try again.' };
     }
@@ -626,6 +626,7 @@ function AppContent() {
   ): Promise<ProfileActionResult> => {
     const memberId = Number(id);
     if (!Number.isFinite(memberId)) {
+      notify.error('Invalid member id.');
       return { success: false, message: 'Invalid member id.' };
     }
 
@@ -635,6 +636,7 @@ function AppContent() {
       try {
         profile = await getMemberDetails(memberId);
       } catch {
+        notify.error('Unable to load member before saving. Please try again.');
         return { success: false, message: 'Unable to load member before saving. Please try again.' };
       }
     }
@@ -714,16 +716,13 @@ function AppContent() {
 
       setSelectedProfile(updated);
       setSelectedMember(mapped);
-      setTreeSuccessMessage('Member updated successfully.');
-      setTimeout(() => setTreeSuccessMessage(''), 2500);
+      notify.success('Member updated successfully.');
       return { success: true };
     } catch (error) {
       if (error instanceof ApiClientError) {
-        return {
-          success: false,
-          message: error.statusCode >= 500 ? 'Unable to update member right now. Please try again.' : error.message,
-          fieldErrors: error.fieldErrors
-        };
+        notify.fromApiError(error);
+      } else {
+        notify.error('Unable to update member right now. Please try again.');
       }
       return { success: false, message: 'Unable to update member right now. Please try again.' };
     }
@@ -736,6 +735,7 @@ function AppContent() {
   const handleDeleteMember = async (id: string): Promise<ProfileActionResult> => {
     const memberId = Number(id);
     if (!Number.isFinite(memberId)) {
+      notify.error('Invalid member id.');
       return { success: false, message: 'Invalid member id.' };
     }
 
@@ -746,6 +746,7 @@ function AppContent() {
     );
 
     if (childCountFromProfile > 0 || hasUnionChildren) {
+      notify.warning('Cannot delete this member because they have children. Remove or reassign children first.');
       return {
         success: false,
         message: 'Cannot delete this member because they have children. Remove or reassign children first.'
@@ -757,15 +758,13 @@ function AppContent() {
       setSelectedMember(null);
       setSelectedProfile(null);
       await loadTreeData();
-      setTreeSuccessMessage('Member deleted successfully.');
-      setTimeout(() => setTreeSuccessMessage(''), 2500);
+      notify.success('Member deleted successfully.');
       return { success: true };
     } catch (error) {
       if (error instanceof ApiClientError) {
-        return {
-          success: false,
-          message: error.statusCode >= 500 ? 'Unable to delete member right now. Please try again.' : error.message
-        };
+        notify.fromApiError(error);
+      } else {
+        notify.error('Unable to delete member right now. Please try again.');
       }
       return { success: false, message: 'Unable to delete member right now. Please try again.' };
     }
@@ -1052,12 +1051,6 @@ function AppContent() {
       />
 
       <main className="flex-1 w-full h-full pt-20 relative">
-        {treeSuccessMessage && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 rounded-lg border border-emerald-500/40 bg-emerald-950/40 px-4 py-2 text-xs text-emerald-300">
-            {treeSuccessMessage}
-          </div>
-        )}
-
         {isTreeLoading ? (
           <div className="h-full w-full flex items-center justify-center px-4">
             <div className="rounded-2xl border border-slate-800 bg-slate-900/70 px-5 py-4 text-sm text-slate-300 inline-flex items-center gap-3">

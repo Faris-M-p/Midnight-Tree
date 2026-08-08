@@ -13,6 +13,7 @@ import type { FormEvent } from "react";
 import { ArrowLeft, GitBranch } from "lucide-react";
 import { ApiClientError } from "../services/apiClient";
 import { loginAndPersistSession } from "../services/authService";
+import { notify } from "../utils/notify";
 
 type LoginField = "username" | "password";
 type LoginFormValues = Record<LoginField, string>;
@@ -46,7 +47,6 @@ function validateLogin(values: LoginFormValues): LoginErrors {
 export function LoginPage({ onNavigate }: LoginPageProps) {
   const [values, setValues] = useState<LoginFormValues>(initialValues);
   const [errors, setErrors] = useState<LoginErrors>({});
-  const [serverError, setServerError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canSubmit = useMemo(() => !isSubmitting, [isSubmitting]);
@@ -54,7 +54,6 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
   const handleChange = (field: LoginField, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
-    setServerError("");
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -70,7 +69,6 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
     }
 
     setIsSubmitting(true);
-    setServerError("");
 
     try {
       await loginAndPersistSession({
@@ -78,22 +76,14 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
         password: values.password
       });
 
+      notify.success("You have signed in successfully.");
       onNavigate("/tree");
     } catch (error) {
       if (error instanceof ApiClientError) {
-        if (Object.keys(error.fieldErrors).length > 0) {
-          setErrors((current) => ({ ...current, ...(error.fieldErrors as LoginErrors) }));
-        }
-
-        setServerError(
-          error.statusCode >= 500
-            ? "Unable to sign in. Please try again."
-            : (error.message || "Invalid username or password.")
-        );
+        notify.fromApiError(error);
       } else {
-        setServerError("Unable to sign in. Please try again.");
+        notify.error("Unable to sign in. Please try again.");
       }
-
       setValues((current) => ({ ...current, password: "" }));
     } finally {
       setIsSubmitting(false);
@@ -175,17 +165,6 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
               </p>
             </div>
           </fieldset>
-
-          <div
-            className={`overflow-hidden rounded-xl border px-4 py-3 text-sm transition ${
-              serverError
-                ? "border-rose-500/40 bg-rose-950/40 text-rose-300 max-h-24 opacity-100"
-                : "max-h-0 border-transparent bg-transparent p-0 opacity-0"
-            }`}
-            aria-live="assertive"
-          >
-            {serverError}
-          </div>
 
           <button
             type="submit"

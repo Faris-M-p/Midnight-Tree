@@ -73,3 +73,8 @@ html, body, #root {
   stroke: #10b981 !important;
   stroke-dasharray: 5 5;
 }
+
+/* Keep toasts above modals */
+[data-sonner-toaster] {
+  z-index: 9999 !important;
+}

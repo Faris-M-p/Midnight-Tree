@@ -13,6 +13,7 @@ import type { FormEvent } from "react";
 import { ArrowLeft, GitBranch } from "lucide-react";
 import { ApiClientError } from "../services/apiClient";
 import { registerAccount } from "../services/authService";
+import { notify } from "../utils/notify";
 
 type FormField =
   | "username"
@@ -131,15 +132,12 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
   const [values, setValues] = useState<RegisterFormValues>(initialValues);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [serverError, setServerError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
 
   const canSubmit = useMemo(() => !isSubmitting, [isSubmitting]);
 
   const updateField = (field: FormField, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
-    setServerError("");
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -155,8 +153,6 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
     }
 
     setIsSubmitting(true);
-    setServerError("");
-    setSuccessMessage("");
 
     try {
       await registerAccount({
@@ -168,18 +164,14 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
         description: values.description.trim() || undefined
       });
 
-      setSuccessMessage("Registration successful. Redirecting to login...");
+      notify.success("Your account was created successfully. Redirecting to login...");
       setValues(initialValues);
       window.setTimeout(() => onNavigate("/login"), 1200);
     } catch (error) {
       if (error instanceof ApiClientError) {
-        if (Object.keys(error.fieldErrors).length > 0) {
-          setErrors((current) => ({ ...current, ...(error.fieldErrors as FormErrors) }));
-        }
-
-        setServerError(error.message || "Something went wrong. Please try again.");
+        notify.fromApiError(error);
       } else {
-        setServerError("Something went wrong. Please try again.");
+        notify.error("Unable to register right now. Please try again.");
       }
     } finally {
       setIsSubmitting(false);
@@ -302,28 +294,6 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
               </div>
             </div>
           </fieldset>
-
-          <div
-            className={`overflow-hidden rounded-xl border px-4 py-3 text-sm transition ${
-              successMessage
-                ? "border-emerald-500/40 bg-emerald-950/40 text-emerald-300 max-h-20 opacity-100"
-                : "max-h-0 border-transparent bg-transparent p-0 opacity-0"
-            }`}
-            aria-live="polite"
-          >
-            {successMessage}
-          </div>
-
-          <div
-            className={`overflow-hidden rounded-xl border px-4 py-3 text-sm transition ${
-              serverError
-                ? "border-rose-500/40 bg-rose-950/40 text-rose-300 max-h-24 opacity-100"
-                : "max-h-0 border-transparent bg-transparent p-0 opacity-0"
-            }`}
-            aria-live="assertive"
-          >
-            {serverError}
-          </div>
 
           <button
             type="submit"

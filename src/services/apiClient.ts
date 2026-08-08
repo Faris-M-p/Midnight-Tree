@@ -11,7 +11,8 @@
  *   3. Parsing the MidnightApi response envelope
  *   4. Throwing ApiClientError with friendly messages + fieldErrors
  *
- * UI pages catch ApiClientError and show validation messages next to inputs.
+ * UI pages catch ApiClientError for flow control.
+ * Server validation / error messages are shown only in the toast bar.
  * =============================================================================
  */
 
@@ -125,15 +126,20 @@ export async function apiRequest<TResponse, TBody = unknown>(
 ): Promise<TResponse> {
   const token = getAccessToken();
 
-  const response = await fetch(`${env.apiBaseUrl}${path}`, {
-    method: options.method ?? "GET",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers ?? {})
-    },
-    body: options.body ? JSON.stringify(options.body) : undefined
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${env.apiBaseUrl}${path}`, {
+      method: options.method ?? "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers ?? {})
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined
+    });
+  } catch {
+    throw new ApiClientError("Unable to reach the server. Please try again.", 0);
+  }
 
   const payload = await parseResponse<TResponse>(response);
 

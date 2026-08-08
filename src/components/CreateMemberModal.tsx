@@ -73,8 +73,6 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
   const [placementType, setPlacementType] = useState<'root' | 'child' | 'spouse'>('root');
   const [placementTarget, setPlacementTarget] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const hasRootMember = members.some((m) => m.isRoot);
   const previewAvatar = resolveAvatarUrl(avatar, gender);
@@ -97,8 +95,6 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || isSubmitting) return;
-    setSubmitError('');
-    setFieldErrors({});
 
     const finalAvatar = resolveAvatarUrl(avatar, gender);
     const trimmedNickname = nickname.trim();
@@ -134,8 +130,6 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
     const result = await onSave({ memberData, placement });
     setIsSubmitting(false);
     if (!result.success) {
-      setSubmitError(result.message || 'Unable to save member. Please try again.');
-      setFieldErrors(result.fieldErrors || {});
       return;
     }
 
@@ -151,8 +145,6 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
     setGmail('');
     setPlacementType(hasRootMember ? 'child' : 'root');
     setPlacementTarget('');
-    setSubmitError('');
-    setFieldErrors({});
     onClose();
   };
 
@@ -473,12 +465,6 @@ export const CreateMemberModal: React.FC<CreateMemberModalProps> = ({
               )}
             </div>
           </div>
-
-          {(submitError || Object.keys(fieldErrors).length > 0) && (
-            <div className="rounded-lg border border-rose-500/40 bg-rose-950/30 px-3 py-2 text-xs text-rose-300">
-              {submitError || fieldErrors.firstName || fieldErrors.lastName || 'Please check the form values.'}
-            </div>
-          )}
 
           {/* Action buttons */}
           <div className="pt-4 flex justify-end gap-3 border-t border-slate-800">

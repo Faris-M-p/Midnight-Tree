@@ -70,7 +70,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [actionError, setActionError] = useState('');
 
   // Form states
   const [name, setName] = useState('');
@@ -113,7 +112,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     setGmail(member.socials?.gmail || '');
 
     setIsEditing(false);
-    setActionError('');
     setIsSaving(false);
     setIsDeleting(false);
   }, [member]);
@@ -130,21 +128,15 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     );
     if (!confirmDelete) return;
 
-    setActionError('');
     setIsDeleting(true);
-    const result = await onDelete(member.id);
+    await onDelete(member.id);
     setIsDeleting(false);
-
-    if (!result.success) {
-      setActionError(result.message || 'Unable to delete member. Please try again.');
-    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || busy) return;
 
-    setActionError('');
     setIsSaving(true);
 
     const result = await onUpdate(member.id, {
@@ -170,7 +162,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     setIsSaving(false);
 
     if (!result.success) {
-      setActionError(result.message || 'Unable to save changes. Please try again.');
       return;
     }
 
@@ -213,7 +204,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   type="button"
                   disabled={busy}
                   onClick={() => {
-                    setActionError('');
                     setIsEditing(true);
                   }}
                   className="px-3 py-1.5 rounded-lg bg-slate-950/60 hover:bg-slate-950/90 text-slate-300 hover:text-white border border-slate-800/80 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
@@ -251,12 +241,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </div>
         )}
 
-        {actionError && (
-          <div className="mx-6 mt-4 rounded-lg border border-rose-500/40 bg-rose-950/30 px-3 py-2 text-xs text-rose-300">
-            {actionError}
-          </div>
-        )}
-
         {/* Modal Body */}
         {isEditing ? (
           /* EDITING FORM MODE */
@@ -269,7 +253,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   disabled={busy}
                   onClick={() => {
                     setIsEditing(false);
-                    setActionError('');
                   }}
                   className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
                 >
