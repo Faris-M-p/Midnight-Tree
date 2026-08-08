@@ -114,7 +114,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
 
         <div className="mb-6 space-y-2 text-center">
           <p className="text-xs uppercase tracking-[0.2em] text-emerald-400">Midnight Chronicle</p>
-          <h1 className="font-serif text-3xl text-slate-100">Sign in</h1>
+          <h1 className="text-3xl font-semibold text-slate-100">Sign in</h1>
           <p className="text-sm text-slate-400">Use your admin account to open your family dashboard.</p>
         </div>
 
