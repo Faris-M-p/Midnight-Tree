@@ -7,10 +7,9 @@ import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
 import { DatePicker } from "../DatePicker";
 import { ProfilePhotoPicker } from "../ui/ProfilePhotoPicker";
-import { LocationPicker, type MemberLocationValue } from "./LocationPicker";
 import { resolveAvatarUrl } from "../../utils/defaultAvatar";
 import { computeMemberRanks, formatMemberLabel, type MemberRanks } from "../../utils/memberRanks";
-import { mockFamily } from "../../data/mockFamily";
+import { HIDDEN_LAST_NAME } from "../../utils/memberName";
 
 export interface AddMemberProps {
   open: boolean;
@@ -42,12 +41,6 @@ export function AddMember({
   const [gender, setGender] = useState<"male" | "female">("male");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
-  const [profession, setProfession] = useState("");
-  const [location, setLocation] = useState<MemberLocationValue>({
-    locationName: "",
-    latitude: null,
-    longitude: null
-  });
   const [connection, setConnection] = useState<Connection>("root");
   const [targetId, setTargetId] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -91,8 +84,6 @@ export function AddMember({
       if (current) URL.revokeObjectURL(current);
       return "";
     });
-    setProfession("");
-    setLocation({ locationName: "", latitude: null, longitude: null });
     setConnection(members.some((m) => m.isRoot) ? "child" : "root");
     setTargetId("");
   }, [open]);
@@ -137,30 +128,16 @@ export function AddMember({
     }
 
     const union = couples.find((c) => c.id === targetId);
-    const nameParts = firstName.trim().split(/\s+/).filter(Boolean);
-    const apiFirstName = nameParts.shift() || firstName.trim();
-    const inferredLast =
-      nameParts.join(" ") ||
-      members
-        .map((m) => m.name.trim().split(/\s+/).filter(Boolean).at(-1))
-        .filter((part): part is string => Boolean(part && part !== apiFirstName))
-        .at(0) ||
-      mockFamily.name.replace(/\s+family$/i, "").trim() ||
-      apiFirstName;
     setSubmitting(true);
     try {
       const created = await createMember(
         {
-          firstName: apiFirstName,
-          lastName: inferredLast,
+          firstName: firstName.trim(),
+          lastName: HIDDEN_LAST_NAME,
           nickname: nickname.trim() || undefined,
           gender: gender === "male" ? "Male" : "Female",
           dateOfBirth: dob || undefined,
           dateOfDeath: lifeStatus === "deceased" ? dateOfDeath || undefined : undefined,
-          profession: profession.trim() || undefined,
-          locationName: location.locationName.trim() || undefined,
-          latitude: location.latitude,
-          longitude: location.longitude,
           isRoot: connection === "root",
           parentId: connection === "child" && union ? Number(union.spouse1Id) : undefined,
           spouseId: connection === "spouse" ? Number(targetId) : undefined
@@ -226,21 +203,6 @@ export function AddMember({
                 <option value="female">Female</option>
               </select>
             </label>
-          </div>
-
-          <label className="block text-sm text-slate-300">
-            Profession
-            <input
-              value={profession}
-              onChange={(e) => setProfession(e.target.value)}
-              placeholder="Optional"
-              className={inputClass}
-            />
-          </label>
-
-          <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
-            <p className="mb-2 text-sm font-medium text-slate-200">Location</p>
-            <LocationPicker value={location} onChange={setLocation} inputClassName={inputClass} />
           </div>
 
           <fieldset className="text-sm">

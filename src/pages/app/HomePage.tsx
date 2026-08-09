@@ -4,10 +4,12 @@ import { mockEvents } from "../../data/mockEvents";
 import { mockStories } from "../../data/mockStories";
 import { mockTimeline } from "../../data/mockTimeline";
 import { useFamilyData } from "../../context/FamilyDataContext";
+import { useFamilyBranding } from "../../hooks/useFamilyBranding";
 import { navigateTo } from "../../routing/navigate";
 import { LoadingState } from "../../components/ui/PageStates";
 
 export function HomePage() {
+  const family = useFamilyBranding();
   const { members, isLoading } = useFamilyData();
   const upcoming = mockEvents
     .filter((event) => event.date >= new Date().toISOString().slice(0, 10))
@@ -24,13 +26,13 @@ export function HomePage() {
         <div className="flex flex-col gap-4 px-5 py-5 md:flex-row md:items-end md:justify-between md:-mt-10">
           <div className="flex items-end gap-4">
             <img
-              src={mockFamily.logo}
+              src={family.logo}
               alt=""
               className="h-20 w-20 rounded-2xl border-4 border-slate-900 object-cover shadow-xl"
             />
             <div>
-              <h2 className="text-2xl font-semibold text-slate-100">{mockFamily.name}</h2>
-              <p className="mt-1 max-w-xl text-sm text-slate-400">{mockFamily.description}</p>
+              <h2 className="text-2xl font-semibold text-slate-100">{family.name}</h2>
+              <p className="mt-1 max-w-xl text-sm text-slate-400">{family.description}</p>
             </div>
           </div>
           <button

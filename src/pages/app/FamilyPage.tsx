@@ -28,7 +28,8 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
         setFamilyBranding({
           name: family.familyName || mockFamily.name,
           code: family.familyCode || mockFamily.code,
-          logo
+          logo,
+          description: family.description || mockFamily.description
         });
         setDraft((current) => ({
           ...current,
@@ -88,7 +89,7 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
       const code = updated.familyCode || draft.code;
       Object.assign(mockFamily, draft, { logo, name, code });
       setDraft((current) => ({ ...current, name, code, logo, description: updated.description || current.description }));
-      setFamilyBranding({ name, code, logo });
+      setFamilyBranding({ name, code, logo, description: updated.description || draft.description });
       notify.success("Family details saved successfully.");
       navigateTo("/family");
     } catch (error) {

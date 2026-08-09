@@ -20,7 +20,6 @@ import {
 import type { FamilyMember, MarriageUnion } from '../../types';
 
 import { SearchHeader } from '../../components/SearchHeader';
-import { FilterSidebar } from '../../components/FilterSidebar';
 import { FamilyTreeCanvas } from '../../components/FamilyTreeCanvas';
 import { AnalyticsPanel } from '../../components/AnalyticsPanel';
 import { TimelinePanel } from '../../components/TimelinePanel';
@@ -324,8 +323,6 @@ function AppContent() {
 
   // Visibility states
   const [collapsedUnions, setCollapsedUnions] = useState<string[]>([]);
-  const [selectedGenerations, setSelectedGenerations] = useState<number[]>([]);
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
 
   // Panels and Modals
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
@@ -336,7 +333,6 @@ function AppContent() {
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Focus and Highlight triggers
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
@@ -364,7 +360,7 @@ function AppContent() {
 
     return {
       id: String(profile.id),
-      name: profile.fullName,
+      name: profile.firstName?.trim() || profile.fullName,
       nickname,
       relation: nickname || fallback?.relation || (profile.isRoot ? (gender === 'male' ? 'Grandfather' : 'Grandmother') : 'Member'),
       gender,
@@ -411,24 +407,6 @@ function AppContent() {
   useEffect(() => {
     void loadTreeData();
   }, []);
-
-  // Dynamic generation leveling helper
-  const getGenOfMember = (id: string): number => {
-    const parentUnion = unions.find((u) => u.childrenIds.includes(id));
-    if (!parentUnion) {
-      // Check if married to someone who has parents
-      const spouseUnion = unions.find((u) => u.spouse1Id === id || u.spouse2Id === id);
-      if (spouseUnion) {
-        const otherSpouseId = spouseUnion.spouse1Id === id ? spouseUnion.spouse2Id : spouseUnion.spouse1Id;
-        const otherParentUnion = unions.find((u) => u.childrenIds.includes(otherSpouseId));
-        if (otherParentUnion) {
-          return getGenOfMember(otherSpouseId);
-        }
-      }
-      return 1;
-    }
-    return getGenOfMember(parentUnion.spouse1Id) + 1;
-  };
 
   // Helper: Recursively get all descendant nodes to collapse
   const getHiddenEntities = (collapsedIds: string[]) => {
@@ -527,16 +505,6 @@ function AppContent() {
     members.forEach((m) => {
       if (hiddenNodeIds.has(m.id)) return;
 
-      const matchesGen =
-        selectedGenerations.length === 0 ||
-        selectedGenerations.includes(getGenOfMember(m.id));
-      const matchesLoc =
-        selectedLocations.length === 0 || selectedLocations.includes(m.location);
-      const isMatched = matchesGen && matchesLoc;
-
-      const hasActiveFilters = selectedGenerations.length > 0 || selectedLocations.length > 0;
-      const isDimmed = hasActiveFilters && !isMatched;
-
       const pos = layoutCoords[m.id];
       if (!pos) return;
 
@@ -548,7 +516,6 @@ function AppContent() {
         data: {
           member: m,
           onSelect: (member: FamilyMember) => void handleMemberSelect(member),
-          isDimmed,
           isHighlighted: highlightedMemberId === m.id,
           displayId: `#${memberRanks[m.id] ?? '?'}`
         }
@@ -559,30 +526,6 @@ function AppContent() {
     unions.forEach((u) => {
       const marriageNodeId = `m_${u.spouse1Id}_${u.spouse2Id}`;
       if (hiddenNodeIds.has(marriageNodeId)) return;
-
-      const spouse1 = members.find((m) => m.id === u.spouse1Id);
-      const spouse2 = members.find((m) => m.id === u.spouse2Id);
-
-      const hasActiveFilters = selectedGenerations.length > 0 || selectedLocations.length > 0;
-      let isDimmed = false;
-
-      if (hasActiveFilters && spouse1 && spouse2) {
-        const matchesGen1 =
-          selectedGenerations.length === 0 ||
-          selectedGenerations.includes(getGenOfMember(spouse1.id));
-        const matchesLoc1 =
-          selectedLocations.length === 0 || selectedLocations.includes(spouse1.location);
-        const isMatched1 = matchesGen1 && matchesLoc1;
-
-        const matchesGen2 =
-          selectedGenerations.length === 0 ||
-          selectedGenerations.includes(getGenOfMember(spouse2.id));
-        const matchesLoc2 =
-          selectedLocations.length === 0 || selectedLocations.includes(spouse2.location);
-        const isMatched2 = matchesGen2 && matchesLoc2;
-
-        isDimmed = !isMatched1 && !isMatched2;
-      }
 
       const pos = layoutCoords[marriageNodeId];
       if (!pos) return;
@@ -596,7 +539,6 @@ function AppContent() {
           collapsed: collapsedUnions.includes(u.id),
           onToggle: () => toggleUnion(u.id),
           hasChildren: u.childrenIds.length > 0,
-          isDimmed
         }
       });
     });
@@ -675,7 +617,7 @@ function AppContent() {
 
     setNodes(activeNodes);
     setEdges(activeEdges);
-  }, [collapsedUnions, selectedGenerations, selectedLocations, highlightedMemberId, members, unions]);
+  }, [collapsedUnions, highlightedMemberId, members, unions]);
 
   // Center view on search match and flash target node
   const handleSearchMatch = (memberId: string) => {
@@ -703,11 +645,6 @@ function AppContent() {
     handleSearchMatch(memberId);
   }, [members]);
 
-  const handleResetFilters = () => {
-    setSelectedGenerations([]);
-    setSelectedLocations([]);
-  };
-
   const handleExportPNG = () => {
     const wrapper = document.getElementById('family-tree-canvas-wrapper');
     const flowElement = wrapper?.querySelector('.react-flow') as HTMLElement;
@@ -732,10 +669,6 @@ function AppContent() {
         logFailure('TreeExport', error);
         overlays.forEach((el) => ((el as HTMLElement).style.visibility = 'visible'));
       });
-  };
-
-  const handleOpenFilters = () => {
-    setFiltersOpen((open) => !open);
   };
 
   const handleMemberSelect = async (member: FamilyMember) => {
@@ -771,22 +704,9 @@ function AppContent() {
         }}
         onExportPNG={handleExportPNG}
         onAddMember={() => setIsCreateOpen(true)}
-        onOpenFilters={handleOpenFilters}
-        hasActiveFilters={selectedGenerations.length > 0 || selectedLocations.length > 0}
-        filtersOpen={filtersOpen}
       />
 
       <div className="relative flex min-h-0 flex-1">
-        <FilterSidebar
-          open={filtersOpen}
-          onClose={() => setFiltersOpen(false)}
-          selectedGenerations={selectedGenerations}
-          onChangeGenerations={setSelectedGenerations}
-          selectedLocations={selectedLocations}
-          onChangeLocations={setSelectedLocations}
-          onResetFilters={handleResetFilters}
-        />
-
         <main className="relative min-h-0 min-w-0 flex-1">
           {isTreeLoading ? (
             <div className="flex h-full w-full items-center justify-center px-4">

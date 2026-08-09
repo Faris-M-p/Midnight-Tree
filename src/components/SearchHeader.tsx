@@ -3,12 +3,12 @@
  * FILE: src/components/SearchHeader.tsx
  * ROLE: Top toolbar on the Family Tree screen
  * =============================================================================
- * Search relatives, open filters / analytics / timeline, add member, export PNG.
+ * Search relatives, open analytics / timeline, add member, export PNG.
  * =============================================================================
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, BarChart3, Clock, Download, X, UserPlus, Filter } from 'lucide-react';
+import { Search, BarChart3, Clock, Download, X, UserPlus } from 'lucide-react';
 import type { FamilyMember } from '../types';
 
 interface SearchHeaderProps {
@@ -18,9 +18,6 @@ interface SearchHeaderProps {
   onOpenTimeline: () => void;
   onExportPNG: () => void;
   onAddMember: () => void;
-  onOpenFilters: () => void;
-  hasActiveFilters: boolean;
-  filtersOpen?: boolean;
 }
 
 export const SearchHeader: React.FC<SearchHeaderProps> = ({
@@ -29,10 +26,7 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
   onOpenAnalytics,
   onOpenTimeline,
   onExportPNG,
-  onAddMember,
-  onOpenFilters,
-  hasActiveFilters,
-  filtersOpen = false
+  onAddMember
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState<FamilyMember[]>([]);
@@ -92,23 +86,8 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
         </div>
       </div>
 
-      {/* Filter + Search Row */}
-      <div className="w-full max-w-md flex items-center gap-2">
-        <button
-          onClick={onOpenFilters}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-medium transition-all cursor-pointer shrink-0 ${
-            hasActiveFilters || filtersOpen
-              ? 'bg-emerald-600 border-emerald-500 text-slate-950'
-              : 'bg-slate-900 hover:bg-slate-800 border-slate-800 hover:border-slate-750 text-slate-300 hover:text-slate-100'
-          }`}
-          title={filtersOpen ? 'Hide filters' : 'Show filters'}
-          aria-pressed={filtersOpen}
-        >
-          <Filter size={14} className={hasActiveFilters || filtersOpen ? 'fill-slate-950' : 'text-emerald-500'} />
-          <span className="hidden sm:inline">Filter</span>
-        </button>
-
-        <div className="relative flex-1" ref={containerRef}>
+      <div className="w-full max-w-md">
+        <div className="relative" ref={containerRef}>
           <div className="relative flex items-center">
             <Search className="absolute left-3.5 text-slate-500 w-4 h-4" />
             <input

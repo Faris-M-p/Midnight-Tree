@@ -106,7 +106,7 @@ function toFamilyMember(profile: MemberProfile, generationMap: Map<number, numbe
 
   return {
     id: String(profile.id),
-    name: profile.fullName,
+    name: profile.firstName?.trim() || profile.fullName,
     nickname: profile.nickname?.trim() || undefined,
     relation: profile.nickname?.trim() || relationFromGeneration(generation, gender, profile.isRoot),
     gender,
@@ -246,7 +246,7 @@ function toFamilyMemberFromTree(node: ApiTreeNode, generation: number): FamilyMe
   const nickname = node.nickname?.trim() || undefined;
   return {
     id: String(node.id),
-    name: node.fullName || `${node.firstName} ${node.lastName}`.trim(),
+    name: node.firstName?.trim() || node.fullName || `${node.firstName} ${node.lastName}`.trim(),
     nickname,
     relation: nickname || relationFromGeneration(generation, gender, node.isRoot),
     gender,

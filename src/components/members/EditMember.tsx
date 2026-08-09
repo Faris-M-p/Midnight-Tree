@@ -10,7 +10,7 @@ import { ProfilePhotoPicker } from "../ui/ProfilePhotoPicker";
 import { LocationPicker } from "./LocationPicker";
 import { ErrorState, LoadingState } from "../ui/PageStates";
 import { resolveAvatarUrl } from "../../utils/defaultAvatar";
-import { mockFamily } from "../../data/mockFamily";
+import { HIDDEN_LAST_NAME } from "../../utils/memberName";
 
 export interface EditMemberFallback {
   location?: string;
@@ -170,15 +170,10 @@ export function EditMember({
       return;
     }
 
-    const lastName =
-      form.lastName.trim() ||
-      mockFamily.name.replace(/\s+family$/i, "").trim() ||
-      form.firstName.trim();
-
     setSaving(true);
     const payload: UpdateMemberPayload = {
       firstName: form.firstName.trim(),
-      lastName,
+      lastName: HIDDEN_LAST_NAME,
       nickname: form.nickname || undefined,
       gender: form.gender,
       dateOfBirth: form.dateOfBirth || undefined,

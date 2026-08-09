@@ -3,6 +3,7 @@ import type { MemberProfile, MemberRelationSummary } from "../../types/member";
 import { canDelete, canEdit } from "../../auth/permissions";
 import { navigateTo } from "../../routing/navigate";
 import { formatMemberLabel, memberDisplayId, type MemberRanks } from "../../utils/memberRanks";
+import { memberDisplayName } from "../../utils/memberName";
 import { resolveAvatarUrl } from "../../utils/defaultAvatar";
 import { LocationView, toCoord } from "./LocationView";
 
@@ -43,7 +44,8 @@ function RelationPerson({
   memberRanks?: MemberRanks;
   onOpen: (memberId: number) => void;
 }) {
-  const label = memberRanks ? formatMemberLabel(memberRanks, String(rel.id), rel.fullName) : rel.fullName;
+  const name = memberDisplayName(rel);
+  const label = memberRanks ? formatMemberLabel(memberRanks, String(rel.id), name) : name;
   const photo = resolveAvatarUrl(rel.photoUrl, relationGender(rel.gender));
 
   return (
@@ -116,14 +118,14 @@ export function MemberDetails({
       <div className="flex flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/60 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <img
-            src={photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.fullName)}&background=064e3b&color=fff`}
+            src={photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(memberDisplayName(profile))}&background=064e3b&color=fff`}
             alt=""
             className="h-20 w-20 rounded-2xl object-cover"
           />
           <div>
             <h2 className="flex flex-wrap items-baseline gap-2 text-2xl font-semibold text-slate-100">
               {displayId ? <span className="text-base font-bold text-emerald-400">{displayId}</span> : null}
-              <span>{profile.fullName}</span>
+              <span>{memberDisplayName(profile)}</span>
             </h2>
             <p className="text-sm text-slate-400">{profile.nickname || (profile.isRoot ? "Root member" : "Family member")}</p>
             <p className="mt-1 text-xs text-slate-500">

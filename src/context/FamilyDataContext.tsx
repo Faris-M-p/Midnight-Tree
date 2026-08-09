@@ -6,6 +6,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { FamilyMember, MarriageUnion } from "../types";
 import { ApiClientError } from "../services/apiClient";
+import { loadFamilyBranding } from "../data/familyBranding";
 import { getFamilyTreeData } from "../services/treeService";
 import { logUnexpected } from "../utils/logFailure";
 import { computeMemberRanks, type MemberRanks } from "../utils/memberRanks";
@@ -31,7 +32,7 @@ export function FamilyDataProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError("");
     try {
-      const data = await getFamilyTreeData();
+      const [data] = await Promise.all([getFamilyTreeData(), loadFamilyBranding()]);
       setMembers(data.members);
       setUnions(data.unions);
     } catch (err) {
