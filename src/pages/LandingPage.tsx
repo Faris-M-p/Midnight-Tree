@@ -8,7 +8,6 @@
  * =============================================================================
  */
 
-import { useEffect, useState } from "react";
 import {
   ArrowRight,
   CheckCircle2,
@@ -23,6 +22,7 @@ import {
   Sparkles,
   Users
 } from "lucide-react";
+import { PublicHeader } from "../components/layout/PublicHeader";
 
 interface LandingPageProps {
   onNavigate: (path: string) => void;
@@ -112,94 +112,11 @@ function SocialIcon(props: { type: "github" | "linkedin" | "facebook" | "x" }) {
 }
 
 export function LandingPage({ onNavigate }: LandingPageProps) {
-  const [activeSection, setActiveSection] = useState<"home" | "features" | "about">("home");
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    const updateFromHash = () => {
-      const hash = window.location.hash.replace("#", "");
-      if (hash === "features" || hash === "about" || hash === "home") {
-        setActiveSection(hash);
-      } else {
-        setActiveSection("home");
-      }
-    };
-
-    updateFromHash();
-    window.addEventListener("hashchange", updateFromHash);
-    return () => window.removeEventListener("hashchange", updateFromHash);
-  }, []);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 8);
-    };
-
-    handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const navLinkClass = (section: "home" | "features" | "about") =>
-    `rounded-lg px-3 py-2 text-sm transition ${
-      activeSection === section
-        ? "bg-emerald-500/20 text-emerald-300"
-        : "text-slate-300 hover:text-emerald-300"
-    }`;
-
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-slate-950 text-slate-100">
-      <header
-        className={`fixed inset-x-0 top-0 z-40 transition-all duration-200 ${
-          isScrolled
-            ? "border-b border-slate-800/90 bg-slate-950/85 shadow-lg shadow-black/20 backdrop-blur-md"
-            : "border-b border-slate-800/60 bg-slate-950/70 backdrop-blur"
-        }`}
-      >
-        <nav className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between">
-          <button
-            type="button"
-            onClick={() => onNavigate("/")}
-            className="inline-flex items-center gap-2 text-left"
-          >
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-300">
-              <GitBranch className="h-5 w-5" />
-            </span>
-            <span>
-              <span className="block text-sm font-semibold text-slate-100">Midnight Chronicle</span>
-              <span className="block text-xs text-slate-400">Family Tree Platform</span>
-            </span>
-          </button>
+      <PublicHeader pathname="/" />
 
-          <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
-            <button type="button" onClick={() => onNavigate("/")} className={navLinkClass("home")}>
-              Home
-            </button>
-            <button type="button" onClick={() => onNavigate("/features")} className={navLinkClass("features")}>
-              Features
-            </button>
-            <button type="button" onClick={() => onNavigate("/about")} className={navLinkClass("about")}>
-              About
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate("/login")}
-              className="rounded-lg px-3 py-2 text-sm text-slate-300 transition hover:text-emerald-300"
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate("/register")}
-              className="rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
-            >
-              Register
-            </button>
-          </div>
-        </nav>
-      </header>
-
-      <main className="mx-auto w-full max-w-6xl px-4 pb-10 pt-28 md:pb-14 md:pt-32">
+      <main className="mx-auto w-full max-w-6xl px-4 pb-10 pt-8 md:pb-14 md:pt-10">
         <section id="home" className="grid items-center gap-8 rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-6 md:grid-cols-2 md:p-10">
           <div>
             <p className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-emerald-300">
@@ -218,15 +135,8 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                 onClick={() => onNavigate("/login")}
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
               >
-                Login
+                Get Started
                 <ArrowRight className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => onNavigate("/register")}
-                className="rounded-xl border border-slate-700 bg-slate-900/70 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-500 hover:text-emerald-300"
-              >
-                Register
               </button>
             </div>
           </div>
@@ -352,27 +262,15 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
           </div>
         </section>
 
-        <section className="mt-16 rounded-3xl border border-emerald-500/30 bg-gradient-to-r from-emerald-900/20 to-slate-900 p-6 md:p-10">
-          <h2 className="font-serif text-3xl text-white">Start preserving your family legacy today</h2>
-          <p className="mt-3 max-w-2xl text-slate-300">
-            Create your account and begin building a timeless, shareable history of your family journey.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => onNavigate("/login")}
-              className="rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate("/register")}
-              className="rounded-xl border border-slate-700 bg-slate-900/80 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-500 hover:text-emerald-300"
-            >
-              Register
-            </button>
-          </div>
+        <section className="mt-16 flex justify-center">
+          <button
+            type="button"
+            onClick={() => onNavigate("/login")}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+          >
+            Get Started
+            <ArrowRight className="h-4 w-4" />
+          </button>
         </section>
       </main>
 

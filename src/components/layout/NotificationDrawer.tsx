@@ -1,6 +1,7 @@
 import { Bell, BookOpen, CalendarDays, Gift, Heart, Image, X } from "lucide-react";
 import { mockNotifications, type NotificationKind } from "../../data/mockNotifications";
 import { navigateTo } from "../../routing/navigate";
+import { DrawerPortal } from "./DrawerPortal";
 
 interface NotificationDrawerProps {
   open: boolean;
@@ -23,9 +24,10 @@ export function NotificationDrawer({ open, onClose }: NotificationDrawerProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50">
+    <DrawerPortal>
+    <div className="fixed inset-0 z-[60]">
       <div className="absolute inset-0 bg-slate-950/60" onClick={onClose} />
-      <aside className="absolute right-0 top-0 h-full w-full max-w-md border-l border-slate-800 bg-slate-950 shadow-2xl">
+      <aside className="absolute right-0 top-0 h-dvh w-full max-w-md border-l border-slate-800 bg-slate-950 shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
           <div>
             <h2 className="text-base font-semibold text-slate-100">Notifications</h2>
@@ -71,5 +73,6 @@ export function NotificationDrawer({ open, onClose }: NotificationDrawerProps) {
         </div>
       </aside>
     </div>
+    </DrawerPortal>
   );
 }

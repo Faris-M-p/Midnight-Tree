@@ -3,7 +3,7 @@ import { PublicHeader } from "../components/layout/PublicHeader";
 export function AboutPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <PublicHeader active="about" />
+      <PublicHeader pathname="/about" />
       <main className="mx-auto max-w-3xl px-4 py-12 space-y-6">
         <h1 className="font-serif text-4xl text-white">About Midnight Chronicle</h1>
         <p className="text-slate-300 leading-relaxed">

@@ -20,7 +20,11 @@ export function AppLayout({ pathname, title, children, contentClassName = "" }: 
         <Header title={title} onOpenMobileNav={() => setMobileNavOpen(true)} />
         <main className={`min-h-0 flex-1 overflow-y-auto ${contentClassName}`}>{children}</main>
       </div>
-      <MobileNavigation open={mobileNavOpen} pathname={pathname} onClose={() => setMobileNavOpen(false)} />
+      <MobileNavigation
+        open={mobileNavOpen}
+        pathname={pathname}
+        onClose={() => setMobileNavOpen(false)}
+      />
     </div>
   );
 }

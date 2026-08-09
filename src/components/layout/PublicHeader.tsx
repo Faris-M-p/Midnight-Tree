@@ -1,49 +1,128 @@
-import { GitBranch } from "lucide-react";
+import { useEffect, useState } from "react";
+import { GitBranch, Menu, X } from "lucide-react";
+import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
+import { isPublicNavActive, publicNavItems } from "../../navigation/publicNav";
 import { navigateTo } from "../../routing/navigate";
+import { DrawerPortal } from "./DrawerPortal";
 
 interface PublicHeaderProps {
-  active: "home" | "features" | "about" | "login" | "register";
+  pathname?: string;
 }
 
-export function PublicHeader({ active }: PublicHeaderProps) {
-  const link = (path: string, key: PublicHeaderProps["active"], label: string) => (
-    <button
-      type="button"
-      onClick={() => navigateTo(path)}
-      className={`rounded-lg px-3 py-2 text-sm transition ${
-        active === key ? "bg-emerald-500/20 text-emerald-300" : "text-slate-300 hover:text-emerald-300"
-      }`}
-    >
-      {label}
-    </button>
-  );
+export function PublicHeader({ pathname }: PublicHeaderProps) {
+  const currentPath = pathname ?? (typeof window !== "undefined" ? window.location.pathname : "/");
+  const [open, setOpen] = useState(false);
+
+  useBodyScrollLock(open);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
+  const go = (href: string) => {
+    setOpen(false);
+    navigateTo(href);
+  };
 
   return (
-    <header className="border-b border-slate-800/80 bg-slate-950/90 backdrop-blur">
-      <nav className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between">
-        <button type="button" onClick={() => navigateTo("/")} className="inline-flex items-center gap-2 text-left">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-300">
-            <GitBranch className="h-5 w-5" />
+    <>
+    <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur">
+      <nav className="mx-auto flex h-14 w-full max-w-6xl items-center gap-2 overflow-hidden px-3 xl:h-16 xl:px-4">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-300 transition hover:bg-slate-900 hover:text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 xl:hidden"
+          aria-label="Open navigation"
+        >
+          <Menu size={20} aria-hidden="true" />
+        </button>
+
+        <button type="button" onClick={() => go("/")} className="inline-flex min-w-0 flex-1 items-center gap-2 text-left xl:flex-none">
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-300">
+            <GitBranch className="h-5 w-5" aria-hidden="true" />
           </span>
-          <span>
-            <span className="block text-sm font-semibold text-slate-100">Midnight Chronicle</span>
-            <span className="block text-xs text-slate-400">Family Tree Platform</span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold text-slate-100">Midnight Chronicle</span>
+            <span className="hidden truncate text-xs text-slate-400 sm:block">Family Tree Platform</span>
           </span>
         </button>
-        <div className="flex flex-wrap items-center gap-2">
-          {link("/", "home", "Home")}
-          {link("/features", "features", "Features")}
-          {link("/about", "about", "About")}
-          {link("/login", "login", "Login")}
-          <button
-            type="button"
-            onClick={() => navigateTo("/register")}
-            className="rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
-          >
-            Register
-          </button>
+
+        <div className="hidden shrink-0 items-center gap-1 whitespace-nowrap xl:flex">
+          {publicNavItems.map((item) => {
+            const active = isPublicNavActive(currentPath, item.href);
+            return (
+              <button
+                key={item.href}
+                type="button"
+                onClick={() => go(item.href)}
+                className={`rounded-lg px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${
+                  active
+                    ? "bg-emerald-500/20 text-emerald-300"
+                    : "text-slate-300 hover:text-emerald-300"
+                }`}
+                aria-current={active ? "page" : undefined}
+              >
+                {item.label}
+              </button>
+            );
+          })}
         </div>
       </nav>
     </header>
+
+    <DrawerPortal>
+      <div className={`fixed inset-0 z-50 xl:hidden ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
+        <div
+          className={`absolute inset-0 bg-slate-950/70 transition-opacity duration-200 ${open ? "opacity-100" : "opacity-0"}`}
+          onClick={() => setOpen(false)}
+        />
+        <aside
+          className={`absolute left-0 top-0 flex h-dvh w-[min(20rem,85vw)] max-w-xs flex-col bg-slate-950 shadow-2xl transition-transform duration-200 ${
+            open ? "translate-x-0" : "-translate-x-full"
+          }`}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Public navigation"
+        >
+          <div className="flex items-center justify-between border-b border-slate-800 px-3 py-3">
+            <p className="text-sm font-semibold text-slate-100">Midnight Chronicle</p>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-900 hover:text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+              aria-label="Close navigation"
+            >
+              <X size={18} aria-hidden="true" />
+            </button>
+          </div>
+          <nav className="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Public">
+            {publicNavItems.map((item) => {
+              const active = isPublicNavActive(currentPath, item.href);
+              return (
+                <button
+                  key={item.href}
+                  type="button"
+                  onClick={() => go(item.href)}
+                  className={`flex min-h-11 w-full items-center rounded-xl px-3 text-sm transition ${
+                    active
+                      ? "bg-emerald-500/15 text-emerald-300"
+                      : "text-slate-300 hover:bg-slate-900"
+                  }`}
+                  aria-current={active ? "page" : undefined}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+      </div>
+    </DrawerPortal>
+    </>
   );
 }

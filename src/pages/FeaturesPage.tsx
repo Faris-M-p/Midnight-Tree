@@ -15,7 +15,7 @@ const features = [
 export function FeaturesPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <PublicHeader active="features" />
+      <PublicHeader pathname="/features" />
       <main className="mx-auto max-w-6xl px-4 py-12">
         <h1 className="font-serif text-4xl text-white">Features</h1>
         <p className="mt-3 max-w-2xl text-slate-400">
