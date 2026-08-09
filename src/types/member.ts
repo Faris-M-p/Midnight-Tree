@@ -78,6 +78,9 @@ export interface MemberProfile {
   nickname?: string | null;
   biography?: string | null;
   profession?: string | null;
+  locationName?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   parent?: MemberRelationSummary | null;
   spouse?: MemberRelationSummary | null;
   children: MemberRelationSummary[];
@@ -100,6 +103,9 @@ export interface CreateMemberPayload {
   spouseId?: number;
   email?: string;
   phone?: string;
+  locationName?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   images?: Array<{
     id?: number;
     imageUrl: string;

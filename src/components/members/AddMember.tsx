@@ -7,6 +7,7 @@ import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
 import { DatePicker } from "../DatePicker";
 import { ProfilePhotoPicker } from "../ui/ProfilePhotoPicker";
+import { LocationPicker, type MemberLocationValue } from "./LocationPicker";
 import { resolveAvatarUrl } from "../../utils/defaultAvatar";
 import { computeMemberRanks, formatMemberLabel, type MemberRanks } from "../../utils/memberRanks";
 import { mockFamily } from "../../data/mockFamily";
@@ -42,6 +43,11 @@ export function AddMember({
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
   const [profession, setProfession] = useState("");
+  const [location, setLocation] = useState<MemberLocationValue>({
+    locationName: "",
+    latitude: null,
+    longitude: null
+  });
   const [connection, setConnection] = useState<Connection>("root");
   const [targetId, setTargetId] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -86,6 +92,7 @@ export function AddMember({
       return "";
     });
     setProfession("");
+    setLocation({ locationName: "", latitude: null, longitude: null });
     setConnection(members.some((m) => m.isRoot) ? "child" : "root");
     setTargetId("");
   }, [open]);
@@ -151,6 +158,9 @@ export function AddMember({
           dateOfBirth: dob || undefined,
           dateOfDeath: lifeStatus === "deceased" ? dateOfDeath || undefined : undefined,
           profession: profession.trim() || undefined,
+          locationName: location.locationName.trim() || undefined,
+          latitude: location.latitude,
+          longitude: location.longitude,
           isRoot: connection === "root",
           parentId: connection === "child" && union ? Number(union.spouse1Id) : undefined,
           spouseId: connection === "spouse" ? Number(targetId) : undefined
@@ -227,6 +237,11 @@ export function AddMember({
               className={inputClass}
             />
           </label>
+
+          <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
+            <p className="mb-2 text-sm font-medium text-slate-200">Location</p>
+            <LocationPicker value={location} onChange={setLocation} inputClassName={inputClass} />
+          </div>
 
           <fieldset className="text-sm">
             <legend className="text-slate-300">Life status</legend>

@@ -7,6 +7,7 @@ import { mockEvents } from "../../data/mockEvents";
 import { mockAlbums } from "../../data/mockGallery";
 import { formatMemberLabel, memberDisplayId, type MemberRanks } from "../../utils/memberRanks";
 import { resolveAvatarUrl } from "../../utils/defaultAvatar";
+import { LocationView, toCoord } from "./LocationView";
 
 export interface MemberDetailsProps {
   profile: MemberProfile;
@@ -107,6 +108,7 @@ export function MemberDetails({
   const events = mockEvents.filter((e) => e.relatedMemberIds.length > 0).slice(0, 4);
   const photos = mockAlbums.flatMap((a) => a.photos).slice(0, 6);
   const displayId = memberRanks ? memberDisplayId(memberRanks, String(profile.id)) : undefined;
+  const hasMapPin = toCoord(profile.latitude) !== null && toCoord(profile.longitude) !== null;
 
   const handleEdit = () => {
     if (onEdit) onEdit();
@@ -198,9 +200,15 @@ export function MemberDetails({
           <p>Email: {profile.email || "—"}</p>
           <p className="mt-1">Phone: {profile.phone || "—"}</p>
         </Section>
-        <Section title="Location">
-          <p>{location || "Not specified"}</p>
-        </Section>
+        <div className={hasMapPin ? "md:col-span-2" : undefined}>
+          <Section title="Location">
+            <LocationView
+              locationName={profile.locationName || location}
+              latitude={profile.latitude ?? (profile as { Latitude?: unknown }).Latitude}
+              longitude={profile.longitude ?? (profile as { Longitude?: unknown }).Longitude}
+            />
+          </Section>
+        </div>
         <Section title="Education">
           <p>{education || "Not specified"}</p>
         </Section>

@@ -114,6 +114,9 @@ function appendMemberForm(form: FormData, payload: CreateMemberPayload, photo?: 
   appendIfValue(form, "biography", payload.biography);
   appendIfValue(form, "email", payload.email);
   appendIfValue(form, "phone", payload.phone);
+  appendIfValue(form, "locationName", payload.locationName);
+  if (typeof payload.latitude === "number") appendIfValue(form, "latitude", payload.latitude);
+  if (typeof payload.longitude === "number") appendIfValue(form, "longitude", payload.longitude);
   appendIfValue(form, "parentId", payload.parentId);
   appendIfValue(form, "spouseId", payload.spouseId);
 

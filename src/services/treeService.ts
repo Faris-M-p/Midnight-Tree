@@ -111,7 +111,7 @@ function toFamilyMember(profile: MemberProfile, generationMap: Map<number, numbe
     relation: profile.nickname?.trim() || relationFromGeneration(generation, gender, profile.isRoot),
     gender,
     dob: profile.dateOfBirth ?? "",
-    location: "Unknown",
+    location: profile.locationName?.trim() || "Unknown",
     profession: profile.profession || "Not specified",
     avatar,
     bio: profile.biography || "No biography available.",

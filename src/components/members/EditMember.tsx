@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { X } from "lucide-react";
 import type { MemberProfile, UpdateMemberPayload } from "../../types/member";
 import { getMemberDetails, updateMember } from "../../services/memberService";
@@ -7,6 +7,7 @@ import { notify } from "../../utils/notify";
 import { logUnexpected } from "../../utils/logFailure";
 import { DatePicker } from "../DatePicker";
 import { ProfilePhotoPicker } from "../ui/ProfilePhotoPicker";
+import { LocationPicker } from "./LocationPicker";
 import { ErrorState, LoadingState } from "../ui/PageStates";
 import { resolveAvatarUrl } from "../../utils/defaultAvatar";
 import { mockFamily } from "../../data/mockFamily";
@@ -30,6 +31,15 @@ type LifeStatus = "alive" | "deceased";
 
 const inputClass =
   "w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none focus:border-emerald-500";
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block text-sm">
+      <span className="text-slate-300">{label}</span>
+      <div className="mt-1">{children}</div>
+    </label>
+  );
+}
 
 function genderKey(gender: string): "male" | "female" | "other" {
   const value = gender.toLowerCase();
@@ -69,18 +79,23 @@ export function EditMember({
     phone: "",
     profession: "",
     biography: "",
-    location: "",
+    locationName: "",
+    latitude: null as number | null,
+    longitude: null as number | null,
     education: "",
     career: "",
     instagram: "",
     facebook: ""
   });
+  const fallbackRef = useRef(fallback);
+  fallbackRef.current = fallback;
 
   useEffect(() => {
     if (!open || memberId == null || !Number.isFinite(memberId)) {
       return;
     }
 
+    const extra = fallbackRef.current;
     setLoading(true);
     setError("");
     getMemberDetails(memberId)
@@ -103,9 +118,11 @@ export function EditMember({
           phone: data.phone || "",
           profession: data.profession || "",
           biography: data.biography || "",
-          location: fallback?.location || "",
-          education: fallback?.education || "",
-          career: fallback?.career || data.profession || "",
+          locationName: data.locationName || extra?.location || "",
+          latitude: typeof data.latitude === "number" ? data.latitude : null,
+          longitude: typeof data.longitude === "number" ? data.longitude : null,
+          education: extra?.education || "",
+          career: extra?.career || data.profession || "",
           instagram: data.socialLinks?.find((s) => s.platform.toLowerCase().includes("instagram"))?.url || "",
           facebook: data.socialLinks?.find((s) => s.platform.toLowerCase().includes("facebook"))?.url || ""
         });
@@ -116,7 +133,7 @@ export function EditMember({
         setError(err instanceof ApiClientError ? err.message : "Unable to load member.");
       })
       .finally(() => setLoading(false));
-  }, [open, memberId, fallback?.location, fallback?.education, fallback?.career]);
+  }, [open, memberId]);
 
   useEffect(() => {
     return () => {
@@ -126,7 +143,8 @@ export function EditMember({
 
   if (!open) return null;
 
-  const set = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
+    setForm((current) => ({ ...current, [key]: value }));
 
   const handlePhotoSelected = (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -169,6 +187,9 @@ export function EditMember({
       profession: form.profession || undefined,
       email: form.email || undefined,
       phone: form.phone || undefined,
+      locationName: form.locationName.trim() || undefined,
+      latitude: form.latitude,
+      longitude: form.longitude,
       isRoot: profile.isRoot,
       parentId: profile.parent?.id,
       spouseId: profile.spouse?.id,
@@ -189,19 +210,6 @@ export function EditMember({
       setSaving(false);
     }
   };
-
-  const Field = ({
-    label,
-    children
-  }: {
-    label: string;
-    children: React.ReactNode;
-  }) => (
-    <label className="block text-sm">
-      <span className="text-slate-300">{label}</span>
-      <div className="mt-1">{children}</div>
-    </label>
-  );
 
   const preview = photoPreview || existingPhoto(profile) || resolveAvatarUrl("", genderKey(form.gender));
 
@@ -281,9 +289,22 @@ export function EditMember({
 
           <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
             <h3 className="font-semibold text-slate-100">Location</h3>
-            <Field label="Location">
-              <input className={inputClass} value={form.location} onChange={(e) => set("location", e.target.value)} />
-            </Field>
+            <LocationPicker
+              value={{
+                locationName: form.locationName,
+                latitude: form.latitude,
+                longitude: form.longitude
+              }}
+              onChange={(next) =>
+                setForm((current) => ({
+                  ...current,
+                  locationName: next.locationName,
+                  latitude: next.latitude,
+                  longitude: next.longitude
+                }))
+              }
+              inputClassName={inputClass}
+            />
           </section>
 
           <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/40 p-5">

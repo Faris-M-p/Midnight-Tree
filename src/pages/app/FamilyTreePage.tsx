@@ -369,7 +369,7 @@ function AppContent() {
       relation: nickname || fallback?.relation || (profile.isRoot ? (gender === 'male' ? 'Grandfather' : 'Grandmother') : 'Member'),
       gender,
       dob: profile.dateOfBirth || fallback?.dob || '',
-      location: fallback?.location || 'Unknown',
+      location: profile.locationName?.trim() || fallback?.location || 'Unknown',
       profession: profile.profession || fallback?.profession || 'Not specified',
       avatar,
       bio: profile.biography || fallback?.bio || 'No biography available.',
