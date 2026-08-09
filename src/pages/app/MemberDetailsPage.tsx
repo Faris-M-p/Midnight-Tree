@@ -6,6 +6,7 @@ import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
 import { logUnexpected } from "../../utils/logFailure";
 import { MemberDetails } from "../../components/members/MemberDetails";
+import { EditMember } from "../../components/members/EditMember";
 import { ErrorState, LoadingState } from "../../components/ui/PageStates";
 import { useFamilyData } from "../../context/FamilyDataContext";
 
@@ -21,6 +22,7 @@ export function MemberDetailsPage({ pathname }: MemberDetailsPageProps) {
   const [profile, setProfile] = useState<MemberProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
     if (!Number.isFinite(id)) {
@@ -58,13 +60,26 @@ export function MemberDetailsPage({ pathname }: MemberDetailsPageProps) {
   if (error || !profile) return <ErrorState message={error || "Member not found."} onRetry={() => navigateTo("/members")} />;
 
   return (
-    <MemberDetails
-      profile={profile}
-      location={fallback?.location}
-      education={fallback?.education}
-      career={fallback?.career}
-      memberRanks={memberRanks}
-      onDelete={handleDelete}
-    />
+    <>
+      <MemberDetails
+        profile={profile}
+        location={fallback?.location}
+        education={fallback?.education}
+        career={fallback?.career}
+        memberRanks={memberRanks}
+        onEdit={() => setEditOpen(true)}
+        onDelete={handleDelete}
+      />
+      <EditMember
+        open={editOpen}
+        memberId={id}
+        fallback={fallback}
+        onClose={() => setEditOpen(false)}
+        onSaved={async (updated) => {
+          setProfile(updated);
+          await refresh();
+        }}
+      />
+    </>
   );
 }

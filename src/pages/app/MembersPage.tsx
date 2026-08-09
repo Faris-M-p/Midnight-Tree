@@ -3,6 +3,7 @@ import { Pencil, Search, Trash2, UserPlus } from "lucide-react";
 import { useFamilyData } from "../../context/FamilyDataContext";
 import { navigateTo } from "../../routing/navigate";
 import { AddMember } from "../../components/members/AddMember";
+import { EditMember } from "../../components/members/EditMember";
 import { EmptyState, ErrorState, LoadingState } from "../../components/ui/PageStates";
 import { canDelete, canEdit } from "../../auth/permissions";
 import { deleteMember } from "../../services/memberService";
@@ -19,6 +20,7 @@ export function MembersPage() {
   const [sort, setSort] = useState<"number" | "name" | "dob" | "location">("number");
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -171,7 +173,7 @@ export function MembersPage() {
                         {canEdit() && (
                           <button
                             type="button"
-                            onClick={() => navigateTo(`/members/${member.id}/edit`)}
+                            onClick={() => setEditId(Number(member.id))}
                             className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-800"
                           >
                             <Pencil size={14} />
@@ -218,7 +220,7 @@ export function MembersPage() {
                     View
                   </button>
                   {canEdit() && (
-                    <button type="button" onClick={() => navigateTo(`/members/${member.id}/edit`)} className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs">
+                    <button type="button" onClick={() => setEditId(Number(member.id))} className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs">
                       Edit
                     </button>
                   )}
@@ -260,6 +262,13 @@ export function MembersPage() {
         unions={unions}
         memberRanks={memberRanks}
         onCreated={refresh}
+      />
+      <EditMember
+        open={editId != null}
+        memberId={editId}
+        fallback={members.find((m) => Number(m.id) === editId)}
+        onClose={() => setEditId(null)}
+        onSaved={refresh}
       />
     </div>
   );

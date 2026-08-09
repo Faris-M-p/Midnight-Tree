@@ -15,7 +15,9 @@ Reusable UI pieces used by pages and the tree screen.
 |------|---------|
 | `CreateMemberModal.tsx` | Alias for shared Add Member modal |
 | `members/AddMember.tsx` | Common add-member form (Members + Family Tree) |
-| `ProfileModal.tsx` | Member details |
+| `members/EditMember.tsx` | Common edit-member form (Members + Family Tree) |
+| `members/MemberDetails.tsx` | Common member details (page + tree modal) |
+| `members/MemberDetailsModal.tsx` | Tree overlay for Member Details |
 | `SearchHeader.tsx` | Top toolbar |
 | `FilterSidebar.tsx` | Generation / location filters |
 | `AnalyticsPanel.tsx` | Stats drawer |

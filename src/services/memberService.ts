@@ -12,7 +12,7 @@
  *   DELETE /api/members/{id}
  *
  * No UI logic here — only network + typing.
- * Used by: treeService, App (Add / Edit / Delete Member), ProfileModal flows.
+ * Used by: treeService, AddMember, EditMember, MemberDetails.
  * =============================================================================
  */
 

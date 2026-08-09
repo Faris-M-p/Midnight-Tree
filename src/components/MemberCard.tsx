@@ -5,7 +5,7 @@
  * =============================================================================
  * Shows avatar, name, relation badge, and connection handles
  * (top = child link target, left/right = spouse links).
- * Clicking the card opens ProfileModal via data.onSelect.
+ * Clicking the card opens shared Member Details via data.onSelect.
  * =============================================================================
  */
 

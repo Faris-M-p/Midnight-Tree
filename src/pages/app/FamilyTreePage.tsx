@@ -22,19 +22,19 @@ import type { FamilyMember, MarriageUnion } from '../../types';
 import { SearchHeader } from '../../components/SearchHeader';
 import { FilterSidebar } from '../../components/FilterSidebar';
 import { FamilyTreeCanvas } from '../../components/FamilyTreeCanvas';
-import { ProfileModal } from '../../components/ProfileModal';
-import type { ProfileActionResult } from '../../components/ProfileModal';
 import { AnalyticsPanel } from '../../components/AnalyticsPanel';
 import { TimelinePanel } from '../../components/TimelinePanel';
 import { AddMember } from '../../components/members/AddMember';
+import { EditMember } from '../../components/members/EditMember';
+import { MemberDetailsModal } from '../../components/members/MemberDetailsModal';
 import { ApiClientError } from '../../services/apiClient';
-import { deleteMember, getMemberDetails, updateMember } from '../../services/memberService';
+import { deleteMember, getMemberDetails } from '../../services/memberService';
 import { useFamilyData } from '../../context/FamilyDataContext';
 import { getFamilyTreeData } from '../../services/treeService';
 import { notify } from '../../utils/notify';
 import { logFailure, logUnexpected } from '../../utils/logFailure';
 import { computeMemberRanks } from '../../utils/memberRanks';
-import type { MemberProfile, UpdateMemberPayload } from '../../types/member';
+import type { MemberProfile } from '../../types/member';
 
 import '@xyflow/react/dist/style.css';
 
@@ -329,9 +329,10 @@ function AppContent() {
 
   // Panels and Modals
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
-  /** Raw API profile for the open modal — needed so update keeps parent/spouse/isRoot */
   const [selectedProfile, setSelectedProfile] = useState<MemberProfile | null>(null);
   const [isDetailsLoading, setIsDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState('');
+  const [editOpen, setEditOpen] = useState(false);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -384,66 +385,6 @@ function AppContent() {
         gmail: findSocial('gmail') || findSocial('email') || profile.email || undefined
       }
     };
-  };
-
-  const buildSocialLinks = (
-    socials?: FamilyMember['socials'],
-    existing?: MemberProfile['socialLinks']
-  ): UpdateMemberPayload['socialLinks'] => {
-    const links: NonNullable<UpdateMemberPayload['socialLinks']> = [];
-    const findExistingId = (needle: string) =>
-      existing?.find((s) => s.platform.toLowerCase().includes(needle))?.id;
-
-    const push = (platform: string, url?: string, existingId?: number) => {
-      if (!url?.trim()) return;
-      links.push({ id: existingId, platform, url: url.trim() });
-    };
-
-    push('Instagram', socials?.instagram, findExistingId('instagram'));
-    push('Facebook', socials?.facebook, findExistingId('facebook'));
-
-    if (socials?.whatsapp?.trim()) {
-      const raw = socials.whatsapp.trim();
-      const waUrl = raw.startsWith('http') ? raw : `https://wa.me/91${raw.replace(/\D/g, '')}`;
-      push('WhatsApp', waUrl, findExistingId('whatsapp'));
-    }
-
-    if (socials?.gmail?.trim()) {
-      const raw = socials.gmail.trim();
-      const mailUrl = raw.startsWith('mailto:') || raw.startsWith('http') ? raw : `mailto:${raw}`;
-      push('Email', mailUrl, findExistingId('gmail') ?? findExistingId('email'));
-    }
-
-    return links;
-  };
-
-  const buildImagePayload = (
-    profile: MemberProfile,
-    nextAvatar?: string
-  ): UpdateMemberPayload['images'] | undefined => {
-    const existing = profile.images ?? [];
-    const avatar = nextAvatar?.trim();
-    const currentAvatar = existing.find((x) => x.isPrimary)?.imageUrl || existing[0]?.imageUrl;
-
-    if (!avatar || avatar === currentAvatar) {
-      return undefined;
-    }
-
-    return [
-      ...existing.map((img) => ({
-        id: img.id,
-        imageUrl: img.imageUrl,
-        caption: img.caption ?? undefined,
-        isPrimary: false,
-        sortOrder: img.sortOrder
-      })),
-      {
-        imageUrl: avatar,
-        caption: 'Profile',
-        isPrimary: true,
-        sortOrder: existing.length
-      }
-    ];
   };
 
   const loadTreeData = async () => {
@@ -530,127 +471,20 @@ function AppContent() {
     );
   };
 
-  /**
-   * Update member via PUT /api/members/{id}, then refresh the tree.
-   * Preserves parentId / spouseId / isRoot from the loaded API profile.
-   */
-  const handleUpdateMember = async (
-    id: string,
-    updatedData: Partial<FamilyMember>
-  ): Promise<ProfileActionResult> => {
-    const memberId = Number(id);
-    if (!Number.isFinite(memberId)) {
-      notify.error('Invalid member id.');
-      return { success: false, message: 'Invalid member id.' };
-    }
-
-    // Prefer latest profile from API so we do not wipe parent/spouse links
-    let profile = selectedProfile;
-    if (!profile || profile.id !== memberId) {
-      try {
-        profile = await getMemberDetails(memberId);
-      } catch {
-        notify.error('Unable to load member before saving. Please try again.');
-        return { success: false, message: 'Unable to load member before saving. Please try again.' };
-      }
-    }
-
-    const fullName = (updatedData.name ?? profile.fullName).trim();
-    const tokens = fullName.split(/\s+/).filter(Boolean);
-    const firstName = tokens.shift() || fullName;
-    const lastName = tokens.join(' ') || firstName;
-
-    const genderRaw = (updatedData.gender ?? profile.gender ?? 'Male').toString().toLowerCase();
-    const gender =
-      genderRaw === 'female' ? 'Female' : genderRaw === 'other' ? 'Other' : 'Male';
-
-    const nextSocials = updatedData.socials ?? {
-      instagram: profile.socialLinks?.find((s) => s.platform.toLowerCase().includes('instagram'))?.url,
-      facebook: profile.socialLinks?.find((s) => s.platform.toLowerCase().includes('facebook'))?.url,
-      whatsapp: profile.phone || undefined,
-      gmail: profile.email || undefined
-    };
-
-    const payload: UpdateMemberPayload = {
-      firstName,
-      lastName,
-      gender,
-      dateOfBirth: updatedData.dob || profile.dateOfBirth || undefined,
-      dateOfDeath: updatedData.isDeceased
-        ? profile.dateOfDeath || new Date().toISOString().slice(0, 10)
-        : undefined,
-      isRoot: profile.isRoot,
-      nickname: updatedData.nickname ?? profile.nickname ?? undefined,
-      biography: updatedData.bio ?? profile.biography ?? undefined,
-      profession: updatedData.profession ?? profile.profession ?? undefined,
-      parentId: profile.parent?.id,
-      spouseId: profile.spouse?.id,
-      email: (nextSocials.gmail || profile.email || undefined)?.replace(/^mailto:/i, ''),
-      phone: nextSocials.whatsapp?.replace(/\D/g, '') || profile.phone || undefined,
-      socialLinks: buildSocialLinks(nextSocials, profile.socialLinks),
-      images: buildImagePayload(profile, updatedData.avatar)
-    };
-
-    // If marked not deceased, clear death date
-    if (updatedData.isDeceased === false) {
-      payload.dateOfDeath = undefined;
-    }
-
-    try {
-      const updated = await updateMember(memberId, payload);
-      await loadTreeData();
-
-      const fallbackMember =
-        selectedMember ??
-        members.find((m) => m.id === id) ?? {
-          id,
-          name: fullName,
-          relation: 'Member',
-          gender: 'other' as const,
-          dob: '',
-          location: 'Unknown',
-          profession: 'Not specified',
-          avatar: '',
-          bio: '',
-          education: 'Not Specified',
-          career: 'Not Specified',
-          photos: []
-        };
-
-      const mapped = mapProfileToMember(updated, {
-        ...fallbackMember,
-        ...updatedData,
-        id,
-        education: updatedData.education ?? fallbackMember.education,
-        career: updatedData.career ?? fallbackMember.career,
-        location: updatedData.location ?? fallbackMember.location,
-        relation: updatedData.relation ?? fallbackMember.relation,
-        avatar: updatedData.avatar || fallbackMember.avatar
-      });
-
-      setSelectedProfile(updated);
-      setSelectedMember(mapped);
-      notify.success('Member updated successfully.');
-      return { success: true };
-    } catch (error) {
-      if (error instanceof ApiClientError) {
-        notify.fromApiError(error);
-      } else {
-        notify.error('Unable to update member right now. Please try again.');
-      }
-      return { success: false, message: 'Unable to update member right now. Please try again.' };
-    }
+  const closeMemberSheets = () => {
+    setSelectedMember(null);
+    setSelectedProfile(null);
+    setDetailsError('');
+    setEditOpen(false);
   };
 
-  /**
-   * Delete member via DELETE /api/members/{id}.
-   * Frontend also blocks when the member still has children in the local tree.
-   */
-  const handleDeleteMember = async (id: string): Promise<ProfileActionResult> => {
+  const handleDeleteMember = async () => {
+    if (!selectedMember) return;
+    const id = selectedMember.id;
     const memberId = Number(id);
     if (!Number.isFinite(memberId)) {
       notify.error('Invalid member id.');
-      return { success: false, message: 'Invalid member id.' };
+      return;
     }
 
     const childCountFromProfile =
@@ -661,26 +495,20 @@ function AppContent() {
 
     if (childCountFromProfile > 0 || hasUnionChildren) {
       notify.warning('Cannot delete this member because they have children. Remove or reassign children first.');
-      return {
-        success: false,
-        message: 'Cannot delete this member because they have children. Remove or reassign children first.'
-      };
+      return;
     }
+
+    if (!window.confirm(`Delete ${selectedMember.name}? This cannot be undone.`)) return;
 
     try {
       await deleteMember(memberId);
-      setSelectedMember(null);
-      setSelectedProfile(null);
+      closeMemberSheets();
       await loadTreeData();
+      await refreshFamilyData();
       notify.success('Member deleted successfully.');
-      return { success: true };
     } catch (error) {
-      if (error instanceof ApiClientError) {
-        notify.fromApiError(error);
-      } else {
-        notify.error('Unable to delete member right now. Please try again.');
-      }
-      return { success: false, message: 'Unable to delete member right now. Please try again.' };
+      if (error instanceof ApiClientError) notify.fromApiError(error);
+      else notify.error('Unable to delete member right now.');
     }
   };
 
@@ -913,6 +741,8 @@ function AppContent() {
   const handleMemberSelect = async (member: FamilyMember) => {
     setSelectedMember(member);
     setSelectedProfile(null);
+    setDetailsError('');
+    setEditOpen(false);
     setIsDetailsLoading(true);
     try {
       const profile = await getMemberDetails(Number(member.id));
@@ -920,6 +750,7 @@ function AppContent() {
       setSelectedMember(mapProfileToMember(profile, member));
     } catch (error) {
       logUnexpected('TreeMemberDetails', error);
+      setDetailsError(error instanceof ApiClientError ? error.message : 'Unable to load member details.');
     } finally {
       setIsDetailsLoading(false);
     }
@@ -1010,16 +841,51 @@ function AppContent() {
         </main>
       </div>
 
-      <ProfileModal
-        member={selectedMember}
-        displayId={selectedMember ? `#${memberRanks[selectedMember.id] ?? '?'}` : undefined}
-        isLoadingDetails={isDetailsLoading}
-        onClose={() => {
-          setSelectedMember(null);
-          setSelectedProfile(null);
+      <MemberDetailsModal
+        open={Boolean(selectedMember)}
+        loading={isDetailsLoading}
+        error={detailsError}
+        profile={selectedProfile}
+        location={selectedMember?.location}
+        education={selectedMember?.education}
+        career={selectedMember?.career}
+        memberRanks={memberRanks}
+        onClose={closeMemberSheets}
+        onEdit={() => setEditOpen(true)}
+        onDelete={() => void handleDeleteMember()}
+        onOpenMember={(memberId) => {
+          const existing = members.find((member) => member.id === String(memberId));
+          void handleMemberSelect(
+            existing ?? {
+              id: String(memberId),
+              name: "",
+              relation: "Member",
+              gender: "other",
+              dob: "",
+              location: "",
+              profession: "",
+              avatar: "",
+              bio: "",
+              education: "",
+              career: "",
+              photos: []
+            }
+          );
         }}
-        onUpdate={handleUpdateMember}
-        onDelete={handleDeleteMember}
+        showViewInTree={false}
+      />
+
+      <EditMember
+        open={editOpen}
+        memberId={selectedMember ? Number(selectedMember.id) : null}
+        fallback={selectedMember}
+        onClose={() => setEditOpen(false)}
+        onSaved={async (updated) => {
+          await loadTreeData();
+          await refreshFamilyData();
+          setSelectedProfile(updated);
+          setSelectedMember((current) => (current ? mapProfileToMember(updated, current) : current));
+        }}
       />
 
       <AnalyticsPanel

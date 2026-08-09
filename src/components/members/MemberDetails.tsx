@@ -1,4 +1,4 @@
-import { GitBranch, Pencil, Trash2 } from "lucide-react";
+import { GitBranch, Pencil, Trash2, X } from "lucide-react";
 import type { MemberProfile, MemberRelationSummary } from "../../types/member";
 import { canDelete, canEdit } from "../../auth/permissions";
 import { navigateTo } from "../../routing/navigate";
@@ -6,14 +6,20 @@ import { mockStories } from "../../data/mockStories";
 import { mockEvents } from "../../data/mockEvents";
 import { mockAlbums } from "../../data/mockGallery";
 import { formatMemberLabel, memberDisplayId, type MemberRanks } from "../../utils/memberRanks";
+import { resolveAvatarUrl } from "../../utils/defaultAvatar";
 
-interface MemberDetailsProps {
+export interface MemberDetailsProps {
   profile: MemberProfile;
   location?: string;
   education?: string;
   career?: string;
   memberRanks?: MemberRanks;
   onDelete?: () => void;
+  onEdit?: () => void;
+  onClose?: () => void;
+  onOpenMember?: (memberId: number) => void;
+  showViewInTree?: boolean;
+  embedded?: boolean;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -25,21 +31,95 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function relationLabel(ranks: MemberRanks | undefined, rel: MemberRelationSummary | null | undefined) {
-  if (!rel) return "—";
-  if (!ranks) return rel.fullName;
-  return formatMemberLabel(ranks, String(rel.id), rel.fullName);
+function relationGender(gender?: string | null): "male" | "female" | "other" {
+  const value = (gender || "").toLowerCase();
+  if (value === "female") return "female";
+  if (value === "other") return "other";
+  return "male";
 }
 
-export function MemberDetails({ profile, location, education, career, memberRanks, onDelete }: MemberDetailsProps) {
+function RelationPerson({
+  rel,
+  memberRanks,
+  onOpen
+}: {
+  rel: MemberRelationSummary;
+  memberRanks?: MemberRanks;
+  onOpen: (memberId: number) => void;
+}) {
+  const label = memberRanks ? formatMemberLabel(memberRanks, String(rel.id), rel.fullName) : rel.fullName;
+  const photo = resolveAvatarUrl(rel.photoUrl, relationGender(rel.gender));
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(rel.id)}
+      className="flex w-full items-center gap-2 rounded-xl px-1 py-1.5 text-left transition hover:bg-slate-800/70"
+    >
+      <img src={photo} alt="" className="h-9 w-9 shrink-0 rounded-full border border-slate-700 object-cover" />
+      <span className="min-w-0 truncate text-sm text-slate-100">{label}</span>
+    </button>
+  );
+}
+
+function RelationList({
+  title,
+  people,
+  memberRanks,
+  onOpen
+}: {
+  title: string;
+  people: MemberRelationSummary[];
+  memberRanks?: MemberRanks;
+  onOpen: (memberId: number) => void;
+}) {
+  return (
+    <div>
+      <p className="text-xs uppercase text-slate-500">{title}</p>
+      {people.length ? (
+        <div className="mt-1 space-y-0.5">
+          {people.map((person) => (
+            <RelationPerson key={person.id} rel={person} memberRanks={memberRanks} onOpen={onOpen} />
+          ))}
+        </div>
+      ) : (
+        <p className="mt-2 text-sm text-slate-400">—</p>
+      )}
+    </div>
+  );
+}
+
+export function MemberDetails({
+  profile,
+  location,
+  education,
+  career,
+  memberRanks,
+  onDelete,
+  onEdit,
+  onClose,
+  onOpenMember,
+  showViewInTree = true,
+  embedded = false
+}: MemberDetailsProps) {
   const photo = profile.images?.find((i) => i.isPrimary)?.imageUrl || profile.images?.[0]?.imageUrl;
   const stories = mockStories.filter((s) => s.relatedMemberIds.some((id) => profile.fullName.toLowerCase().includes(id)));
   const events = mockEvents.filter((e) => e.relatedMemberIds.length > 0).slice(0, 4);
   const photos = mockAlbums.flatMap((a) => a.photos).slice(0, 6);
   const displayId = memberRanks ? memberDisplayId(memberRanks, String(profile.id)) : undefined;
 
+  const handleEdit = () => {
+    if (onEdit) onEdit();
+    else navigateTo(`/members/${profile.id}/edit`);
+  };
+
+  const openMember = (memberId: number) => {
+    if (onOpenMember) onOpenMember(memberId);
+    else navigateTo(`/members/${memberId}`);
+  };
+
   return (
-    <div className="mx-auto max-w-4xl space-y-4 p-4 md:p-6">
+    <div className={embedded ? "space-y-4" : "mx-auto max-w-4xl space-y-4 p-4 md:p-6"}>
       <div className="flex flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/60 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <img
@@ -62,19 +142,21 @@ export function MemberDetails({ profile, location, education, career, memberRank
           {canEdit() && (
             <button
               type="button"
-              onClick={() => navigateTo(`/members/${profile.id}/edit`)}
+              onClick={handleEdit}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm hover:border-emerald-500"
             >
               <Pencil size={14} /> Edit
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => navigateTo(`/family-tree?member=${profile.id}`)}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm hover:border-emerald-500"
-          >
-            <GitBranch size={14} /> View in family tree
-          </button>
+          {showViewInTree ? (
+            <button
+              type="button"
+              onClick={() => navigateTo(`/family-tree?member=${profile.id}`)}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm hover:border-emerald-500"
+            >
+              <GitBranch size={14} /> View in family tree
+            </button>
+          ) : null}
           {canDelete() && onDelete && (
             <button
               type="button"
@@ -84,6 +166,15 @@ export function MemberDetails({ profile, location, education, career, memberRank
               <Trash2 size={14} /> Delete
             </button>
           )}
+          {onClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm hover:border-slate-500"
+            >
+              <X size={14} /> Close
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -92,12 +183,12 @@ export function MemberDetails({ profile, location, education, career, memberRank
           <dl className="grid grid-cols-2 gap-2">
             <dt className="text-slate-500">First name</dt>
             <dd>{profile.firstName}</dd>
-            <dt className="text-slate-500">Last name</dt>
-            <dd>{profile.lastName}</dd>
-            <dt className="text-slate-500">Gender</dt>
-            <dd>{profile.gender || "—"}</dd>
             <dt className="text-slate-500">Nickname</dt>
             <dd>{profile.nickname || "—"}</dd>
+            <dt className="text-slate-500">Gender</dt>
+            <dd>{profile.gender || "—"}</dd>
+            <dt className="text-slate-500">Profession</dt>
+            <dd>{profile.profession || "—"}</dd>
           </dl>
         </Section>
         <Section title="Biography">
@@ -136,23 +227,25 @@ export function MemberDetails({ profile, location, education, career, memberRank
       </Section>
 
       <Section title="Family relationships">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div>
-            <p className="text-xs uppercase text-slate-500">Parent</p>
-            <p>{relationLabel(memberRanks, profile.parent)}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase text-slate-500">Spouse</p>
-            <p>{relationLabel(memberRanks, profile.spouse)}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase text-slate-500">Children</p>
-            <p>
-              {profile.children?.length
-                ? profile.children.map((c) => relationLabel(memberRanks, c)).join(", ")
-                : "—"}
-            </p>
-          </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <RelationList
+            title="Parent"
+            people={profile.parent ? [profile.parent] : []}
+            memberRanks={memberRanks}
+            onOpen={openMember}
+          />
+          <RelationList
+            title="Spouse"
+            people={profile.spouse ? [profile.spouse] : []}
+            memberRanks={memberRanks}
+            onOpen={openMember}
+          />
+          <RelationList
+            title="Children"
+            people={profile.children ?? []}
+            memberRanks={memberRanks}
+            onOpen={openMember}
+          />
         </div>
       </Section>
 
