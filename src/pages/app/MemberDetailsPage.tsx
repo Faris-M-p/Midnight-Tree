@@ -64,8 +64,6 @@ export function MemberDetailsPage({ pathname }: MemberDetailsPageProps) {
       <MemberDetails
         profile={profile}
         location={fallback?.location}
-        education={fallback?.education}
-        career={fallback?.career}
         memberRanks={memberRanks}
         onEdit={() => setEditOpen(true)}
         onDelete={handleDelete}

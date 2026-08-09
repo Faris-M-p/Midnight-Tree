@@ -1,8 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
-import { MapPin, Search, X } from "lucide-react";
+import L from "leaflet";
+import { LocateFixed, MapPin, Search, X } from "lucide-react";
 import "leaflet/dist/leaflet.css";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import { LocationMapPreview, reverseGeocode } from "./LocationView";
+
+L.Icon.Default.mergeOptions({
+  iconUrl: markerIcon,
+  iconRetinaUrl: markerIcon2x,
+  shadowUrl: markerShadow
+});
 
 export interface MemberLocationValue {
   locationName: string;
@@ -23,6 +33,18 @@ interface SearchHit {
 }
 
 const DEFAULT_CENTER: [number, number] = [20.5937, 78.9629];
+
+function readCurrentPosition(): Promise<{ lat: number; lng: number } | null> {
+  if (!navigator.geolocation) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60_000 }
+    );
+  });
+}
 
 async function searchPlaces(query: string): Promise<SearchHit[]> {
   const response = await fetch(
@@ -79,17 +101,72 @@ function LocationMapModal({
   const [draftLat, setDraftLat] = useState<number | null>(initial.latitude);
   const [draftLng, setDraftLng] = useState<number | null>(initial.longitude);
   const [lookingUp, setLookingUp] = useState(false);
+  const [locating, setLocating] = useState(false);
+
+  const pickPoint = async (lat: number, lng: number, label?: string) => {
+    setDraftLat(lat);
+    setDraftLng(lng);
+    setHits([]);
+    if (label) {
+      setDraftLabel(label);
+      setQuery(label);
+      return;
+    }
+    setLookingUp(true);
+    try {
+      setDraftLabel(await reverseGeocode(lat, lng));
+    } finally {
+      setLookingUp(false);
+    }
+  };
+
+  const useCurrentLocation = async () => {
+    setLocating(true);
+    try {
+      const here = await readCurrentPosition();
+      if (!here) return false;
+      await pickPoint(here.lat, here.lng);
+      return true;
+    } finally {
+      setLocating(false);
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
+    let cancelled = false;
     setQuery("");
     setHits([]);
-    setDraftLat(initial.latitude);
-    setDraftLng(initial.longitude);
     setDraftLabel("");
-    if (typeof initial.latitude === "number" && typeof initial.longitude === "number") {
-      void reverseGeocode(initial.latitude, initial.longitude).then(setDraftLabel);
-    }
+
+    const start = async () => {
+      if (typeof initial.latitude === "number" && typeof initial.longitude === "number") {
+        setDraftLat(initial.latitude);
+        setDraftLng(initial.longitude);
+        const label = await reverseGeocode(initial.latitude, initial.longitude);
+        if (!cancelled) setDraftLabel(label);
+        return;
+      }
+
+      setDraftLat(null);
+      setDraftLng(null);
+      setLocating(true);
+      try {
+        const here = await readCurrentPosition();
+        if (cancelled || !here) return;
+        setDraftLat(here.lat);
+        setDraftLng(here.lng);
+        const label = await reverseGeocode(here.lat, here.lng);
+        if (!cancelled) setDraftLabel(label);
+      } finally {
+        if (!cancelled) setLocating(false);
+      }
+    };
+
+    void start();
+    return () => {
+      cancelled = true;
+    };
   }, [open, initial.latitude, initial.longitude]);
 
   useEffect(() => {
@@ -113,23 +190,6 @@ function LocationMapModal({
     return DEFAULT_CENTER;
   }, [draftLat, draftLng]);
 
-  const pickPoint = async (lat: number, lng: number, label?: string) => {
-    setDraftLat(lat);
-    setDraftLng(lng);
-    setHits([]);
-    if (label) {
-      setDraftLabel(label);
-      setQuery(label);
-      return;
-    }
-    setLookingUp(true);
-    try {
-      setDraftLabel(await reverseGeocode(lat, lng));
-    } finally {
-      setLookingUp(false);
-    }
-  };
-
   if (!open) return null;
 
   return (
@@ -139,7 +199,7 @@ function LocationMapModal({
         <div className="flex items-start justify-between border-b border-slate-800 px-5 py-4">
           <div>
             <h3 className="text-lg font-semibold text-slate-100">Choose location</h3>
-            <p className="text-xs text-slate-500">Search a place or tap the map to pin it.</p>
+            <p className="text-xs text-slate-500">Starts at your current location. Search or tap the map to change it.</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-900">
             <X size={16} />
@@ -153,8 +213,17 @@ function LocationMapModal({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search village, city, or landmark"
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 py-2.5 pl-9 pr-3 text-sm text-slate-100 outline-none focus:border-emerald-500"
+              className="w-full rounded-xl border border-slate-700 bg-slate-900 py-2.5 pl-9 pr-12 text-sm text-slate-100 outline-none focus:border-emerald-500"
             />
+            <button
+              type="button"
+              onClick={() => void useCurrentLocation()}
+              disabled={locating}
+              title="Use my current location"
+              className="absolute right-2 top-2 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-emerald-300 disabled:opacity-50"
+            >
+              <LocateFixed size={16} />
+            </button>
             {searching ? <p className="mt-1 text-xs text-slate-500">Searching…</p> : null}
             {hits.length > 0 ? (
               <div className="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-800 bg-slate-900 shadow-xl">
@@ -172,20 +241,24 @@ function LocationMapModal({
             ) : null}
           </div>
 
-          <div className="h-72 overflow-hidden rounded-xl border border-slate-800">
-            <MapContainer center={center} zoom={typeof draftLat === "number" ? 14 : 5} className="h-full w-full" scrollWheelZoom>
+          <div className="relative z-0 h-72 isolate overflow-hidden rounded-xl border border-slate-800">
+            <MapContainer center={center} zoom={typeof draftLat === "number" ? 15 : 5} className="h-full w-full" scrollWheelZoom>
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              <MapReady center={center} zoom={typeof draftLat === "number" ? 14 : 5} />
+              <MapReady center={center} zoom={typeof draftLat === "number" ? 15 : 5} />
               <MapClickPicker onPick={(lat, lng) => void pickPoint(lat, lng)} />
               {typeof draftLat === "number" && typeof draftLng === "number" ? <Marker position={[draftLat, draftLng]} /> : null}
             </MapContainer>
           </div>
 
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-200">
-            {lookingUp ? "Finding place name…" : draftLabel || "Search or tap the map to choose a place."}
+            {locating
+              ? "Finding your current location…"
+              : lookingUp
+                ? "Finding place name…"
+                : draftLabel || "Search or tap the map to choose a place."}
           </div>
         </div>
 

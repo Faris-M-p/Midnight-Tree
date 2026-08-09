@@ -1,16 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
-
-L.Icon.Default.mergeOptions({
-  iconUrl: markerIcon,
-  iconRetinaUrl: markerIcon2x,
-  shadowUrl: markerShadow
-});
+import { ExternalLink } from "lucide-react";
 
 export function toCoord(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -31,16 +20,13 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string> 
   return data.display_name?.trim() || "Pinned location";
 }
 
-function MapReady({ center }: { center: [number, number] }) {
-  const map = useMap();
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      map.invalidateSize();
-      map.setView(center, 15);
-    }, 80);
-    return () => window.clearTimeout(timer);
-  }, [map, center]);
-  return null;
+export function mapsRedirectUrl(latitude: number, longitude: number): string {
+  return `https://www.google.com/maps?q=${latitude},${longitude}`;
+}
+
+function osmEmbedUrl(latitude: number, longitude: number): string {
+  const span = 0.02;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - span},${latitude - span},${longitude + span},${latitude + span}&layer=mapnik&marker=${latitude},${longitude}`;
 }
 
 export function LocationMapPreview({
@@ -48,43 +34,52 @@ export function LocationMapPreview({
   longitude,
   label,
   action,
+  href,
   heightClassName = "h-36"
 }: {
   latitude: number;
   longitude: number;
   label: string;
   action?: ReactNode;
+  href?: string;
   heightClassName?: string;
 }) {
-  const center: [number, number] = [latitude, longitude];
+  const wrapperClass = `relative z-0 isolate block overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50 ${
+    href ? "transition hover:border-emerald-500/70" : ""
+  }`;
 
-  return (
-    <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50">
-      <div className={heightClassName}>
-        <MapContainer
-          center={center}
-          zoom={15}
-          className="h-full w-full"
-          dragging={false}
-          zoomControl={false}
-          scrollWheelZoom={false}
-          doubleClickZoom={false}
-          attributionControl={false}
-        >
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <MapReady center={center} />
-          <Marker position={center} />
-        </MapContainer>
+  const body = (
+    <>
+      <div className={`relative z-0 isolate overflow-hidden ${heightClassName}`}>
+        <iframe
+          title={label || "Selected location"}
+          src={osmEmbedUrl(latitude, longitude)}
+          className="pointer-events-none h-full w-full border-0"
+          loading="lazy"
+        />
       </div>
-      <div className="flex items-start justify-between gap-3 p-3">
+      <div className="relative z-10 flex items-start justify-between gap-3 p-3">
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-wider text-slate-500">Selected on map</p>
-          <p className="mt-1 text-sm text-slate-100">{label || "Pinned location"}</p>
+          <p className={`mt-1 inline-flex items-start gap-1.5 text-sm ${href ? "text-emerald-400" : "text-slate-100"}`}>
+            <span>{label || "Pinned location"}</span>
+            {href ? <ExternalLink size={13} className="mt-0.5 shrink-0" /> : null}
+          </p>
         </div>
         {action}
       </div>
-    </div>
+    </>
   );
+
+  if (href) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" title="Open this location in Maps" className={wrapperClass}>
+        {body}
+      </a>
+    );
+  }
+
+  return <div className={wrapperClass}>{body}</div>;
 }
 
 export function LocationView({
@@ -129,7 +124,13 @@ export function LocationView({
         </div>
       ) : null}
       {hasPin && lat !== null && lng !== null ? (
-        <LocationMapPreview latitude={lat} longitude={lng} label={mapLabel} heightClassName="h-44" />
+        <LocationMapPreview
+          latitude={lat}
+          longitude={lng}
+          label={mapLabel}
+          heightClassName="h-44"
+          href={mapsRedirectUrl(lat, lng)}
+        />
       ) : null}
     </div>
   );

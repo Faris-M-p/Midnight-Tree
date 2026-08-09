@@ -11,6 +11,7 @@
   width: 100%;
   background: #0f172a;
   font-family: inherit;
+  z-index: 0 !important;
 }
 
 html, body, #root {

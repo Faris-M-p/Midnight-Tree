@@ -10,8 +10,6 @@ interface MemberDetailsModalProps {
   error?: string;
   profile: MemberProfile | null;
   location?: string;
-  education?: string;
-  career?: string;
   memberRanks?: MemberRanks;
   onClose: () => void;
   onEdit?: () => void;
@@ -26,8 +24,6 @@ export function MemberDetailsModal({
   error,
   profile,
   location,
-  education,
-  career,
   memberRanks,
   onClose,
   onEdit,
@@ -57,8 +53,6 @@ export function MemberDetailsModal({
             <MemberDetails
               profile={profile}
               location={location}
-              education={education}
-              career={career}
               memberRanks={memberRanks}
               onEdit={onEdit}
               onDelete={onDelete}

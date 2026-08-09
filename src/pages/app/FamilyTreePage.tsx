@@ -847,8 +847,6 @@ function AppContent() {
         error={detailsError}
         profile={selectedProfile}
         location={selectedMember?.location}
-        education={selectedMember?.education}
-        career={selectedMember?.career}
         memberRanks={memberRanks}
         onClose={closeMemberSheets}
         onEdit={() => setEditOpen(true)}

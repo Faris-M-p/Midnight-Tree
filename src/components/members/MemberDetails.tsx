@@ -2,9 +2,6 @@ import { GitBranch, Pencil, Trash2, X } from "lucide-react";
 import type { MemberProfile, MemberRelationSummary } from "../../types/member";
 import { canDelete, canEdit } from "../../auth/permissions";
 import { navigateTo } from "../../routing/navigate";
-import { mockStories } from "../../data/mockStories";
-import { mockEvents } from "../../data/mockEvents";
-import { mockAlbums } from "../../data/mockGallery";
 import { formatMemberLabel, memberDisplayId, type MemberRanks } from "../../utils/memberRanks";
 import { resolveAvatarUrl } from "../../utils/defaultAvatar";
 import { LocationView, toCoord } from "./LocationView";
@@ -12,8 +9,6 @@ import { LocationView, toCoord } from "./LocationView";
 export interface MemberDetailsProps {
   profile: MemberProfile;
   location?: string;
-  education?: string;
-  career?: string;
   memberRanks?: MemberRanks;
   onDelete?: () => void;
   onEdit?: () => void;
@@ -93,8 +88,6 @@ function RelationList({
 export function MemberDetails({
   profile,
   location,
-  education,
-  career,
   memberRanks,
   onDelete,
   onEdit,
@@ -104,11 +97,9 @@ export function MemberDetails({
   embedded = false
 }: MemberDetailsProps) {
   const photo = profile.images?.find((i) => i.isPrimary)?.imageUrl || profile.images?.[0]?.imageUrl;
-  const stories = mockStories.filter((s) => s.relatedMemberIds.some((id) => profile.fullName.toLowerCase().includes(id)));
-  const events = mockEvents.filter((e) => e.relatedMemberIds.length > 0).slice(0, 4);
-  const photos = mockAlbums.flatMap((a) => a.photos).slice(0, 6);
   const displayId = memberRanks ? memberDisplayId(memberRanks, String(profile.id)) : undefined;
   const hasMapPin = toCoord(profile.latitude) !== null && toCoord(profile.longitude) !== null;
+  const socialLinks = profile.socialLinks ?? [];
 
   const handleEdit = () => {
     if (onEdit) onEdit();
@@ -209,30 +200,21 @@ export function MemberDetails({
             />
           </Section>
         </div>
-        <Section title="Education">
-          <p>{education || "Not specified"}</p>
-        </Section>
-        <Section title="Career">
-          <p>{career || profile.profession || "Not specified"}</p>
-        </Section>
+        {socialLinks.length ? (
+          <Section title="Social links">
+            <ul className="space-y-1">
+              {socialLinks.map((link) => (
+                <li key={link.id}>
+                  <span className="text-slate-500">{link.platform}: </span>
+                  <a href={link.url} className="text-emerald-400 hover:underline" target="_blank" rel="noreferrer">
+                    {link.username || link.url}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        ) : null}
       </div>
-
-      <Section title="Social links">
-        {profile.socialLinks?.length ? (
-          <ul className="space-y-1">
-            {profile.socialLinks.map((link) => (
-              <li key={link.id}>
-                <span className="text-slate-500">{link.platform}: </span>
-                <a href={link.url} className="text-emerald-400 hover:underline" target="_blank" rel="noreferrer">
-                  {link.username || link.url}
-                </a>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-slate-500">No social links yet.</p>
-        )}
-      </Section>
 
       <Section title="Family relationships">
         <div className="grid gap-4 sm:grid-cols-3">
@@ -255,51 +237,6 @@ export function MemberDetails({
             onOpen={openMember}
           />
         </div>
-      </Section>
-
-      <Section title="Photos">
-        {photos.length ? (
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-            {photos.map((photoItem) => (
-              <img key={photoItem.id} src={photoItem.url} alt="" className="h-20 w-full rounded-lg object-cover" />
-            ))}
-          </div>
-        ) : (
-          <p className="text-slate-500">No photos yet.</p>
-        )}
-      </Section>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Section title="Memories">
-          {stories.length ? (
-            <ul className="space-y-2">
-              {stories.map((story) => (
-                <li key={story.id}>
-                  <button type="button" onClick={() => navigateTo(`/stories/${story.id}`)} className="text-left text-emerald-400 hover:underline">
-                    {story.title}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-slate-500">No linked stories yet.</p>
-          )}
-        </Section>
-        <Section title="Events">
-          <ul className="space-y-2">
-            {events.map((event) => (
-              <li key={event.id}>
-                <button type="button" onClick={() => navigateTo(`/events/${event.id}`)} className="text-left text-emerald-400 hover:underline">
-                  {event.title}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      </div>
-
-      <Section title="Notes">
-        <p className="text-slate-500">Private family notes will appear here once the notes API is connected.</p>
       </Section>
     </div>
   );
