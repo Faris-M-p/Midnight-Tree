@@ -20,6 +20,7 @@ interface SearchHeaderProps {
   onAddMember: () => void;
   onOpenFilters: () => void;
   hasActiveFilters: boolean;
+  filtersOpen?: boolean;
 }
 
 export const SearchHeader: React.FC<SearchHeaderProps> = ({
@@ -30,7 +31,8 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
   onExportPNG,
   onAddMember,
   onOpenFilters,
-  hasActiveFilters
+  hasActiveFilters,
+  filtersOpen = false
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState<FamilyMember[]>([]);
@@ -95,13 +97,14 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
         <button
           onClick={onOpenFilters}
           className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-medium transition-all cursor-pointer shrink-0 ${
-            hasActiveFilters
+            hasActiveFilters || filtersOpen
               ? 'bg-emerald-600 border-emerald-500 text-slate-950'
               : 'bg-slate-900 hover:bg-slate-800 border-slate-800 hover:border-slate-750 text-slate-300 hover:text-slate-100'
           }`}
-          title="Open Filters"
+          title={filtersOpen ? 'Hide filters' : 'Show filters'}
+          aria-pressed={filtersOpen}
         >
-          <Filter size={14} className={hasActiveFilters ? 'fill-slate-950' : 'text-emerald-500'} />
+          <Filter size={14} className={hasActiveFilters || filtersOpen ? 'fill-slate-950' : 'text-emerald-500'} />
           <span className="hidden sm:inline">Filter</span>
         </button>
 

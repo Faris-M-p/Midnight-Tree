@@ -1,16 +1,19 @@
 /**
  * =============================================================================
  * FILE: src/components/FilterSidebar.tsx
- * ROLE: Left filter drawer (generation + location)
+ * ROLE: Family Tree generation + location filters
  * =============================================================================
- * Dims unmatched tree cards when filters are active (logic in App.tsx).
+ * Lives inside the Family Tree page (not viewport-fixed over the app sidebar).
+ * Desktop: in-flow left column. Mobile: bottom sheet over the tree canvas.
  * =============================================================================
  */
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Filter, ChevronDown, RefreshCw, Layers, MapPin, X } from 'lucide-react';
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown, Filter, Layers, MapPin, RefreshCw, X } from "lucide-react";
 
 interface FilterSidebarProps {
+  open: boolean;
+  onClose: () => void;
   selectedGenerations: number[];
   onChangeGenerations: (generations: number[]) => void;
   selectedLocations: string[];
@@ -18,378 +21,228 @@ interface FilterSidebarProps {
   onResetFilters: () => void;
 }
 
-export const FilterSidebar: React.FC<FilterSidebarProps> = ({
+const GENERATIONS = [
+  { label: "1st Gen (Grandparents)", val: 1 },
+  { label: "2nd Gen (Parents / Uncle)", val: 2 },
+  { label: "3rd Gen (Children / Me)", val: 3 },
+  { label: "4th Gen (Grandchildren)", val: 4 }
+];
+
+const LOCATIONS = ["Kerala", "Pune", "Bengaluru"];
+
+export function FilterSidebar({
+  open,
+  onClose,
   selectedGenerations,
   onChangeGenerations,
   selectedLocations,
   onChangeLocations,
   onResetFilters
-}) => {
-  const [isMobile, setIsMobile] = useState(false);
-  const [isDesktopExpanded, setIsDesktopExpanded] = useState(true);
-  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
-
-  // Dropdown states
+}: FilterSidebarProps) {
   const [genOpen, setGenOpen] = useState(false);
   const [locOpen, setLocOpen] = useState(false);
-
   const genRef = useRef<HTMLDivElement>(null);
   const locRef = useRef<HTMLDivElement>(null);
 
-  // Handle window resizing to detect mobile viewports
   useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      if (mobile) {
-        setIsDesktopExpanded(false);
-      }
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+    if (!open) {
+      setGenOpen(false);
+      setLocOpen(false);
+    }
+  }, [open]);
 
-  // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (genRef.current && !genRef.current.contains(event.target as Node)) {
-        setGenOpen(false);
-      }
-      if (locRef.current && !locRef.current.contains(event.target as Node)) {
-        setLocOpen(false);
-      }
+      if (genRef.current && !genRef.current.contains(event.target as Node)) setGenOpen(false);
+      if (locRef.current && !locRef.current.contains(event.target as Node)) setLocOpen(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  useEffect(() => {
-    const handleOpenFromNavbar = () => {
-      if (window.innerWidth < 768) {
-        setIsBottomSheetOpen(true);
-      } else {
-        setIsDesktopExpanded(true);
-      }
-    };
-
-    window.addEventListener('open-filter-sidebar', handleOpenFromNavbar);
-    return () => window.removeEventListener('open-filter-sidebar', handleOpenFromNavbar);
-  }, []);
-
-  const generations = [
-    { label: '1st Gen (Grandparents)', val: 1 },
-    { label: '2nd Gen (Parents / Uncle)', val: 2 },
-    { label: '3rd Gen (Children / Me)', val: 3 },
-    { label: '4th Gen (Grandchildren)', val: 4 }
-  ];
-
-  const locations = ['Kerala', 'Pune', 'Bengaluru'];
 
   const toggleGen = (val: number) => {
-    if (selectedGenerations.includes(val)) {
-      onChangeGenerations(selectedGenerations.filter((g) => g !== val));
-    } else {
-      onChangeGenerations([...selectedGenerations, val]);
-    }
+    onChangeGenerations(
+      selectedGenerations.includes(val)
+        ? selectedGenerations.filter((g) => g !== val)
+        : [...selectedGenerations, val]
+    );
   };
 
   const toggleLocation = (loc: string) => {
-    if (selectedLocations.includes(loc)) {
-      onChangeLocations(selectedLocations.filter((l) => l !== loc));
-    } else {
-      onChangeLocations([...selectedLocations, loc]);
-    }
+    onChangeLocations(
+      selectedLocations.includes(loc) ? selectedLocations.filter((l) => l !== loc) : [...selectedLocations, loc]
+    );
   };
 
-  const getGenLabel = () => {
-    if (selectedGenerations.length === 0) return 'All Generations';
-    if (selectedGenerations.length === 1) {
-      const match = generations.find((g) => g.val === selectedGenerations[0]);
-      return match ? match.label : '1 Selected';
-    }
-    return `Generations (${selectedGenerations.length})`;
-  };
+  const genLabel =
+    selectedGenerations.length === 0
+      ? "All Generations"
+      : selectedGenerations.length === 1
+        ? (GENERATIONS.find((g) => g.val === selectedGenerations[0])?.label ?? "1 Selected")
+        : `Generations (${selectedGenerations.length})`;
 
-  const getLocLabel = () => {
-    if (selectedLocations.length === 0) return 'All Locations';
-    if (selectedLocations.length === 1) return selectedLocations[0];
-    return `Locations (${selectedLocations.length})`;
-  };
+  const locLabel =
+    selectedLocations.length === 0
+      ? "All Locations"
+      : selectedLocations.length === 1
+        ? selectedLocations[0]
+        : `Locations (${selectedLocations.length})`;
 
   const hasActiveFilters = selectedGenerations.length > 0 || selectedLocations.length > 0;
 
-  // Render Mobile Bottom Sheet view
-  if (isMobile) {
-    return (
-      <>
-        {/* Bottom Sheet Modal backdrop overlay */}
-        {isBottomSheetOpen && (
-          <div
-            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 transition-opacity duration-300"
-            onClick={() => setIsBottomSheetOpen(false)}
-          />
-        )}
-
-        {/* Slide-up Bottom Sheet Panel container */}
-        <div
-          className={`fixed bottom-0 inset-x-0 bg-slate-900 border-t border-slate-800 rounded-t-2xl z-55 px-5 pt-3 pb-8 space-y-5 shadow-[0_-8px_32px_rgba(0,0,0,0.5)] transition-transform duration-300 transform ${
-            isBottomSheetOpen ? 'translate-y-0' : 'translate-y-full'
-          }`}
-        >
-          {/* Drag Handle indicator */}
-          <div className="w-12 h-1 bg-slate-800 rounded-full mx-auto mb-2"></div>
-
-          <div className="flex items-center justify-between">
-            <h3 className="font-serif font-bold text-base text-slate-100">Filters</h3>
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={() => {
-                  onResetFilters();
-                  setIsBottomSheetOpen(false);
-                }}
-                className="text-xs text-slate-500 hover:text-emerald-400 flex items-center gap-1 uppercase tracking-wider font-semibold cursor-pointer"
-              >
-                <RefreshCw size={11} />
-                Clear
-              </button>
-            )}
-          </div>
-
-          {/* Stacking Dropdowns inside Bottom Sheet */}
-          <div className="space-y-4">
-            
-            {/* Gen Select */}
-            <div className="space-y-1.5" ref={genRef}>
-              <h4 className="text-[10px] uppercase tracking-wider text-slate-500 font-bold flex items-center gap-1.5">
-                <Layers size={11} className="text-emerald-500/80" />
-                Generation
-              </h4>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setGenOpen(!genOpen);
-                    setLocOpen(false);
-                  }}
-                  className="w-full flex items-center justify-between text-xs px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-850 text-slate-300 text-left"
-                >
-                  <span className="truncate">{getGenLabel()}</span>
-                  <ChevronDown size={12} className={`text-slate-500 transition-transform ${genOpen ? 'rotate-180 text-emerald-400' : ''}`} />
-                </button>
-                {genOpen && (
-                  <div className="absolute bottom-full left-0 right-0 mb-1 bg-slate-950 border border-slate-800 rounded-xl shadow-2xl z-55 p-1.5 space-y-0.5 max-h-40 overflow-y-auto">
-                    {generations.map((g) => {
-                      const isActive = selectedGenerations.includes(g.val);
-                      return (
-                        <button
-                          key={g.val}
-                          type="button"
-                          onClick={() => toggleGen(g.val)}
-                          className={`w-full text-left text-xs px-2.5 py-1.5 rounded-lg flex items-center justify-between ${
-                            isActive ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400'
-                          }`}
-                        >
-                          <span>{g.label}</span>
-                          <input type="checkbox" checked={isActive} readOnly className="accent-emerald-500 pointer-events-none w-3.5 h-3.5" />
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Location Select */}
-            <div className="space-y-1.5" ref={locRef}>
-              <h4 className="text-[10px] uppercase tracking-wider text-slate-500 font-bold flex items-center gap-1.5">
-                <MapPin size={11} className="text-emerald-500/80" />
-                Geographical Focus
-              </h4>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLocOpen(!locOpen);
-                    setGenOpen(false);
-                  }}
-                  className="w-full flex items-center justify-between text-xs px-3 py-2.5 rounded-xl bg-slate-955 border border-slate-850 text-slate-300 text-left"
-                >
-                  <span className="truncate">{getLocLabel()}</span>
-                  <ChevronDown size={12} className={`text-slate-500 transition-transform ${locOpen ? 'rotate-180 text-emerald-400' : ''}`} />
-                </button>
-                {locOpen && (
-                  <div className="absolute bottom-full left-0 right-0 mb-1 bg-slate-950 border border-slate-800 rounded-xl shadow-2xl z-55 p-1.5 space-y-0.5">
-                    {locations.map((loc) => {
-                      const isActive = selectedLocations.includes(loc);
-                      return (
-                        <button
-                          key={loc}
-                          type="button"
-                          onClick={() => toggleLocation(loc)}
-                          className={`w-full text-left text-xs px-2.5 py-1.5 rounded-lg flex items-center justify-between ${
-                            isActive ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400'
-                          }`}
-                        >
-                          <span>{loc}</span>
-                          <input type="checkbox" checked={isActive} readOnly className="accent-emerald-500 pointer-events-none w-3.5 h-3.5" />
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-
-          </div>
-
-          {/* Primary Call to Action Button */}
+  const fields = (dropdownUp: boolean) => (
+    <div className="space-y-3">
+      <div className="space-y-1" ref={genRef}>
+        <h4 className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          <Layers size={11} className="text-emerald-500/80" />
+          Generation
+        </h4>
+        <div className="relative">
           <button
             type="button"
-            onClick={() => setIsBottomSheetOpen(false)}
-            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-semibold text-xs rounded-xl shadow-md cursor-pointer text-center"
+            onClick={() => {
+              setGenOpen((v) => !v);
+              setLocOpen(false);
+            }}
+            className={`flex w-full items-center justify-between rounded-lg border bg-slate-900 px-2.5 py-2 text-left text-xs text-slate-300 ${
+              genOpen || selectedGenerations.length > 0
+                ? "border-emerald-500/35 ring-1 ring-emerald-500/10"
+                : "border-slate-800"
+            }`}
+          >
+            <span className="truncate">{genLabel}</span>
+            <ChevronDown size={12} className={`text-slate-500 transition-transform ${genOpen ? "rotate-180 text-emerald-400" : ""}`} />
+          </button>
+          {genOpen ? (
+            <div
+              className={`absolute left-0 right-0 z-20 space-y-0.5 rounded-lg border border-slate-800 bg-slate-950 p-1 shadow-2xl ${
+                dropdownUp ? "bottom-full mb-1" : "top-full mt-1"
+              }`}
+            >
+              {GENERATIONS.map((g) => {
+                const isActive = selectedGenerations.includes(g.val);
+                return (
+                  <button
+                    key={g.val}
+                    type="button"
+                    onClick={() => toggleGen(g.val)}
+                    className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-xs ${
+                      isActive ? "bg-emerald-500/10 font-medium text-emerald-400" : "text-slate-400 hover:bg-slate-900"
+                    }`}
+                  >
+                    <span>{g.label}</span>
+                    <input type="checkbox" checked={isActive} readOnly className="pointer-events-none h-3.5 w-3.5 accent-emerald-500" />
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="space-y-1" ref={locRef}>
+        <h4 className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          <MapPin size={11} className="text-emerald-500/80" />
+          Location
+        </h4>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              setLocOpen((v) => !v);
+              setGenOpen(false);
+            }}
+            className={`flex w-full items-center justify-between rounded-lg border bg-slate-900 px-2.5 py-2 text-left text-xs text-slate-300 ${
+              locOpen || selectedLocations.length > 0
+                ? "border-emerald-500/35 ring-1 ring-emerald-500/10"
+                : "border-slate-800"
+            }`}
+          >
+            <span className="truncate">{locLabel}</span>
+            <ChevronDown size={12} className={`text-slate-500 transition-transform ${locOpen ? "rotate-180 text-emerald-400" : ""}`} />
+          </button>
+          {locOpen ? (
+            <div
+              className={`absolute left-0 right-0 z-20 space-y-0.5 rounded-lg border border-slate-800 bg-slate-950 p-1 shadow-2xl ${
+                dropdownUp ? "bottom-full mb-1" : "top-full mt-1"
+              }`}
+            >
+              {LOCATIONS.map((loc) => {
+                const isActive = selectedLocations.includes(loc);
+                return (
+                  <button
+                    key={loc}
+                    type="button"
+                    onClick={() => toggleLocation(loc)}
+                    className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-xs ${
+                      isActive ? "bg-emerald-500/10 font-medium text-emerald-400" : "text-slate-400 hover:bg-slate-900"
+                    }`}
+                  >
+                    <span>{loc}</span>
+                    <input type="checkbox" checked={isActive} readOnly className="pointer-events-none h-3.5 w-3.5 accent-emerald-500" />
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+
+  const header = (
+    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+      <div className="flex items-center gap-1.5">
+        <Filter size={14} className="text-emerald-500" />
+        <h3 className="text-xs font-semibold text-slate-200">Filters</h3>
+      </div>
+      <div className="flex items-center gap-1">
+        {hasActiveFilters ? (
+          <button
+            type="button"
+            onClick={onResetFilters}
+            className="rounded-md p-1 text-slate-500 hover:bg-slate-900 hover:text-emerald-400"
+            title="Clear filters"
+          >
+            <RefreshCw size={12} />
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-md p-1 text-slate-400 hover:bg-slate-900 hover:text-slate-100"
+          aria-label="Close filters"
+        >
+          <X size={14} />
+        </button>
+      </div>
+    </div>
+  );
+
+  if (!open) return null;
+
+  return (
+    <>
+      <aside className="hidden h-full w-56 shrink-0 flex-col border-r border-slate-800 bg-slate-950/95 p-3.5 md:flex">
+        {header}
+        <div className="mt-3 min-h-0 flex-1 overflow-y-auto">{fields(false)}</div>
+      </aside>
+
+      <div className="absolute inset-0 z-30 md:hidden">
+        <button type="button" className="absolute inset-0 bg-slate-950/70" aria-label="Close filters" onClick={onClose} />
+        <div className="absolute inset-x-0 bottom-0 space-y-4 rounded-t-2xl border-t border-slate-800 bg-slate-900 px-5 pb-6 pt-3 shadow-[0_-8px_32px_rgba(0,0,0,0.5)]">
+          <div className="mx-auto mb-1 h-1 w-12 rounded-full bg-slate-700" />
+          {header}
+          {fields(true)}
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-xl bg-emerald-600 py-2.5 text-xs font-semibold text-slate-950 hover:bg-emerald-500"
           >
             Apply Filters
           </button>
         </div>
-      </>
-    );
-  }
-
-  // Render Desktop panel view
-  return (
-    <div className="fixed top-24 left-4 z-30 flex items-start gap-2">
-      {isDesktopExpanded ? (
-        <div className="bg-slate-950/80 backdrop-blur-md border border-slate-900 rounded-xl shadow-2xl w-56 p-3.5 space-y-4 animate-in fade-in slide-in-from-left duration-200">
-          
-          {/* Header row with Title and Close Trigger */}
-          <div className="flex items-center justify-between border-b border-slate-900 pb-2">
-            <div className="flex items-center gap-1.5">
-              <Filter size={14} className="text-emerald-500" />
-              <h3 className="font-semibold text-xs text-slate-200">Filters</h3>
-            </div>
-            <div className="flex items-center gap-2">
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={onResetFilters}
-                  className="text-[9px] text-slate-500 hover:text-emerald-400 font-bold uppercase transition-colors cursor-pointer"
-                  title="Clear all active filters"
-                >
-                  <RefreshCw size={9} />
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsDesktopExpanded(false);
-                  setGenOpen(false);
-                  setLocOpen(false);
-                }}
-                className="p-1 rounded-md bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200 transition-all cursor-pointer"
-                title="Collapse sidebar panel"
-              >
-                <X size={10} />
-              </button>
-            </div>
-          </div>
-
-          {/* Stacking Dropdowns */}
-          <div className="space-y-3">
-            
-            {/* Gen select dropdown */}
-            <div className="space-y-1" ref={genRef}>
-              <h4 className="text-[9px] uppercase tracking-wider text-slate-500 font-bold flex items-center gap-1">
-                <Layers size={10} className="text-emerald-500/70" />
-                Generation
-              </h4>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setGenOpen(!genOpen);
-                    setLocOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg bg-slate-900 border text-slate-350 hover:text-slate-200 transition-all text-left cursor-pointer ${
-                    genOpen || selectedGenerations.length > 0 ? 'border-emerald-500/35 ring-1 ring-emerald-500/10' : 'border-slate-800'
-                  }`}
-                >
-                  <span className="truncate">{getGenLabel()}</span>
-                  <ChevronDown size={11} className={`text-slate-500 transition-transform ${genOpen ? 'rotate-180 text-emerald-400' : ''}`} />
-                </button>
-
-                {genOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-slate-950 border border-slate-850 rounded-lg shadow-2xl z-50 p-1 space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
-                    {generations.map((g) => {
-                      const isActive = selectedGenerations.includes(g.val);
-                      return (
-                        <button
-                          key={g.val}
-                          type="button"
-                          onClick={() => toggleGen(g.val)}
-                          className={`w-full text-left text-[11px] px-2 py-1 rounded flex items-center justify-between cursor-pointer ${
-                            isActive ? 'bg-emerald-500/10 text-emerald-400 font-medium' : 'hover:bg-slate-900 text-slate-400 hover:text-slate-250'
-                          }`}
-                        >
-                          <span>{g.label}</span>
-                          <input type="checkbox" checked={isActive} readOnly className="w-3 h-3 rounded accent-emerald-500 pointer-events-none" />
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Location select dropdown */}
-            <div className="space-y-1" ref={locRef}>
-              <h4 className="text-[9px] uppercase tracking-wider text-slate-500 font-bold flex items-center gap-1">
-                <MapPin size={10} className="text-emerald-500/70" />
-                Location
-              </h4>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLocOpen(!locOpen);
-                    setGenOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg bg-slate-900 border text-slate-350 hover:text-slate-200 transition-all text-left cursor-pointer ${
-                    locOpen || selectedLocations.length > 0 ? 'border-emerald-500/35 ring-1 ring-emerald-500/10' : 'border-slate-800'
-                  }`}
-                >
-                  <span className="truncate">{getLocLabel()}</span>
-                  <ChevronDown size={11} className={`text-slate-500 transition-transform ${locOpen ? 'rotate-180 text-emerald-400' : ''}`} />
-                </button>
-
-                {locOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-slate-950 border border-slate-850 rounded-lg shadow-2xl z-50 p-1 space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
-                    {locations.map((loc) => {
-                      const isActive = selectedLocations.includes(loc);
-                      return (
-                        <button
-                          key={loc}
-                          type="button"
-                          onClick={() => toggleLocation(loc)}
-                          className={`w-full text-left text-[11px] px-2 py-1 rounded flex items-center justify-between cursor-pointer ${
-                            isActive ? 'bg-emerald-500/10 text-emerald-400 font-medium' : 'hover:bg-slate-900 text-slate-400 hover:text-slate-250'
-                          }`}
-                        >
-                          <span>{loc}</span>
-                          <input type="checkbox" checked={isActive} readOnly className="w-3 h-3 rounded accent-emerald-500 pointer-events-none" />
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-      ) : null}
-    </div>
+      </div>
+    </>
   );
-};
+}

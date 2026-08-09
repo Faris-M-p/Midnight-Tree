@@ -253,7 +253,14 @@ export function MembersPage() {
         </>
       ) : null}
 
-      <AddMember open={addOpen} onClose={() => setAddOpen(false)} members={members} unions={unions} onCreated={refresh} />
+      <AddMember
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        members={members}
+        unions={unions}
+        memberRanks={memberRanks}
+        onCreated={refresh}
+      />
     </div>
   );
 }

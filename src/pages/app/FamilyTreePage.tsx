@@ -26,10 +26,10 @@ import { ProfileModal } from '../../components/ProfileModal';
 import type { ProfileActionResult } from '../../components/ProfileModal';
 import { AnalyticsPanel } from '../../components/AnalyticsPanel';
 import { TimelinePanel } from '../../components/TimelinePanel';
-import { CreateMemberModal } from '../../components/CreateMemberModal';
-import type { CreateMemberSubmitInput, CreateMemberSubmitResult } from '../../components/CreateMemberModal';
+import { AddMember } from '../../components/members/AddMember';
 import { ApiClientError } from '../../services/apiClient';
-import { createMember, deleteMember, getMemberDetails, updateMember } from '../../services/memberService';
+import { deleteMember, getMemberDetails, updateMember } from '../../services/memberService';
+import { useFamilyData } from '../../context/FamilyDataContext';
 import { getFamilyTreeData } from '../../services/treeService';
 import { notify } from '../../utils/notify';
 import { computeMemberRanks } from '../../utils/memberRanks';
@@ -311,6 +311,7 @@ function computeDynamicLayout(
  * Holds React state for members, unions, filters, modals, and canvas nodes.
  */
 function AppContent() {
+  const { refresh: refreshFamilyData } = useFamilyData();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
@@ -333,6 +334,7 @@ function AppContent() {
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Focus and Highlight triggers
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
@@ -525,73 +527,6 @@ function AppContent() {
     setCollapsedUnions((prev) =>
       prev.includes(unionId) ? prev.filter((id) => id !== unionId) : [...prev, unionId]
     );
-  };
-
-  // Dynamic CRUD Operators
-  const handleAddMemberSave = async ({ memberData, placement }: CreateMemberSubmitInput): Promise<CreateMemberSubmitResult> => {
-    const tokens = memberData.name.trim().split(/\s+/).filter(Boolean);
-    const firstName = tokens.shift() || memberData.name.trim();
-    const lastName = tokens.join(' ') || firstName;
-
-    let parentId: number | undefined;
-    let spouseId: number | undefined;
-    let isRoot = placement.type === 'root';
-
-    if (placement.type === 'child') {
-      const union = unions.find((x) => x.id === placement.targetId);
-      if (!union) {
-        notify.error('Please select a valid couple for child placement.');
-        return { success: false, message: 'Please select a valid couple for child placement.' };
-      }
-      parentId = Number(union.spouse1Id);
-      isRoot = false;
-    }
-
-    if (placement.type === 'spouse') {
-      if (!placement.targetId) {
-        notify.error('Please select a member to attach spouse.');
-        return { success: false, message: 'Please select a member to attach spouse.' };
-      }
-      spouseId = Number(placement.targetId);
-      isRoot = false;
-    }
-
-    try {
-      const created = await createMember({
-        firstName,
-        lastName,
-        gender: memberData.gender === 'other' ? 'Other' : memberData.gender === 'male' ? 'Male' : 'Female',
-        dateOfBirth: memberData.dob || undefined,
-        dateOfDeath: memberData.isDeceased ? new Date().toISOString().slice(0, 10) : undefined,
-        nickname: memberData.nickname || undefined,
-        profession: memberData.profession || undefined,
-        biography: memberData.bio || undefined,
-        isRoot,
-        parentId,
-        spouseId,
-        email: memberData.socials?.gmail?.replace(/^mailto:/i, '') || undefined,
-        phone: memberData.socials?.whatsapp?.replace(/\D/g, '') || undefined,
-        images: memberData.avatar
-          ? [{ imageUrl: memberData.avatar, isPrimary: true, sortOrder: 0, caption: 'Profile' }]
-          : undefined,
-        socialLinks: buildSocialLinks(memberData.socials)
-      });
-
-      await loadTreeData();
-      notify.success('Member created successfully.');
-      const createdId = String(created.id);
-      setFocusedNodeId(createdId);
-      setHighlightedMemberId(createdId);
-      setTimeout(() => setHighlightedMemberId((current) => (current === createdId ? null : current)), 3000);
-      return { success: true };
-    } catch (error) {
-      if (error instanceof ApiClientError) {
-        notify.fromApiError(error);
-      } else {
-        notify.error('Unable to save member right now. Please try again.');
-      }
-      return { success: false, message: 'Unable to save member right now. Please try again.' };
-    }
   };
 
   /**
@@ -971,7 +906,7 @@ function AppContent() {
   };
 
   const handleOpenFilters = () => {
-    window.dispatchEvent(new Event('open-filter-sidebar'));
+    setFiltersOpen((open) => !open);
   };
 
   const handleMemberSelect = async (member: FamilyMember) => {
@@ -1006,68 +941,73 @@ function AppContent() {
         onAddMember={() => setIsCreateOpen(true)}
         onOpenFilters={handleOpenFilters}
         hasActiveFilters={selectedGenerations.length > 0 || selectedLocations.length > 0}
+        filtersOpen={filtersOpen}
       />
 
-      <main className="flex-1 w-full h-full pt-0 relative">
-        {isTreeLoading ? (
-          <div className="h-full w-full flex items-center justify-center px-4">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 px-5 py-4 text-sm text-slate-300 inline-flex items-center gap-3">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
-              Loading family tree...
+      <div className="relative flex min-h-0 flex-1">
+        <FilterSidebar
+          open={filtersOpen}
+          onClose={() => setFiltersOpen(false)}
+          selectedGenerations={selectedGenerations}
+          onChangeGenerations={setSelectedGenerations}
+          selectedLocations={selectedLocations}
+          onChangeLocations={setSelectedLocations}
+          onResetFilters={handleResetFilters}
+        />
+
+        <main className="relative min-h-0 min-w-0 flex-1">
+          {isTreeLoading ? (
+            <div className="flex h-full w-full items-center justify-center px-4">
+              <div className="inline-flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 px-5 py-4 text-sm text-slate-300">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+                Loading family tree...
+              </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {!isTreeLoading && treeError ? (
-          <div className="h-full w-full flex items-center justify-center px-4">
-            <div className="max-w-md rounded-2xl border border-rose-500/40 bg-rose-950/30 p-5 text-center">
-              <p className="text-sm text-rose-300">{treeError}</p>
-              <button
-                type="button"
-                onClick={() => void loadTreeData()}
-                className="mt-4 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
-              >
-                Retry
-              </button>
+          {!isTreeLoading && treeError ? (
+            <div className="flex h-full w-full items-center justify-center px-4">
+              <div className="max-w-md rounded-2xl border border-rose-500/40 bg-rose-950/30 p-5 text-center">
+                <p className="text-sm text-rose-300">{treeError}</p>
+                <button
+                  type="button"
+                  onClick={() => void loadTreeData()}
+                  className="mt-4 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+                >
+                  Retry
+                </button>
+              </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {!isTreeLoading && !treeError && members.length === 0 ? (
-          <div className="h-full w-full flex items-center justify-center px-4">
-            <div className="max-w-md rounded-2xl border border-slate-800 bg-slate-900/70 p-5 text-center">
-              <h3 className="text-lg font-semibold text-slate-100">No family members found.</h3>
-              <p className="mt-2 text-sm text-slate-400">Start by adding the first member to build your family tree.</p>
-              <button
-                type="button"
-                onClick={() => setIsCreateOpen(true)}
-                className="mt-4 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
-              >
-                Add First Member
-              </button>
+          {!isTreeLoading && !treeError && members.length === 0 ? (
+            <div className="flex h-full w-full items-center justify-center px-4">
+              <div className="max-w-md rounded-2xl border border-slate-800 bg-slate-900/70 p-5 text-center">
+                <h3 className="text-lg font-semibold text-slate-100">No family members found.</h3>
+                <p className="mt-2 text-sm text-slate-400">Start by adding the first member to build your family tree.</p>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateOpen(true)}
+                  className="mt-4 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+                >
+                  Add First Member
+                </button>
+              </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {!isTreeLoading && !treeError && members.length > 0 ? (
-          <FamilyTreeCanvas
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            focusedNodeId={focusedNodeId}
-            onClearFocus={() => setFocusedNodeId(null)}
-          />
-        ) : null}
-      </main>
-
-      <FilterSidebar
-        selectedGenerations={selectedGenerations}
-        onChangeGenerations={setSelectedGenerations}
-        selectedLocations={selectedLocations}
-        onChangeLocations={setSelectedLocations}
-        onResetFilters={handleResetFilters}
-      />
+          {!isTreeLoading && !treeError && members.length > 0 ? (
+            <FamilyTreeCanvas
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              focusedNodeId={focusedNodeId}
+              onClearFocus={() => setFocusedNodeId(null)}
+            />
+          ) : null}
+        </main>
+      </div>
 
       <ProfileModal
         member={selectedMember}
@@ -1097,13 +1037,20 @@ function AppContent() {
         }}
       />
 
-      <CreateMemberModal
-        isOpen={isCreateOpen}
+      <AddMember
+        open={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onSave={handleAddMemberSave}
         members={members}
         unions={unions}
         memberRanks={memberRanks}
+        onCreated={async (created) => {
+          await loadTreeData();
+          await refreshFamilyData();
+          const createdId = String(created.id);
+          setFocusedNodeId(createdId);
+          setHighlightedMemberId(createdId);
+          setTimeout(() => setHighlightedMemberId((current) => (current === createdId ? null : current)), 3000);
+        }}
       />
     </div>
   );

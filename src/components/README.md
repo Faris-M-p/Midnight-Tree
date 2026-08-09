@@ -13,7 +13,8 @@ Reusable UI pieces used by pages and the tree screen.
 ## Overlays / panels
 | File | Purpose |
 |------|---------|
-| `CreateMemberModal.tsx` | Add member form |
+| `CreateMemberModal.tsx` | Alias for shared Add Member modal |
+| `members/AddMember.tsx` | Common add-member form (Members + Family Tree) |
 | `ProfileModal.tsx` | Member details |
 | `SearchHeader.tsx` | Top toolbar |
 | `FilterSidebar.tsx` | Generation / location filters |

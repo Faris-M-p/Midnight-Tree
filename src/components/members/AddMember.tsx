@@ -1,38 +1,55 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { X } from "lucide-react";
 import type { FamilyMember, MarriageUnion } from "../../types";
+import type { MemberProfile } from "../../types/member";
 import { createMember } from "../../services/memberService";
 import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
 import { DatePicker } from "../DatePicker";
 import { resolveAvatarUrl } from "../../utils/defaultAvatar";
-import { computeMemberRanks, formatMemberLabel } from "../../utils/memberRanks";
+import { computeMemberRanks, formatMemberLabel, type MemberRanks } from "../../utils/memberRanks";
+import { mockFamily } from "../../data/mockFamily";
 
-interface AddMemberProps {
+export interface AddMemberProps {
   open: boolean;
   onClose: () => void;
   members: FamilyMember[];
   unions: MarriageUnion[];
-  onCreated: () => Promise<void> | void;
+  memberRanks?: MemberRanks;
+  onCreated?: (created: MemberProfile) => Promise<void> | void;
 }
 
 type Connection = "root" | "child" | "spouse";
 
-export function AddMember({ open, onClose, members, unions, onCreated }: AddMemberProps) {
+const inputClass =
+  "mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500";
+
+export function AddMember({
+  open,
+  onClose,
+  members,
+  unions,
+  memberRanks: ranksProp,
+  onCreated
+}: AddMemberProps) {
   const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
   const [nickname, setNickname] = useState("");
   const [dob, setDob] = useState("");
   const [lifeStatus, setLifeStatus] = useState<"alive" | "deceased">("alive");
   const [dateOfDeath, setDateOfDeath] = useState("");
   const [gender, setGender] = useState<"male" | "female">("male");
   const [avatar, setAvatar] = useState("");
+  const [profession, setProfession] = useState("");
   const [connection, setConnection] = useState<Connection>("root");
   const [targetId, setTargetId] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const hasRoot = members.some((m) => m.isRoot);
-  const memberRanks = useMemo(() => computeMemberRanks(members, unions), [members, unions]);
+  const memberRanks = useMemo(
+    () => ranksProp ?? computeMemberRanks(members, unions),
+    [ranksProp, members, unions]
+  );
+
   const couples = useMemo(
     () =>
       unions.map((union) => {
@@ -45,27 +62,40 @@ export function AddMember({ open, onClose, members, unions, onCreated }: AddMemb
     [unions, members, memberRanks]
   );
 
-  if (!open) return null;
+  const singleMembers = useMemo(
+    () =>
+      [...members]
+        .filter((m) => !unions.some((u) => u.spouse1Id === m.id || u.spouse2Id === m.id))
+        .sort((a, b) => (memberRanks[a.id] ?? 9999) - (memberRanks[b.id] ?? 9999)),
+    [members, unions, memberRanks]
+  );
 
-  const preview = resolveAvatarUrl(avatar, gender);
-
-  const reset = () => {
+  useEffect(() => {
+    if (!open) return;
     setFirstName("");
-    setLastName("");
     setNickname("");
     setDob("");
     setLifeStatus("alive");
     setDateOfDeath("");
     setGender("male");
     setAvatar("");
-    setConnection(hasRoot ? "child" : "root");
+    setProfession("");
+    setConnection(members.some((m) => m.isRoot) ? "child" : "root");
     setTargetId("");
-  };
+  }, [open]);
+
+  if (!open) return null;
+
+  const preview = resolveAvatarUrl(avatar, gender);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!firstName.trim() || !lastName.trim()) {
-      notify.error("First name and last name are required.");
+    if (!firstName.trim()) {
+      notify.error("First name is required.");
+      return;
+    }
+    if (connection === "root" && hasRoot) {
+      notify.error("Root member already exists. Add this member as a child or spouse.");
       return;
     }
     if (connection === "child" && !targetId) {
@@ -78,24 +108,34 @@ export function AddMember({ open, onClose, members, unions, onCreated }: AddMemb
     }
 
     const union = couples.find((c) => c.id === targetId);
+    const nameParts = firstName.trim().split(/\s+/).filter(Boolean);
+    const apiFirstName = nameParts.shift() || firstName.trim();
+    const inferredLast =
+      nameParts.join(" ") ||
+      members
+        .map((m) => m.name.trim().split(/\s+/).filter(Boolean).at(-1))
+        .filter((part): part is string => Boolean(part && part !== apiFirstName))
+        .at(0) ||
+      mockFamily.name.replace(/\s+family$/i, "").trim() ||
+      apiFirstName;
     setSubmitting(true);
     try {
-      await createMember({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
+      const created = await createMember({
+        firstName: apiFirstName,
+        lastName: inferredLast,
         nickname: nickname.trim() || undefined,
         gender: gender === "male" ? "Male" : "Female",
         dateOfBirth: dob || undefined,
         dateOfDeath: lifeStatus === "deceased" ? dateOfDeath || undefined : undefined,
+        profession: profession.trim() || undefined,
         isRoot: connection === "root",
         parentId: connection === "child" && union ? Number(union.spouse1Id) : undefined,
         spouseId: connection === "spouse" ? Number(targetId) : undefined,
-        images: avatar ? [{ imageUrl: avatar, isPrimary: true, sortOrder: 0 }] : undefined
+        images: avatar ? [{ imageUrl: avatar, isPrimary: true, sortOrder: 0, caption: "Profile" }] : undefined
       });
       notify.success("Member created successfully.");
-      reset();
       onClose();
-      await onCreated();
+      await onCreated?.(created);
     } catch (error) {
       if (error instanceof ApiClientError) notify.fromApiError(error);
       else notify.error("Unable to create member right now.");
@@ -106,175 +146,175 @@ export function AddMember({ open, onClose, members, unions, onCreated }: AddMemb
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div className="absolute inset-0 bg-slate-950/70" onClick={onClose} />
+      <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={onClose} />
       <form
         onSubmit={handleSubmit}
-        className="relative z-10 max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-slate-800 bg-slate-950 p-5 shadow-2xl sm:rounded-2xl"
+        className="relative z-10 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-slate-800 bg-slate-950 shadow-2xl sm:rounded-2xl"
       >
-        <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-start justify-between border-b border-slate-800 px-5 py-4">
           <div>
             <h2 className="text-lg font-semibold text-slate-100">Add member</h2>
-            <p className="text-xs text-slate-500">Quickly place someone in the family. Details can be added later.</p>
+            <p className="text-xs text-slate-500">Same form on Members and Family Tree. Use # numbers to pick relatives.</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-900">
             <X size={16} />
           </button>
         </div>
 
-        <div className="mb-4 flex items-center gap-3">
-          <img src={preview} alt="" className="h-16 w-16 rounded-xl object-cover border border-slate-800" />
-          <label className="flex-1 text-sm">
-            <span className="text-slate-300">Profile image URL</span>
-            <input
-              value={avatar}
-              onChange={(e) => setAvatar(e.target.value)}
-              placeholder="https://..."
-              className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 outline-none focus:border-emerald-500"
-            />
-          </label>
-        </div>
+        <div className="space-y-4 overflow-y-auto px-5 py-4">
+          <div className="flex items-center gap-3">
+            <img src={preview} alt="" className="h-16 w-16 rounded-xl border border-slate-800 object-cover" />
+            <label className="flex-1 text-sm text-slate-300">
+              Profile image URL
+              <input
+                value={avatar}
+                onChange={(e) => setAvatar(e.target.value)}
+                placeholder="https://..."
+                className={inputClass}
+              />
+            </label>
+          </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-sm">
-            First name *
-            <input
-              required
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 outline-none focus:border-emerald-500"
-            />
-          </label>
-          <label className="text-sm">
-            Last name *
-            <input
-              required
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 outline-none focus:border-emerald-500"
-            />
-          </label>
-        </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm text-slate-300">
+              First name *
+              <input required value={firstName} onChange={(e) => setFirstName(e.target.value)} className={inputClass} />
+            </label>
+            <label className="text-sm text-slate-300">
+              Nickname
+              <input value={nickname} onChange={(e) => setNickname(e.target.value)} className={inputClass} />
+            </label>
+          </div>
 
-        <label className="mt-3 block text-sm">
-          Nickname
-          <input
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 outline-none focus:border-emerald-500"
-          />
-        </label>
-
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div className="text-sm">
-            Date of birth
-            <div className="mt-1">
-              <DatePicker value={dob} onChange={setDob} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="text-sm text-slate-300">
+              Date of birth
+              <div className="mt-1">
+                <DatePicker value={dob} onChange={setDob} />
+              </div>
             </div>
+            <label className="text-sm text-slate-300">
+              Gender
+              <select value={gender} onChange={(e) => setGender(e.target.value as "male" | "female")} className={inputClass}>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            </label>
           </div>
-          <label className="text-sm">
-            Gender
-            <select
-              value={gender}
-              onChange={(e) => setGender(e.target.value as "male" | "female")}
-              className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 outline-none focus:border-emerald-500"
-            >
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-            </select>
+
+          <label className="block text-sm text-slate-300">
+            Profession
+            <input
+              value={profession}
+              onChange={(e) => setProfession(e.target.value)}
+              placeholder="Optional"
+              className={inputClass}
+            />
           </label>
-        </div>
 
-        <fieldset className="mt-3 text-sm">
-          <legend className="text-slate-300">Life status</legend>
-          <div className="mt-2 flex gap-2">
-            {(["alive", "deceased"] as const).map((status) => (
-              <button
-                key={status}
-                type="button"
-                onClick={() => setLifeStatus(status)}
-                className={`rounded-xl px-3 py-2 capitalize ${
-                  lifeStatus === status ? "bg-emerald-500 text-slate-950" : "border border-slate-700 text-slate-300"
-                }`}
-              >
-                {status}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-
-        {lifeStatus === "deceased" && (
-          <div className="mt-3 text-sm">
-            Date of death
-            <div className="mt-1">
-              <DatePicker value={dateOfDeath} onChange={setDateOfDeath} />
-            </div>
-          </div>
-        )}
-
-        <label className="mt-3 block text-sm">
-          Connection *
-          <select
-            value={connection}
-            onChange={(e) => {
-              setConnection(e.target.value as Connection);
-              setTargetId("");
-            }}
-            className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 outline-none focus:border-emerald-500"
-          >
-            <option value="root" disabled={hasRoot}>
-              Root member
-            </option>
-            <option value="child">Child</option>
-            <option value="spouse">Spouse</option>
-          </select>
-        </label>
-
-        {connection === "child" && (
-          <label className="mt-3 block text-sm">
-            Parent couple
-            <select
-              value={targetId}
-              onChange={(e) => setTargetId(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 outline-none focus:border-emerald-500"
-            >
-              <option value="">Select couple</option>
-              {couples.map((couple) => (
-                <option key={couple.id} value={couple.id}>
-                  {couple.label}
-                </option>
+          <fieldset className="text-sm">
+            <legend className="text-slate-300">Life status</legend>
+            <div className="mt-2 flex gap-2">
+              {(["alive", "deceased"] as const).map((status) => (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => setLifeStatus(status)}
+                  className={`rounded-xl px-3 py-2 capitalize ${
+                    lifeStatus === status ? "bg-emerald-500 text-slate-950" : "border border-slate-700 text-slate-300"
+                  }`}
+                >
+                  {status}
+                </button>
               ))}
+            </div>
+          </fieldset>
+
+          {lifeStatus === "deceased" ? (
+            <div className="text-sm text-slate-300">
+              Date of death
+              <div className="mt-1">
+                <DatePicker value={dateOfDeath} onChange={setDateOfDeath} />
+              </div>
+            </div>
+          ) : null}
+
+          <label className="block text-sm text-slate-300">
+            Connection *
+            <select
+              value={connection}
+              onChange={(e) => {
+                setConnection(e.target.value as Connection);
+                setTargetId("");
+              }}
+              className={inputClass}
+            >
+              <option value="root" disabled={hasRoot}>
+                Root member
+              </option>
+              <option value="child">Child of couple</option>
+              <option value="spouse">Spouse of member</option>
             </select>
           </label>
-        )}
 
-        {connection === "spouse" && (
-          <label className="mt-3 block text-sm">
-            Member
-            <select
-              value={targetId}
-              onChange={(e) => setTargetId(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 outline-none focus:border-emerald-500"
-            >
-              <option value="">Select member</option>
-              {[...members]
-                .sort((a, b) => (memberRanks[a.id] ?? 9999) - (memberRanks[b.id] ?? 9999))
-                .map((member) => (
+          {connection === "child" ? (
+            <label className="block text-sm text-slate-300">
+              Parent couple
+              <select value={targetId} onChange={(e) => setTargetId(e.target.value)} className={inputClass}>
+                <option value="">Select couple</option>
+                {couples.map((couple) => (
+                  <option key={couple.id} value={couple.id}>
+                    {couple.label}
+                  </option>
+                ))}
+              </select>
+              {couples.length === 0 ? (
+                <p className="mt-2 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-400">
+                  No couples yet. Add a spouse first, then you can add children.
+                </p>
+              ) : null}
+            </label>
+          ) : null}
+
+          {connection === "spouse" ? (
+            <label className="block text-sm text-slate-300">
+              Member
+              <select value={targetId} onChange={(e) => setTargetId(e.target.value)} className={inputClass} disabled={singleMembers.length === 0}>
+                <option value="">Select member</option>
+                {singleMembers.map((member) => (
                   <option key={member.id} value={member.id}>
                     {formatMemberLabel(memberRanks, member.id, member.name)}
                     {member.nickname ? ` (${member.nickname})` : ""}
                   </option>
                 ))}
-            </select>
-          </label>
-        )}
+              </select>
+              {singleMembers.length === 0 ? (
+                <p className="mt-2 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-400">
+                  No single members available. Everyone is already in a marriage.
+                </p>
+              ) : null}
+            </label>
+          ) : null}
 
-        <div className="mt-5 flex justify-end gap-2">
+          {hasRoot && connection === "root" ? (
+            <p className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-400">
+              Root member already exists. Add this member as a child or spouse.
+            </p>
+          ) : null}
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-slate-800 px-5 py-4">
           <button type="button" onClick={onClose} className="rounded-xl border border-slate-700 px-4 py-2 text-sm">
             Cancel
           </button>
           <button
             type="submit"
-            disabled={submitting}
+            disabled={
+              submitting ||
+              (connection === "root" && hasRoot) ||
+              (connection === "child" && couples.length === 0) ||
+              (connection === "spouse" && singleMembers.length === 0)
+            }
             className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
           >
             {submitting ? "Saving..." : "Add member"}
