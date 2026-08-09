@@ -4,6 +4,7 @@ import { getMemberDetails, updateMember } from "../../services/memberService";
 import type { MemberProfile, UpdateMemberPayload } from "../../types/member";
 import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
+import { logUnexpected } from "../../utils/logFailure";
 import { ErrorState, LoadingState } from "../../components/ui/PageStates";
 import { DatePicker } from "../../components/DatePicker";
 import { useFamilyData } from "../../context/FamilyDataContext";
@@ -66,7 +67,10 @@ export function EditMemberPage({ pathname }: EditMemberPageProps) {
           facebook: data.socialLinks?.find((s) => s.platform.toLowerCase().includes("facebook"))?.url || ""
         });
       })
-      .catch((err) => setError(err instanceof ApiClientError ? err.message : "Unable to load member."))
+      .catch((err) => {
+        logUnexpected("EditMember", err);
+        setError(err instanceof ApiClientError ? err.message : "Unable to load member.");
+      })
       .finally(() => setLoading(false));
   }, [id, fallback?.location, fallback?.education, fallback?.career]);
 

@@ -32,6 +32,7 @@ import { deleteMember, getMemberDetails, updateMember } from '../../services/mem
 import { useFamilyData } from '../../context/FamilyDataContext';
 import { getFamilyTreeData } from '../../services/treeService';
 import { notify } from '../../utils/notify';
+import { logFailure, logUnexpected } from '../../utils/logFailure';
 import { computeMemberRanks } from '../../utils/memberRanks';
 import type { MemberProfile, UpdateMemberPayload } from '../../types/member';
 
@@ -900,7 +901,7 @@ function AppContent() {
         overlays.forEach((el) => ((el as HTMLElement).style.visibility = 'visible'));
       })
       .catch((error) => {
-        console.error('Export failed:', error);
+        logFailure('TreeExport', error);
         overlays.forEach((el) => ((el as HTMLElement).style.visibility = 'visible'));
       });
   };
@@ -917,8 +918,8 @@ function AppContent() {
       const profile = await getMemberDetails(Number(member.id));
       setSelectedProfile(profile);
       setSelectedMember(mapProfileToMember(profile, member));
-    } catch {
-      // keep fallback selected member details if API detail request fails
+    } catch (error) {
+      logUnexpected('TreeMemberDetails', error);
     } finally {
       setIsDetailsLoading(false);
     }

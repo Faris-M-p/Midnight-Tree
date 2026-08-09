@@ -4,6 +4,7 @@ import { getMemberDetails, deleteMember } from "../../services/memberService";
 import type { MemberProfile } from "../../types/member";
 import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
+import { logUnexpected } from "../../utils/logFailure";
 import { MemberDetails } from "../../components/members/MemberDetails";
 import { ErrorState, LoadingState } from "../../components/ui/PageStates";
 import { useFamilyData } from "../../context/FamilyDataContext";
@@ -34,6 +35,7 @@ export function MemberDetailsPage({ pathname }: MemberDetailsPageProps) {
         setError("");
       })
       .catch((err) => {
+        logUnexpected("MemberDetails", err);
         setError(err instanceof ApiClientError ? err.message : "Unable to load member details.");
       })
       .finally(() => setLoading(false));

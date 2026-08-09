@@ -1,19 +1,32 @@
 import { mockFamily } from "./mockFamily";
 
-const listeners = new Set<() => void>();
-
-export function getFamilyBranding() {
-  return {
-    name: mockFamily.name,
-    logo: mockFamily.logo,
-    code: mockFamily.code
-  };
+export interface FamilyBranding {
+  name: string;
+  logo: string;
+  code: string;
 }
 
-export function setFamilyBranding(patch: Partial<{ name: string; logo: string; code: string }>) {
-  if (patch.name) mockFamily.name = patch.name;
-  if (patch.logo) mockFamily.logo = patch.logo;
-  if (patch.code) mockFamily.code = patch.code;
+const listeners = new Set<() => void>();
+
+let snapshot: FamilyBranding = {
+  name: mockFamily.name,
+  logo: mockFamily.logo,
+  code: mockFamily.code
+};
+
+export function getFamilyBranding(): FamilyBranding {
+  return snapshot;
+}
+
+export function setFamilyBranding(patch: Partial<FamilyBranding>) {
+  snapshot = {
+    name: patch.name ?? snapshot.name,
+    logo: patch.logo ?? snapshot.logo,
+    code: patch.code ?? snapshot.code
+  };
+  mockFamily.name = snapshot.name;
+  mockFamily.logo = snapshot.logo;
+  mockFamily.code = snapshot.code;
   listeners.forEach((listener) => listener());
 }
 

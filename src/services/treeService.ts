@@ -20,6 +20,7 @@
  */
 
 import { getFamilyTree, getMemberDetails, getMembers } from "./memberService";
+import { logUnexpected } from "../utils/logFailure";
 import type { FamilyMember, MarriageUnion } from "../types";
 import type { ApiTreeNode, MemberProfile, TreeDataResponse } from "../types/member";
 import { defaultAvatar } from "../utils/defaultAvatar";
@@ -330,7 +331,10 @@ function mapFromNestedTree(root: ApiTreeNode): TreeDataResponse {
  */
 export async function getFamilyTreeData(): Promise<TreeDataResponse> {
   // Prefer explicit backend tree graph when available.
-  const nested = await getFamilyTree().catch(() => null);
+  const nested = await getFamilyTree().catch((error) => {
+    logUnexpected("FamilyTree", error);
+    return null;
+  });
   if (nested?.root) {
     return mapFromNestedTree(nested.root);
   }

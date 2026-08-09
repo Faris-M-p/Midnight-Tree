@@ -19,6 +19,7 @@
 import { env } from "../config/env";
 import { getAccessToken } from "./authSessionService";
 import type { ApiErrorItem, ApiResponse } from "../types/api";
+import { logFailure } from "../utils/logFailure";
 
 /**
  * Error thrown when the API returns success=false or a non-OK HTTP status.
@@ -28,6 +29,9 @@ export class ApiClientError extends Error {
   statusCode: number;
   fieldErrors: Record<string, string>;
   errors: ApiErrorItem[];
+  method?: string;
+  path?: string;
+  logged = false;
 
   constructor(
     message: string,
@@ -110,6 +114,22 @@ async function parseResponse<T>(response: Response): Promise<ApiResponse<T> | nu
   return (await response.json()) as ApiResponse<T>;
 }
 
+function throwApiError(
+  method: string,
+  path: string,
+  message: string,
+  statusCode: number,
+  errors: ApiErrorItem[] = [],
+  extra?: Record<string, unknown>
+): never {
+  logFailure("API", message, { method, path, statusCode, ...extra });
+  const error = new ApiClientError(message, statusCode, extractFieldErrors(errors, message), errors);
+  error.method = method;
+  error.path = path;
+  error.logged = true;
+  throw error;
+}
+
 /**
  * Main entry used by all services.
  * @param path  API path starting with /api/...
@@ -125,11 +145,12 @@ export async function apiRequest<TResponse, TBody = unknown>(
   } = {}
 ): Promise<TResponse> {
   const token = getAccessToken();
+  const method = options.method ?? "GET";
 
   let response: Response;
   try {
     response = await fetch(`${env.apiBaseUrl}${path}`, {
-      method: options.method ?? "GET",
+      method,
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -137,11 +158,20 @@ export async function apiRequest<TResponse, TBody = unknown>(
       },
       body: options.body ? JSON.stringify(options.body) : undefined
     });
-  } catch {
-    throw new ApiClientError("Unable to reach the server. Please try again.", 0);
+  } catch (error) {
+    if (error instanceof ApiClientError) throw error;
+    throwApiError(method, path, "Unable to reach the server. Please try again.", 0, [], { reason: "network" });
   }
 
-  const payload = await parseResponse<TResponse>(response);
+  let payload: ApiResponse<TResponse> | null = null;
+  try {
+    payload = await parseResponse<TResponse>(response);
+  } catch (error) {
+    throwApiError(method, path, "The server returned an invalid response.", response.status, [], {
+      reason: "parse",
+      error: error instanceof Error ? error.message : error
+    });
+  }
 
   if (!response.ok || !payload?.success) {
     const fallbackMessage = response.status >= 500
@@ -153,11 +183,13 @@ export async function apiRequest<TResponse, TBody = unknown>(
       ? "Something went wrong. Please try again."
       : (apiMessage || fallbackMessage);
 
-    throw new ApiClientError(
+    throwApiError(
+      method,
+      path,
       friendlyMessage,
       payload?.statusCode ?? response.status,
-      extractFieldErrors(payload?.errors, apiMessage),
-      payload?.errors ?? []
+      payload?.errors ?? [],
+      { traceId: payload?.traceId }
     );
   }
 
@@ -181,11 +213,20 @@ export async function apiFormRequest<TResponse>(
       },
       body: form
     });
-  } catch {
-    throw new ApiClientError("Unable to reach the server. Please try again.", 0);
+  } catch (error) {
+    if (error instanceof ApiClientError) throw error;
+    throwApiError(method, path, "Unable to reach the server. Please try again.", 0, [], { reason: "network" });
   }
 
-  const payload = await parseResponse<TResponse>(response);
+  let payload: ApiResponse<TResponse> | null = null;
+  try {
+    payload = await parseResponse<TResponse>(response);
+  } catch (error) {
+    throwApiError(method, path, "The server returned an invalid response.", response.status, [], {
+      reason: "parse",
+      error: error instanceof Error ? error.message : error
+    });
+  }
 
   if (!response.ok || !payload?.success) {
     const apiMessage = payload?.message?.trim();
@@ -193,11 +234,13 @@ export async function apiFormRequest<TResponse>(
       ? "Something went wrong. Please try again."
       : (apiMessage || "Request failed. Please check your input and try again.");
 
-    throw new ApiClientError(
+    throwApiError(
+      method,
+      path,
       friendlyMessage,
       payload?.statusCode ?? response.status,
-      extractFieldErrors(payload?.errors, apiMessage),
-      payload?.errors ?? []
+      payload?.errors ?? [],
+      { traceId: payload?.traceId }
     );
   }
 

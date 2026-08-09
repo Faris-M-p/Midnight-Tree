@@ -7,6 +7,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import type { FamilyMember, MarriageUnion } from "../types";
 import { ApiClientError } from "../services/apiClient";
 import { getFamilyTreeData } from "../services/treeService";
+import { logUnexpected } from "../utils/logFailure";
 import { computeMemberRanks, type MemberRanks } from "../utils/memberRanks";
 
 interface FamilyDataContextValue {
@@ -34,6 +35,7 @@ export function FamilyDataProvider({ children }: { children: ReactNode }) {
       setMembers(data.members);
       setUnions(data.unions);
     } catch (err) {
+      logUnexpected("FamilyData", err);
       setMembers([]);
       setUnions([]);
       setError(

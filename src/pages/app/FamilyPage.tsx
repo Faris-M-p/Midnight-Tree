@@ -8,6 +8,7 @@ import { ProfilePhotoPicker } from "../../components/ui/ProfilePhotoPicker";
 import { getFamily, updateFamily } from "../../services/familyService";
 import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
+import { logUnexpected } from "../../utils/logFailure";
 
 interface FamilyPageProps {
   pathname: string;
@@ -37,7 +38,8 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
           logo
         }));
       })
-      .catch(() => {
+      .catch((error) => {
+        logUnexpected("FamilyPage", error);
         setDraft({ ...mockFamily });
       });
   }, []);

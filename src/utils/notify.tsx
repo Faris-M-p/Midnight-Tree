@@ -5,6 +5,7 @@
 
 import { toast } from "sonner";
 import { ToastCard, type ToastKind } from "../components/AppToaster";
+import { logFailure, logUnexpected } from "./logFailure";
 
 export type { ToastKind };
 
@@ -43,19 +44,21 @@ export const notify = {
     show("warning", description, title, 5000);
   },
   error(description: string, title = defaultTitles.error) {
+    logFailure("UI", description);
     show("error", description, title, 6500);
   },
   validation(description: string, title = "Please check this") {
     show("warning", description, title, 5000);
   },
   fromApiError(error: ApiErrorLike) {
+    logUnexpected("API", error);
     const status = "statusCode" in error ? Number(error.statusCode) : undefined;
     const message = formatApiError(error);
     if (status && status >= 400 && status < 500) {
       notify.validation(message);
       return;
     }
-    notify.error(message);
+    show("error", message, defaultTitles.error, 6500);
   }
 };
 
