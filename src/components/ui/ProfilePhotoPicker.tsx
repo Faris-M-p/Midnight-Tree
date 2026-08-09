@@ -4,14 +4,19 @@ import { Pencil } from "lucide-react";
 interface ProfilePhotoPickerProps {
   previewUrl: string;
   onFileSelected: (file: File) => void;
+  sizeClassName?: string;
 }
 
-export function ProfilePhotoPicker({ previewUrl, onFileSelected }: ProfilePhotoPickerProps) {
+export function ProfilePhotoPicker({
+  previewUrl,
+  onFileSelected,
+  sizeClassName = "h-20 w-20"
+}: ProfilePhotoPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="relative h-20 w-20 shrink-0">
-      <img src={previewUrl} alt="" className="h-20 w-20 rounded-xl border border-slate-800 object-cover" />
+    <div className={`relative shrink-0 ${sizeClassName}`}>
+      <img src={previewUrl} alt="" className={`rounded-xl border border-slate-800 object-cover ${sizeClassName}`} />
       <button
         type="button"
         onClick={() => inputRef.current?.click()}

@@ -1,6 +1,6 @@
 import { Bell, Menu } from "lucide-react";
 import { useState } from "react";
-import { mockFamily } from "../../data/mockFamily";
+import { useFamilyBranding } from "../../hooks/useFamilyBranding";
 import { NotificationDrawer, unreadNotificationCount } from "./NotificationDrawer";
 
 interface HeaderProps {
@@ -9,6 +9,7 @@ interface HeaderProps {
 }
 
 export function Header({ title, onOpenMobileNav }: HeaderProps) {
+  const family = useFamilyBranding();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const unread = unreadNotificationCount();
 
@@ -26,12 +27,12 @@ export function Header({ title, onOpenMobileNav }: HeaderProps) {
 
         <div className="flex min-w-0 flex-1 items-center gap-2 xl:gap-3">
           <img
-            src={mockFamily.logo}
+            src={family.logo}
             alt=""
             className="h-8 w-8 shrink-0 rounded-full border border-slate-700 object-cover xl:hidden"
           />
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-slate-100 xl:hidden">{mockFamily.name}</p>
+            <p className="truncate text-sm font-semibold text-slate-100 xl:hidden">{family.name}</p>
             <h1 className="hidden truncate text-base font-semibold text-slate-100 xl:block xl:text-lg">{title}</h1>
           </div>
         </div>

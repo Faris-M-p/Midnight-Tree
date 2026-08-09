@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
-import { mockFamily } from "../../data/mockFamily";
+import { useFamilyBranding } from "../../hooks/useFamilyBranding";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 import { AppNavItems } from "./AppNavItems";
 import { DrawerPortal } from "./DrawerPortal";
@@ -12,6 +12,7 @@ interface MobileNavigationProps {
 }
 
 export function MobileNavigation({ open, pathname, onClose }: MobileNavigationProps) {
+  const family = useFamilyBranding();
   useBodyScrollLock(open);
 
   useEffect(() => {
@@ -45,9 +46,9 @@ export function MobileNavigation({ open, pathname, onClose }: MobileNavigationPr
       >
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-800 px-3 py-3">
           <div className="flex min-w-0 items-center gap-2">
-            <img src={mockFamily.logo} alt="" className="h-8 w-8 rounded-lg object-cover" />
+            <img src={family.logo} alt="" className="h-8 w-8 rounded-lg object-cover" />
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-100">{mockFamily.name}</p>
+              <p className="truncate text-sm font-semibold text-slate-100">{family.name}</p>
               <p className="truncate text-[11px] text-slate-500">Midnight Chronicle</p>
             </div>
           </div>
