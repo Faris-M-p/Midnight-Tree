@@ -15,7 +15,7 @@ interface MemberDetailsPageProps {
 export function MemberDetailsPage({ pathname }: MemberDetailsPageProps) {
   const match = matchPath("/members/:id", pathname);
   const id = Number(match?.params.id);
-  const { members, refresh } = useFamilyData();
+  const { members, memberRanks, refresh } = useFamilyData();
   const fallback = members.find((m) => m.id === String(id));
   const [profile, setProfile] = useState<MemberProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,6 +61,7 @@ export function MemberDetailsPage({ pathname }: MemberDetailsPageProps) {
       location={fallback?.location}
       education={fallback?.education}
       career={fallback?.career}
+      memberRanks={memberRanks}
       onDelete={handleDelete}
     />
   );

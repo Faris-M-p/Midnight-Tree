@@ -8,14 +8,15 @@ import { canDelete, canEdit } from "../../auth/permissions";
 import { deleteMember } from "../../services/memberService";
 import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
+import { matchesMemberRank, memberDisplayId } from "../../utils/memberRanks";
 
 const PAGE_SIZE = 12;
 
 export function MembersPage() {
-  const { members, unions, isLoading, error, refresh } = useFamilyData();
+  const { members, unions, memberRanks, isLoading, error, refresh } = useFamilyData();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | "alive" | "deceased">("all");
-  const [sort, setSort] = useState<"name" | "dob" | "location">("name");
+  const [sort, setSort] = useState<"number" | "name" | "dob" | "location">("number");
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = useState(false);
 
@@ -27,18 +28,20 @@ export function MembersPage() {
         m.name.toLowerCase().includes(q) ||
         (m.nickname || "").toLowerCase().includes(q) ||
         m.relation.toLowerCase().includes(q) ||
-        m.location.toLowerCase().includes(q);
+        m.location.toLowerCase().includes(q) ||
+        matchesMemberRank(memberRanks, m.id, q);
       const matchesStatus =
         status === "all" || (status === "deceased" ? Boolean(m.isDeceased) : !m.isDeceased);
       return matchesQuery && matchesStatus;
     });
     rows = [...rows].sort((a, b) => {
+      if (sort === "number") return (memberRanks[a.id] ?? 9999) - (memberRanks[b.id] ?? 9999);
       if (sort === "dob") return (a.dob || "").localeCompare(b.dob || "");
       if (sort === "location") return a.location.localeCompare(b.location);
       return a.name.localeCompare(b.name);
     });
     return rows;
-  }, [members, query, status, sort]);
+  }, [members, memberRanks, query, status, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -82,7 +85,7 @@ export function MembersPage() {
               setQuery(e.target.value);
               setPage(1);
             }}
-            placeholder="Search name, nickname, location..."
+            placeholder="Search #number, name, nickname..."
             className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 pl-9 pr-3 text-sm outline-none focus:border-emerald-500"
           />
         </label>
@@ -103,6 +106,7 @@ export function MembersPage() {
           onChange={(e) => setSort(e.target.value as typeof sort)}
           className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
         >
+          <option value="number">Sort by number</option>
           <option value="name">Sort by name</option>
           <option value="dob">Sort by date of birth</option>
           <option value="location">Sort by location</option>
@@ -136,7 +140,10 @@ export function MembersPage() {
                     <td className="px-4 py-3">
                       <button type="button" onClick={() => navigateTo(`/members/${member.id}`)} className="flex items-center gap-3 text-left">
                         <img src={member.avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
-                        <span className="font-medium text-slate-100">{member.name}</span>
+                        <span className="flex min-w-0 items-baseline gap-1.5">
+                          <span className="shrink-0 text-xs font-bold text-emerald-400">{memberDisplayId(memberRanks, member.id)}</span>
+                          <span className="truncate font-medium text-slate-100">{member.name}</span>
+                        </span>
                       </button>
                     </td>
                     <td className="px-4 py-3 text-slate-300">{member.nickname || "—"}</td>
@@ -193,7 +200,10 @@ export function MembersPage() {
                 <button type="button" onClick={() => navigateTo(`/members/${member.id}`)} className="flex w-full items-center gap-3 text-left">
                   <img src={member.avatar} alt="" className="h-12 w-12 rounded-full object-cover" />
                   <div>
-                    <p className="font-medium text-slate-100">{member.name}</p>
+                    <p className="flex items-baseline gap-1.5 font-medium text-slate-100">
+                      <span className="text-xs font-bold text-emerald-400">{memberDisplayId(memberRanks, member.id)}</span>
+                      <span>{member.name}</span>
+                    </p>
                     <p className="text-xs text-slate-400">
                       {member.nickname || member.relation} · {member.location}
                     </p>

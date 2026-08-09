@@ -7,10 +7,12 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import type { FamilyMember, MarriageUnion } from "../types";
 import { ApiClientError } from "../services/apiClient";
 import { getFamilyTreeData } from "../services/treeService";
+import { computeMemberRanks, type MemberRanks } from "../utils/memberRanks";
 
 interface FamilyDataContextValue {
   members: FamilyMember[];
   unions: MarriageUnion[];
+  memberRanks: MemberRanks;
   isLoading: boolean;
   error: string;
   refresh: () => Promise<void>;
@@ -48,9 +50,11 @@ export function FamilyDataProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, []);
 
+  const memberRanks = useMemo(() => computeMemberRanks(members, unions), [members, unions]);
+
   const value = useMemo(
-    () => ({ members, unions, isLoading, error, refresh }),
-    [members, unions, isLoading, error]
+    () => ({ members, unions, memberRanks, isLoading, error, refresh }),
+    [members, unions, memberRanks, isLoading, error]
   );
 
   return <FamilyDataContext.Provider value={value}>{children}</FamilyDataContext.Provider>;

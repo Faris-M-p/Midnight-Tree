@@ -6,6 +6,7 @@ import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
 import { DatePicker } from "../DatePicker";
 import { resolveAvatarUrl } from "../../utils/defaultAvatar";
+import { computeMemberRanks, formatMemberLabel } from "../../utils/memberRanks";
 
 interface AddMemberProps {
   open: boolean;
@@ -31,14 +32,17 @@ export function AddMember({ open, onClose, members, unions, onCreated }: AddMemb
   const [submitting, setSubmitting] = useState(false);
 
   const hasRoot = members.some((m) => m.isRoot);
+  const memberRanks = useMemo(() => computeMemberRanks(members, unions), [members, unions]);
   const couples = useMemo(
     () =>
       unions.map((union) => {
-        const a = members.find((m) => m.id === union.spouse1Id)?.name ?? "Unknown";
-        const b = members.find((m) => m.id === union.spouse2Id)?.name ?? "Unknown";
-        return { id: union.id, label: `${a} + ${b}`, spouse1Id: union.spouse1Id };
+        const a = members.find((m) => m.id === union.spouse1Id);
+        const b = members.find((m) => m.id === union.spouse2Id);
+        const labelA = a ? formatMemberLabel(memberRanks, a.id, a.name) : "Unknown";
+        const labelB = b ? formatMemberLabel(memberRanks, b.id, b.name) : "Unknown";
+        return { id: union.id, label: `${labelA} + ${labelB}`, spouse1Id: union.spouse1Id };
       }),
-    [unions, members]
+    [unions, members, memberRanks]
   );
 
   if (!open) return null;
@@ -252,11 +256,14 @@ export function AddMember({ open, onClose, members, unions, onCreated }: AddMemb
               className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 outline-none focus:border-emerald-500"
             >
               <option value="">Select member</option>
-              {members.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.name}
-                </option>
-              ))}
+              {[...members]
+                .sort((a, b) => (memberRanks[a.id] ?? 9999) - (memberRanks[b.id] ?? 9999))
+                .map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {formatMemberLabel(memberRanks, member.id, member.name)}
+                    {member.nickname ? ` (${member.nickname})` : ""}
+                  </option>
+                ))}
             </select>
           </label>
         )}

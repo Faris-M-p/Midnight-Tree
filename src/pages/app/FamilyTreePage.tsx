@@ -32,6 +32,7 @@ import { ApiClientError } from '../../services/apiClient';
 import { createMember, deleteMember, getMemberDetails, updateMember } from '../../services/memberService';
 import { getFamilyTreeData } from '../../services/treeService';
 import { notify } from '../../utils/notify';
+import { computeMemberRanks } from '../../utils/memberRanks';
 import type { MemberProfile, UpdateMemberPayload } from '../../types/member';
 
 import '@xyflow/react/dist/style.css';
@@ -747,36 +748,7 @@ function AppContent() {
     }
   };
 
-  // Compute sequential member rank (BFS from roots, stable order)
-  const memberRanks = useMemo<{ [id: string]: number }>(() => {
-    const ranks: { [id: string]: number } = {};
-    let counter = 1;
-    // Find root members (no union has them as a child)
-    const allChildIds = new Set(unions.flatMap(u => u.childrenIds));
-    const roots = members.filter(m => !allChildIds.has(m.id));
-    const queue = [...roots.map(m => m.id)];
-    const visited = new Set<string>();
-    while (queue.length > 0) {
-      const id = queue.shift()!;
-      if (visited.has(id)) continue;
-      visited.add(id);
-      ranks[id] = counter++;
-      // Enqueue spouses then children
-      const memberUnions = unions.filter(u => u.spouse1Id === id || u.spouse2Id === id);
-      for (const u of memberUnions) {
-        const spouseId = u.spouse1Id === id ? u.spouse2Id : u.spouse1Id;
-        if (!visited.has(spouseId)) queue.push(spouseId);
-        for (const cid of u.childrenIds) {
-          if (!visited.has(cid)) queue.push(cid);
-        }
-      }
-    }
-    // Assign any remaining (disconnected) members
-    for (const m of members) {
-      if (!ranks[m.id]) ranks[m.id] = counter++;
-    }
-    return ranks;
-  }, [members, unions]);
+  const memberRanks = useMemo(() => computeMemberRanks(members, unions), [members, unions]);
 
   // Recalculate nodes and edges when states mutate
   useEffect(() => {

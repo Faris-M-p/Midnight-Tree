@@ -1,16 +1,18 @@
 import { GitBranch, Pencil, Trash2 } from "lucide-react";
-import type { MemberProfile } from "../../types/member";
+import type { MemberProfile, MemberRelationSummary } from "../../types/member";
 import { canDelete, canEdit } from "../../auth/permissions";
 import { navigateTo } from "../../routing/navigate";
 import { mockStories } from "../../data/mockStories";
 import { mockEvents } from "../../data/mockEvents";
 import { mockAlbums } from "../../data/mockGallery";
+import { formatMemberLabel, memberDisplayId, type MemberRanks } from "../../utils/memberRanks";
 
 interface MemberDetailsProps {
   profile: MemberProfile;
   location?: string;
   education?: string;
   career?: string;
+  memberRanks?: MemberRanks;
   onDelete?: () => void;
 }
 
@@ -23,11 +25,18 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export function MemberDetails({ profile, location, education, career, onDelete }: MemberDetailsProps) {
+function relationLabel(ranks: MemberRanks | undefined, rel: MemberRelationSummary | null | undefined) {
+  if (!rel) return "—";
+  if (!ranks) return rel.fullName;
+  return formatMemberLabel(ranks, String(rel.id), rel.fullName);
+}
+
+export function MemberDetails({ profile, location, education, career, memberRanks, onDelete }: MemberDetailsProps) {
   const photo = profile.images?.find((i) => i.isPrimary)?.imageUrl || profile.images?.[0]?.imageUrl;
   const stories = mockStories.filter((s) => s.relatedMemberIds.some((id) => profile.fullName.toLowerCase().includes(id)));
   const events = mockEvents.filter((e) => e.relatedMemberIds.length > 0).slice(0, 4);
   const photos = mockAlbums.flatMap((a) => a.photos).slice(0, 6);
+  const displayId = memberRanks ? memberDisplayId(memberRanks, String(profile.id)) : undefined;
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-4 md:p-6">
@@ -39,7 +48,10 @@ export function MemberDetails({ profile, location, education, career, onDelete }
             className="h-20 w-20 rounded-2xl object-cover"
           />
           <div>
-            <h2 className="text-2xl font-semibold text-slate-100">{profile.fullName}</h2>
+            <h2 className="flex flex-wrap items-baseline gap-2 text-2xl font-semibold text-slate-100">
+              {displayId ? <span className="text-base font-bold text-emerald-400">{displayId}</span> : null}
+              <span>{profile.fullName}</span>
+            </h2>
             <p className="text-sm text-slate-400">{profile.nickname || (profile.isRoot ? "Root member" : "Family member")}</p>
             <p className="mt-1 text-xs text-slate-500">
               {profile.dateOfBirth || "DOB unknown"} · {profile.dateOfDeath ? "Deceased" : "Alive"}
@@ -127,15 +139,19 @@ export function MemberDetails({ profile, location, education, career, onDelete }
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
             <p className="text-xs uppercase text-slate-500">Parent</p>
-            <p>{profile.parent?.fullName || "—"}</p>
+            <p>{relationLabel(memberRanks, profile.parent)}</p>
           </div>
           <div>
             <p className="text-xs uppercase text-slate-500">Spouse</p>
-            <p>{profile.spouse?.fullName || "—"}</p>
+            <p>{relationLabel(memberRanks, profile.spouse)}</p>
           </div>
           <div>
             <p className="text-xs uppercase text-slate-500">Children</p>
-            <p>{profile.children?.length ? profile.children.map((c) => c.fullName).join(", ") : "—"}</p>
+            <p>
+              {profile.children?.length
+                ? profile.children.map((c) => relationLabel(memberRanks, c)).join(", ")
+                : "—"}
+            </p>
           </div>
         </div>
       </Section>
