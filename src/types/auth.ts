@@ -16,7 +16,6 @@ export interface RegisterRequest {
   username: string;
   email: string;
   password: string;
-  familyCode: string;
   familyName: string;
   description?: string;
 }

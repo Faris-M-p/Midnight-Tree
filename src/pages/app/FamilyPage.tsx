@@ -84,12 +84,11 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
         photoFile
       );
       const logo = updated.photoUrl || photoPreview || draft.logo;
-      Object.assign(mockFamily, draft, { logo, name: updated.familyName || draft.name });
-      setFamilyBranding({
-        name: mockFamily.name,
-        code: mockFamily.code,
-        logo
-      });
+      const name = updated.familyName || draft.name;
+      const code = updated.familyCode || draft.code;
+      Object.assign(mockFamily, draft, { logo, name, code });
+      setDraft((current) => ({ ...current, name, code, logo, description: updated.description || current.description }));
+      setFamilyBranding({ name, code, logo });
       notify.success("Family details saved successfully.");
       navigateTo("/family");
     } catch (error) {
@@ -120,10 +119,26 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
             </div>
           </div>
 
+          <label className="block space-y-1 text-sm">
+            <span className="text-slate-300">Family name</span>
+            <input
+              value={draft.name}
+              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none focus:border-emerald-500"
+            />
+          </label>
+          <label className="block space-y-1 text-sm">
+            <span className="text-slate-300">Family code</span>
+            <input
+              value={draft.code}
+              readOnly
+              aria-readonly="true"
+              className="w-full cursor-default rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-400 outline-none"
+            />
+            <p className="text-xs text-slate-500">Assigned automatically and cannot be changed.</p>
+          </label>
           {(
             [
-              ["name", "Family name"],
-              ["code", "Family code"],
               ["origin", "Origin"],
               ["location", "Location"]
             ] as const
@@ -186,8 +201,10 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
               <img src={draft.logo || mockFamily.logo} alt="" className="h-24 w-24 rounded-2xl border-4 border-slate-900 object-cover" />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-wider text-emerald-400">{draft.code}</p>
               <h2 className="text-2xl font-semibold text-slate-100">{draft.name}</h2>
+              <p className="mt-1 text-xs uppercase tracking-wider text-emerald-400">
+                Family code · {draft.code}
+              </p>
               <p className="text-sm text-slate-400">{draft.location}</p>
             </div>
           </div>

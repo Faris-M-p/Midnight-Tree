@@ -20,7 +20,6 @@ type FormField =
   | "email"
   | "password"
   | "confirmPassword"
-  | "familyCode"
   | "familyName"
   | "description";
 
@@ -36,7 +35,6 @@ const initialValues: RegisterFormValues = {
   email: "",
   password: "",
   confirmPassword: "",
-  familyCode: "",
   familyName: "",
   description: ""
 };
@@ -69,10 +67,6 @@ function validateForm(values: RegisterFormValues): FormErrors {
     errors.confirmPassword = "Please confirm your password.";
   } else if (values.confirmPassword !== values.password) {
     errors.confirmPassword = "Passwords do not match.";
-  }
-
-  if (!values.familyCode.trim()) {
-    errors.familyCode = "Family code is required.";
   }
 
   if (!values.familyName.trim()) {
@@ -159,7 +153,6 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
         username: values.username.trim(),
         email: values.email.trim(),
         password: values.password,
-        familyCode: values.familyCode.trim(),
         familyName: values.familyName.trim(),
         description: values.description.trim() || undefined
       });
@@ -232,24 +225,14 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <InputField
-                id="familyCode"
-                label="Family code"
-                value={values.familyCode}
-                error={errors.familyCode}
-                disabled={isSubmitting}
-                onChange={updateField}
-              />
-              <InputField
-                id="familyName"
-                label="Family name"
-                value={values.familyName}
-                error={errors.familyName}
-                disabled={isSubmitting}
-                onChange={updateField}
-              />
-            </div>
+            <InputField
+              id="familyName"
+              label="Family name"
+              value={values.familyName}
+              error={errors.familyName}
+              disabled={isSubmitting}
+              onChange={updateField}
+            />
 
             <div className="space-y-2">
               <label htmlFor="description" className="block text-sm font-medium text-slate-200">
