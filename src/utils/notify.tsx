@@ -10,6 +10,7 @@ export type { ToastKind };
 
 interface ApiErrorLike {
   message?: string;
+  statusCode?: number;
   fieldErrors?: Record<string, string>;
   errors?: Array<{ message?: string | null }>;
 }
@@ -44,8 +45,17 @@ export const notify = {
   error(description: string, title = defaultTitles.error) {
     show("error", description, title, 6500);
   },
+  validation(description: string, title = "Please check this") {
+    show("warning", description, title, 5000);
+  },
   fromApiError(error: ApiErrorLike) {
-    notify.error(formatApiError(error));
+    const status = "statusCode" in error ? Number(error.statusCode) : undefined;
+    const message = formatApiError(error);
+    if (status && status >= 400 && status < 500) {
+      notify.validation(message);
+      return;
+    }
+    notify.error(message);
   }
 };
 

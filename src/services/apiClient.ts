@@ -163,3 +163,43 @@ export async function apiRequest<TResponse, TBody = unknown>(
 
   return payload.data as TResponse;
 }
+
+/** Multipart request — do not set Content-Type so the browser can add the boundary. */
+export async function apiFormRequest<TResponse>(
+  path: string,
+  form: FormData,
+  method: "POST" | "PUT" = "POST"
+): Promise<TResponse> {
+  const token = getAccessToken();
+
+  let response: Response;
+  try {
+    response = await fetch(`${env.apiBaseUrl}${path}`, {
+      method,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: form
+    });
+  } catch {
+    throw new ApiClientError("Unable to reach the server. Please try again.", 0);
+  }
+
+  const payload = await parseResponse<TResponse>(response);
+
+  if (!response.ok || !payload?.success) {
+    const apiMessage = payload?.message?.trim();
+    const friendlyMessage = response.status >= 500
+      ? "Something went wrong. Please try again."
+      : (apiMessage || "Request failed. Please check your input and try again.");
+
+    throw new ApiClientError(
+      friendlyMessage,
+      payload?.statusCode ?? response.status,
+      extractFieldErrors(payload?.errors, apiMessage),
+      payload?.errors ?? []
+    );
+  }
+
+  return payload.data as TResponse;
+}

@@ -6,6 +6,7 @@ import { createMember } from "../../services/memberService";
 import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
 import { DatePicker } from "../DatePicker";
+import { ProfilePhotoPicker } from "../ui/ProfilePhotoPicker";
 import { resolveAvatarUrl } from "../../utils/defaultAvatar";
 import { computeMemberRanks, formatMemberLabel, type MemberRanks } from "../../utils/memberRanks";
 import { mockFamily } from "../../data/mockFamily";
@@ -38,7 +39,8 @@ export function AddMember({
   const [lifeStatus, setLifeStatus] = useState<"alive" | "deceased">("alive");
   const [dateOfDeath, setDateOfDeath] = useState("");
   const [gender, setGender] = useState<"male" | "female">("male");
-  const [avatar, setAvatar] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState("");
   const [profession, setProfession] = useState("");
   const [connection, setConnection] = useState<Connection>("root");
   const [targetId, setTargetId] = useState("");
@@ -78,7 +80,11 @@ export function AddMember({
     setLifeStatus("alive");
     setDateOfDeath("");
     setGender("male");
-    setAvatar("");
+    setPhotoFile(null);
+    setPhotoPreview((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return "";
+    });
     setProfession("");
     setConnection(members.some((m) => m.isRoot) ? "child" : "root");
     setTargetId("");
@@ -86,24 +92,40 @@ export function AddMember({
 
   if (!open) return null;
 
-  const preview = resolveAvatarUrl(avatar, gender);
+  const preview = photoPreview || resolveAvatarUrl("", gender);
+
+  const handlePhotoSelected = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      notify.validation("Please choose an image file.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      notify.validation("Image must be 5 MB or smaller.");
+      return;
+    }
+    setPhotoPreview((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return URL.createObjectURL(file);
+    });
+    setPhotoFile(file);
+  };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!firstName.trim()) {
-      notify.error("First name is required.");
+      notify.validation("First name is required.");
       return;
     }
     if (connection === "root" && hasRoot) {
-      notify.error("Root member already exists. Add this member as a child or spouse.");
+      notify.validation("Root member already exists. Add this member as a child or spouse.");
       return;
     }
     if (connection === "child" && !targetId) {
-      notify.error("Select a parent couple.");
+      notify.validation("Select a parent couple.");
       return;
     }
     if (connection === "spouse" && !targetId) {
-      notify.error("Select a member to connect as spouse.");
+      notify.validation("Select a member to connect as spouse.");
       return;
     }
 
@@ -120,19 +142,21 @@ export function AddMember({
       apiFirstName;
     setSubmitting(true);
     try {
-      const created = await createMember({
-        firstName: apiFirstName,
-        lastName: inferredLast,
-        nickname: nickname.trim() || undefined,
-        gender: gender === "male" ? "Male" : "Female",
-        dateOfBirth: dob || undefined,
-        dateOfDeath: lifeStatus === "deceased" ? dateOfDeath || undefined : undefined,
-        profession: profession.trim() || undefined,
-        isRoot: connection === "root",
-        parentId: connection === "child" && union ? Number(union.spouse1Id) : undefined,
-        spouseId: connection === "spouse" ? Number(targetId) : undefined,
-        images: avatar ? [{ imageUrl: avatar, isPrimary: true, sortOrder: 0, caption: "Profile" }] : undefined
-      });
+      const created = await createMember(
+        {
+          firstName: apiFirstName,
+          lastName: inferredLast,
+          nickname: nickname.trim() || undefined,
+          gender: gender === "male" ? "Male" : "Female",
+          dateOfBirth: dob || undefined,
+          dateOfDeath: lifeStatus === "deceased" ? dateOfDeath || undefined : undefined,
+          profession: profession.trim() || undefined,
+          isRoot: connection === "root",
+          parentId: connection === "child" && union ? Number(union.spouse1Id) : undefined,
+          spouseId: connection === "spouse" ? Number(targetId) : undefined
+        },
+        photoFile
+      );
       notify.success("Member created successfully.");
       onClose();
       await onCreated?.(created);
@@ -163,16 +187,8 @@ export function AddMember({
 
         <div className="space-y-4 overflow-y-auto px-5 py-4">
           <div className="flex items-center gap-3">
-            <img src={preview} alt="" className="h-16 w-16 rounded-xl border border-slate-800 object-cover" />
-            <label className="flex-1 text-sm text-slate-300">
-              Profile image URL
-              <input
-                value={avatar}
-                onChange={(e) => setAvatar(e.target.value)}
-                placeholder="https://..."
-                className={inputClass}
-              />
-            </label>
+            <ProfilePhotoPicker previewUrl={preview} onFileSelected={handlePhotoSelected} />
+            <p className="text-xs text-slate-500">Tap the pen to choose a profile photo. It is saved with the member.</p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">

@@ -16,7 +16,7 @@
  * =============================================================================
  */
 
-import { apiRequest } from "./apiClient";
+import { apiFormRequest, apiRequest } from "./apiClient";
 import type {
   ApiFamilyTreeResponse,
   CreateMemberPayload,
@@ -97,12 +97,39 @@ export function getFamilyTree(): Promise<ApiFamilyTreeResponse> {
   return apiRequest<ApiFamilyTreeResponse>(`${MEMBERS_BASE}/tree`);
 }
 
-/** Create root / child / spouse member */
-export async function createMember(payload: CreateMemberPayload): Promise<MemberProfile> {
-  const result = await apiRequest<MemberProfile | WriteEnvelope, CreateMemberPayload>(MEMBERS_BASE, {
-    method: "POST",
-    body: payload
+function appendIfValue(form: FormData, key: string, value?: string | number | boolean | null) {
+  if (value === undefined || value === null || value === "") return;
+  form.append(key, String(value));
+}
+
+/** Create root / child / spouse member (multipart so profile image can go in the same request) */
+export async function createMember(payload: CreateMemberPayload, photo?: File | null): Promise<MemberProfile> {
+  const form = new FormData();
+  form.append("firstName", payload.firstName);
+  form.append("lastName", payload.lastName);
+  form.append("isRoot", payload.isRoot ? "true" : "false");
+  appendIfValue(form, "nickname", payload.nickname);
+  appendIfValue(form, "gender", payload.gender);
+  appendIfValue(form, "dateOfBirth", payload.dateOfBirth);
+  appendIfValue(form, "dateOfDeath", payload.dateOfDeath);
+  appendIfValue(form, "profession", payload.profession);
+  appendIfValue(form, "biography", payload.biography);
+  appendIfValue(form, "email", payload.email);
+  appendIfValue(form, "phone", payload.phone);
+  appendIfValue(form, "parentId", payload.parentId);
+  appendIfValue(form, "spouseId", payload.spouseId);
+
+  payload.socialLinks?.forEach((link, index) => {
+    form.append(`SocialLinks[${index}].Platform`, link.platform);
+    form.append(`SocialLinks[${index}].Url`, link.url);
+    if (link.username) form.append(`SocialLinks[${index}].Username`, link.username);
   });
+
+  if (photo) {
+    form.append("profileImage", photo);
+  }
+
+  const result = await apiFormRequest<MemberProfile | WriteEnvelope>(MEMBERS_BASE, form);
   return resolveMemberProfile(result);
 }
 
