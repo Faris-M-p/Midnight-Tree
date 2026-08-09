@@ -102,9 +102,7 @@ function appendIfValue(form: FormData, key: string, value?: string | number | bo
   form.append(key, String(value));
 }
 
-/** Create root / child / spouse member (multipart so profile image can go in the same request) */
-export async function createMember(payload: CreateMemberPayload, photo?: File | null): Promise<MemberProfile> {
-  const form = new FormData();
+function appendMemberForm(form: FormData, payload: CreateMemberPayload, photo?: File | null) {
   form.append("firstName", payload.firstName);
   form.append("lastName", payload.lastName);
   form.append("isRoot", payload.isRoot ? "true" : "false");
@@ -119,7 +117,16 @@ export async function createMember(payload: CreateMemberPayload, photo?: File | 
   appendIfValue(form, "parentId", payload.parentId);
   appendIfValue(form, "spouseId", payload.spouseId);
 
+  payload.images?.forEach((image, index) => {
+    if (image.id) form.append(`Images[${index}].Id`, String(image.id));
+    form.append(`Images[${index}].ImageUrl`, image.imageUrl);
+    appendIfValue(form, `Images[${index}].Caption`, image.caption);
+    form.append(`Images[${index}].IsPrimary`, image.isPrimary ? "true" : "false");
+    if (typeof image.sortOrder === "number") form.append(`Images[${index}].SortOrder`, String(image.sortOrder));
+  });
+
   payload.socialLinks?.forEach((link, index) => {
+    if (link.id) form.append(`SocialLinks[${index}].Id`, String(link.id));
     form.append(`SocialLinks[${index}].Platform`, link.platform);
     form.append(`SocialLinks[${index}].Url`, link.url);
     if (link.username) form.append(`SocialLinks[${index}].Username`, link.username);
@@ -128,17 +135,25 @@ export async function createMember(payload: CreateMemberPayload, photo?: File | 
   if (photo) {
     form.append("profileImage", photo);
   }
+}
 
+/** Create root / child / spouse member (multipart so profile image can go in the same request) */
+export async function createMember(payload: CreateMemberPayload, photo?: File | null): Promise<MemberProfile> {
+  const form = new FormData();
+  appendMemberForm(form, payload, photo);
   const result = await apiFormRequest<MemberProfile | WriteEnvelope>(MEMBERS_BASE, form);
   return resolveMemberProfile(result);
 }
 
-/** Update an existing member profile */
-export async function updateMember(memberId: number, payload: UpdateMemberPayload): Promise<MemberProfile> {
-  const result = await apiRequest<MemberProfile | WriteEnvelope, UpdateMemberPayload>(`${MEMBERS_BASE}/${memberId}`, {
-    method: "PUT",
-    body: payload
-  });
+/** Update an existing member profile (multipart so profile image can go in the same request) */
+export async function updateMember(
+  memberId: number,
+  payload: UpdateMemberPayload,
+  photo?: File | null
+): Promise<MemberProfile> {
+  const form = new FormData();
+  appendMemberForm(form, payload, photo);
+  const result = await apiFormRequest<MemberProfile | WriteEnvelope>(`${MEMBERS_BASE}/${memberId}`, form, "PUT");
   return resolveMemberProfile(result);
 }
 
