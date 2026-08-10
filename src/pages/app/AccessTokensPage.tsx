@@ -7,11 +7,12 @@ import {
   setAccessTokenStatus,
   updateAccessToken
 } from "../../services/accessTokenService";
-import { getMembers } from "../../services/memberService";
 import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
 import { matchPath, navigateTo } from "../../routing/navigate";
 import { EmptyState, ErrorState, LoadingState } from "../../components/ui/PageStates";
+import { useFamilyData } from "../../context/FamilyDataContext";
+import { formatMemberLabel } from "../../utils/memberRanks";
 import type {
   AccessToken,
   AccessTokenExpiryPreset,
@@ -41,6 +42,14 @@ const scopeLabels: Record<AccessTokenScope, string> = {
   SelectedMember: "Selected Member",
   MemberDescendants: "Member & Descendants"
 };
+
+function formatScopeLabel(token: Pick<AccessToken, "permission" | "scope" | "memberName">): string {
+  if (token.permission === "View" || !token.scope) {
+    return "—";
+  }
+  const label = scopeLabels[token.scope] ?? token.scope;
+  return token.memberName ? `${label} · ${token.memberName}` : label;
+}
 
 function formatDate(value?: string | null): string {
   if (!value) return "—";
@@ -78,7 +87,7 @@ interface MemberOption {
 interface TokenFormState {
   tokenName: string;
   permission: AccessTokenPermission;
-  scope: AccessTokenScope;
+  scope: AccessTokenScope | null;
   memberId: string;
   expiryPreset: AccessTokenExpiryPreset;
   customExpiresOn: string;
@@ -88,7 +97,7 @@ function emptyForm(): TokenFormState {
   return {
     tokenName: "",
     permission: "View",
-    scope: "EntireFamily",
+    scope: null,
     memberId: "",
     expiryPreset: "90Days",
     customExpiresOn: ""
@@ -97,22 +106,39 @@ function emptyForm(): TokenFormState {
 
 function formFromToken(token: AccessToken): TokenFormState {
   const preset = inferExpiryPreset(token.expiresOn);
+  const isEdit = token.permission === "Edit";
   return {
     tokenName: token.tokenName,
     permission: token.permission,
-    scope: token.scope,
-    memberId: token.memberId ? String(token.memberId) : "",
+    scope: isEdit ? token.scope ?? "EntireFamily" : null,
+    memberId: isEdit && token.memberId ? String(token.memberId) : "",
     expiryPreset: preset,
     customExpiresOn: preset === "Custom" ? toDateInputValue(token.expiresOn) : ""
   };
 }
 
 function buildPayload(form: TokenFormState): CreateAccessTokenPayload {
-  const needsMember = form.scope !== "EntireFamily";
+  // View tokens always use EntireFamily internally; Scope is hidden in the modal.
+  if (form.permission === "View") {
+    return {
+      tokenName: form.tokenName.trim(),
+      permission: "View",
+      scope: "EntireFamily",
+      memberId: null,
+      expiryPreset: form.expiryPreset,
+      customExpiresOn:
+        form.expiryPreset === "Custom" && form.customExpiresOn
+          ? new Date(`${form.customExpiresOn}T23:59:59.000Z`).toISOString()
+          : null
+    };
+  }
+
+  const scope = form.scope ?? "EntireFamily";
+  const needsMember = scope !== "EntireFamily";
   return {
     tokenName: form.tokenName.trim(),
-    permission: form.permission,
-    scope: form.scope,
+    permission: "Edit",
+    scope,
     memberId: needsMember && form.memberId ? Number(form.memberId) : null,
     expiryPreset: form.expiryPreset,
     customExpiresOn:
@@ -124,7 +150,10 @@ function buildPayload(form: TokenFormState): CreateAccessTokenPayload {
 
 function validateForm(form: TokenFormState): string | null {
   if (!form.tokenName.trim()) return "Token name is required.";
-  if (form.scope !== "EntireFamily" && !form.memberId) return "Select a family member for this scope.";
+  if (form.permission === "Edit") {
+    if (!form.scope) return "Scope is required for Edit permission.";
+    if (form.scope !== "EntireFamily" && !form.memberId) return "Select a family member for this scope.";
+  }
   if (form.expiryPreset === "Custom" && !form.customExpiresOn) return "Choose a custom expiry date.";
   return null;
 }
@@ -179,7 +208,8 @@ function TokenFields({
   readOnly?: boolean;
   showExpiredNotice?: boolean;
 }) {
-  const needsMember = form.scope !== "EntireFamily";
+  const isEditPermission = form.permission === "Edit";
+  const needsMember = isEditPermission && form.scope !== null && form.scope !== "EntireFamily";
 
   return (
     <div className="space-y-4">
@@ -204,7 +234,19 @@ function TokenFields({
         <select
           className={`${inputClass} mt-1`}
           value={form.permission}
-          onChange={(e) => setForm({ ...form, permission: e.target.value as AccessTokenPermission })}
+          onChange={(e) => {
+            const permission = e.target.value as AccessTokenPermission;
+            if (permission === "View") {
+              setForm({ ...form, permission, scope: null, memberId: "" });
+              return;
+            }
+            setForm({
+              ...form,
+              permission,
+              scope: "EntireFamily",
+              memberId: ""
+            });
+          }}
           disabled={readOnly}
         >
           <option value="View">View</option>
@@ -212,29 +254,31 @@ function TokenFields({
         </select>
         <p className="mt-1 text-xs text-slate-500">
           {form.permission === "View"
-            ? "Allows viewing only. No member edits or token management."
-            : "Includes View, plus permitted edit operations within scope. Token management stays Admin-only."}
+            ? "Read-only access to the entire family."
+            : "Allows editing based on the selected scope."}
         </p>
       </label>
-      <label className="block text-sm text-slate-300">
-        Scope
-        <select
-          className={`${inputClass} mt-1`}
-          value={form.scope}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              scope: e.target.value as AccessTokenScope,
-              memberId: e.target.value === "EntireFamily" ? "" : form.memberId
-            })
-          }
-          disabled={readOnly}
-        >
-          <option value="EntireFamily">Entire Family</option>
-          <option value="SelectedMember">Selected Member</option>
-          <option value="MemberDescendants">Member & Descendants</option>
-        </select>
-      </label>
+      {isEditPermission && (
+        <label className="block text-sm text-slate-300">
+          Scope
+          <select
+            className={`${inputClass} mt-1`}
+            value={form.scope ?? "EntireFamily"}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                scope: e.target.value as AccessTokenScope,
+                memberId: e.target.value === "EntireFamily" ? "" : form.memberId
+              })
+            }
+            disabled={readOnly}
+          >
+            <option value="EntireFamily">Entire Family</option>
+            <option value="SelectedMember">Selected Member</option>
+            <option value="MemberDescendants">Member & Descendants</option>
+          </select>
+        </label>
+      )}
       {needsMember && (
         <label className="block text-sm text-slate-300">
           Selected Member
@@ -287,6 +331,7 @@ function TokenFields({
 }
 
 export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
+  const { members: familyMembers, memberRanks, isLoading: familyLoading } = useFamilyData();
   const [tokens, setTokens] = useState<AccessToken[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -296,10 +341,21 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
   const [detailLoading, setDetailLoading] = useState(false);
   const [form, setForm] = useState<TokenFormState>(emptyForm());
   const [saving, setSaving] = useState(false);
-  const [members, setMembers] = useState<MemberOption[]>([]);
-  const [membersLoading, setMembersLoading] = useState(false);
   const [rawToken, setRawToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const members = useMemo<MemberOption[]>(
+    () =>
+      [...familyMembers]
+        .sort((a, b) => (memberRanks[a.id] ?? 9999) - (memberRanks[b.id] ?? 9999))
+        .map((m) => ({
+          id: Number(m.id),
+          label: formatMemberLabel(memberRanks, m.id, m.name)
+        }))
+        .filter((m) => Number.isFinite(m.id)),
+    [familyMembers, memberRanks]
+  );
+  const membersLoading = familyLoading;
 
   const routeGenerate = Boolean(matchPath("/access-tokens/generate", pathname));
   const routeEdit = matchPath("/access-tokens/:id/edit", pathname);
@@ -327,24 +383,6 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
     }
   }, []);
 
-  const loadMembers = useCallback(async () => {
-    setMembersLoading(true);
-    try {
-      const page = await getMembers({ page: 1, pageSize: 100, sortBy: "firstname" });
-      setMembers(
-        (page.items ?? []).map((m) => ({
-          id: m.id,
-          label: [m.firstName, m.lastName === "-" ? "" : m.lastName].filter(Boolean).join(" ") || `Member #${m.id}`
-        }))
-      );
-    } catch (err) {
-      notify.fromApiError(err instanceof ApiClientError ? err : { message: "Unable to load members." });
-      setMembers([]);
-    } finally {
-      setMembersLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     void loadTokens();
   }, [loadTokens]);
@@ -356,9 +394,8 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
     setActiveId(null);
     setDetail(null);
     setModal("generate");
-    void loadMembers();
     if (!routeGenerate) navigateTo("/access-tokens/generate");
-  }, [loadMembers, routeGenerate]);
+  }, [routeGenerate]);
 
   const openEdit = useCallback(
     async (id: number) => {
@@ -366,7 +403,6 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
       setActiveId(id);
       setModal("edit");
       setDetailLoading(true);
-      void loadMembers();
       if (!routeEdit) navigateTo(`/access-tokens/${id}/edit`);
       try {
         const token = await getAccessToken(id);
@@ -380,7 +416,7 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
         setDetailLoading(false);
       }
     },
-    [loadMembers, routeEdit]
+    [routeEdit]
   );
 
   const openView = useCallback(
@@ -438,7 +474,6 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
   useEffect(() => {
     if (routeGenerate) {
       setModal("generate");
-      void loadMembers();
       return;
     }
     if (routeEdit && routeId) {
@@ -615,10 +650,7 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
                       <StatusBadge status={token.status} />
                     </td>
                     <td className="px-3 py-3">{token.permission}</td>
-                    <td className="px-3 py-3">
-                      {scopeLabels[token.scope]}
-                      {token.memberName ? ` · ${token.memberName}` : ""}
-                    </td>
+                    <td className="px-3 py-3">{formatScopeLabel(token)}</td>
                     <td className="px-3 py-3 text-slate-300">{formatDate(token.createdOn)}</td>
                     <td className="px-3 py-3 text-slate-300">{formatDate(token.expiresOn)}</td>
                     <td className="px-3 py-3 text-slate-300">{formatDate(token.lastUsedOn)}</td>
@@ -660,7 +692,7 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
                   <StatusBadge status={token.status} />
                 </div>
                 <p className="mt-1 text-xs text-slate-400">
-                  {token.permission} · {scopeLabels[token.scope]} · Expires {formatDate(token.expiresOn)}
+                  {token.permission} · {formatScopeLabel(token)} · Expires {formatDate(token.expiresOn)}
                 </p>
               </button>
             ))}
@@ -802,10 +834,7 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
                 </div>
                 <div>
                   <dt className="text-xs text-slate-500">Scope</dt>
-                  <dd>
-                    {scopeLabels[detail.scope]}
-                    {detail.memberName ? ` · ${detail.memberName}` : ""}
-                  </dd>
+                  <dd>{formatScopeLabel(detail)}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-slate-500">Created</dt>
