@@ -22,6 +22,8 @@ export interface FamilyMember {
   relation: string;
   gender: 'male' | 'female' | 'other';
   dob: string;
+  /** ISO date of death when known — used for age-at-death charts */
+  dateOfDeath?: string;
   location: string;
   profession: string;
   avatar: string;

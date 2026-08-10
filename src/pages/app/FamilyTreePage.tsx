@@ -365,6 +365,7 @@ function AppContent() {
       relation: nickname || fallback?.relation || (profile.isRoot ? (gender === 'male' ? 'Grandfather' : 'Grandmother') : 'Member'),
       gender,
       dob: profile.dateOfBirth || fallback?.dob || '',
+      dateOfDeath: profile.dateOfDeath || fallback?.dateOfDeath || undefined,
       location: profile.locationName?.trim() || fallback?.location || 'Unknown',
       profession: profile.profession || fallback?.profession || 'Not specified',
       avatar,
