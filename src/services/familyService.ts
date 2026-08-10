@@ -6,6 +6,7 @@ export interface FamilyProfile {
   familyName: string;
   description?: string | null;
   photoUrl?: string | null;
+  coverUrl?: string | null;
 }
 
 interface ApiFamily {
@@ -16,6 +17,7 @@ interface ApiFamily {
   familyName?: string;
   description?: string | null;
   photoUrl?: string | null;
+  coverUrl?: string | null;
 }
 
 function mapFamily(data: ApiFamily): FamilyProfile {
@@ -24,7 +26,8 @@ function mapFamily(data: ApiFamily): FamilyProfile {
     familyCode: data.familyCode || "",
     familyName: data.familyName || "",
     description: data.description,
-    photoUrl: data.photoUrl
+    photoUrl: data.photoUrl,
+    coverUrl: data.coverUrl
   };
 }
 
@@ -44,5 +47,12 @@ export async function updateFamily(
   if (photo) form.append("familyPhoto", photo);
 
   await apiFormRequest("/api/family", form, "PUT");
+  return getFamily();
+}
+
+export async function updateFamilyCover(cover: File): Promise<FamilyProfile> {
+  const form = new FormData();
+  form.append("familyCover", cover);
+  await apiFormRequest("/api/family/cover", form, "PUT");
   return getFamily();
 }

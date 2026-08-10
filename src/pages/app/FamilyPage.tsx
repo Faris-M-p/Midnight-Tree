@@ -5,6 +5,7 @@ import { setFamilyBranding } from "../../data/familyBranding";
 import { canEditFamily } from "../../auth/permissions";
 import { navigateTo, matchPath } from "../../routing/navigate";
 import { ProfilePhotoPicker } from "../../components/ui/ProfilePhotoPicker";
+import { ChangeCoverModal } from "../../components/family/ChangeCoverModal";
 import { getFamily, updateFamily } from "../../services/familyService";
 import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
@@ -21,6 +22,7 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
   const [saving, setSaving] = useState(false);
+  const [coverModalOpen, setCoverModalOpen] = useState(false);
 
   useEffect(() => {
     if (isEdit && !allowFamilyEdit) {
@@ -33,6 +35,7 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
     getFamily()
       .then((family) => {
         const logo = family.photoUrl || mockFamily.logo;
+        const cover = family.coverUrl || mockFamily.cover;
         setFamilyBranding({
           name: family.familyName || mockFamily.name,
           code: family.familyCode || mockFamily.code,
@@ -44,8 +47,12 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
           name: family.familyName || current.name,
           code: family.familyCode || current.code,
           description: family.description || current.description,
-          logo
+          logo,
+          cover
         }));
+        if (family.coverUrl) {
+          mockFamily.cover = family.coverUrl;
+        }
       })
       .catch((error) => {
         logUnexpected("FamilyPage", error);
@@ -106,6 +113,11 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCoverSaved = (coverUrl: string) => {
+    mockFamily.cover = coverUrl;
+    setDraft((current) => ({ ...current, cover: coverUrl }));
   };
 
   if (isEdit) {
@@ -201,7 +213,8 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
           {canEditFamily() && (
             <button
               type="button"
-              className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-lg bg-slate-950/80 px-3 py-1.5 text-xs text-slate-200"
+              onClick={() => setCoverModalOpen(true)}
+              className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-lg bg-slate-950/80 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-950"
             >
               <Camera size={12} /> Change cover
             </button>
@@ -248,6 +261,13 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
         <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">Family history</h3>
         <p className="mt-3 text-sm leading-relaxed text-slate-200">{draft.history}</p>
       </article>
+
+      <ChangeCoverModal
+        open={coverModalOpen}
+        currentCoverUrl={draft.cover || mockFamily.cover}
+        onClose={() => setCoverModalOpen(false)}
+        onSaved={handleCoverSaved}
+      />
     </div>
   );
 }
