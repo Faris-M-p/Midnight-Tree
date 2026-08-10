@@ -10,6 +10,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, BarChart3, Clock, Download, X, UserPlus } from 'lucide-react';
 import type { FamilyMember } from '../types';
+import { canCreateMember } from '../auth/permissions';
 
 interface SearchHeaderProps {
   members: FamilyMember[];
@@ -32,6 +33,7 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
   const [suggestions, setSuggestions] = useState<FamilyMember[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const showAddMember = canCreateMember();
 
   // Filter members based on search query
   useEffect(() => {
@@ -151,14 +153,16 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
 
       {/* Right Controls (Add Member, Dashboard, Timeline, PDF export) */}
       <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
-        <button
-          onClick={onAddMember}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-750 text-slate-300 hover:text-slate-100 text-xs font-semibold transition-all cursor-pointer"
-          title="Add Family Member"
-        >
-          <UserPlus size={14} className="text-emerald-500" />
-          <span className="hidden sm:inline">Add Member</span>
-        </button>
+        {showAddMember ? (
+          <button
+            onClick={onAddMember}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-750 text-slate-300 hover:text-slate-100 text-xs font-semibold transition-all cursor-pointer"
+            title="Add Family Member"
+          >
+            <UserPlus size={14} className="text-emerald-500" />
+            <span className="hidden sm:inline">Add Member</span>
+          </button>
+        ) : null}
 
         <button
           onClick={onOpenAnalytics}

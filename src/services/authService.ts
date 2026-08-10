@@ -46,7 +46,14 @@ export async function loginAndPersistSession(payload: LoginRequest): Promise<Log
     expiresAtUtc: response.expiresAtUtc,
     tokenType: response.tokenType,
     refreshToken: response.refreshToken ?? null,
-    user: response.user ?? null
+    user: response.user ?? { username: payload.username },
+    authType: "admin",
+    isAdmin: true,
+    permission: "ADMIN_FULL",
+    scope: "EntireFamily",
+    scopeMemberId: null,
+    tokenId: null,
+    tokenName: null
   });
 
   return response;

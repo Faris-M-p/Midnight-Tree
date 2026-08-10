@@ -5,7 +5,7 @@ import { navigateTo } from "../../routing/navigate";
 import { AddMember } from "../../components/members/AddMember";
 import { EditMember } from "../../components/members/EditMember";
 import { EmptyState, ErrorState, LoadingState } from "../../components/ui/PageStates";
-import { canDelete, canEdit } from "../../auth/permissions";
+import { canCreateMember, canDeleteMember, canEditMember } from "../../auth/permissions";
 import { deleteMember } from "../../services/memberService";
 import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
@@ -67,7 +67,7 @@ export function MembersPage() {
         <div>
           <p className="text-sm text-slate-400">{filtered.length} members</p>
         </div>
-        {canEdit() && (
+        {canCreateMember() && (
           <button
             type="button"
             onClick={() => setAddOpen(true)}
@@ -170,7 +170,7 @@ export function MembersPage() {
                         >
                           View
                         </button>
-                        {canEdit() && (
+                        {canEditMember(member.id, unions) && (
                           <button
                             type="button"
                             onClick={() => setEditId(Number(member.id))}
@@ -179,7 +179,7 @@ export function MembersPage() {
                             <Pencil size={14} />
                           </button>
                         )}
-                        {canDelete() && (
+                        {canDeleteMember(member.id, unions) && (
                           <button
                             type="button"
                             onClick={() => void handleDelete(member.id, member.name)}
@@ -219,7 +219,7 @@ export function MembersPage() {
                   <button type="button" onClick={() => navigateTo(`/members/${member.id}`)} className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs">
                     View
                   </button>
-                  {canEdit() && (
+                  {canEditMember(member.id, unions) && (
                     <button type="button" onClick={() => setEditId(Number(member.id))} className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs">
                       Edit
                     </button>

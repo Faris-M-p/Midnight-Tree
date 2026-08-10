@@ -1,16 +1,11 @@
 /**
- * =============================================================================
- * FILE: src/types/auth.ts
- * ROLE: Authentication request/response TypeScript models
- * =============================================================================
- * Matches MidnightApi account endpoints:
- *   POST /api/accounts/register
- *   POST /api/accounts/login
- *
- * After login we store an AuthSession (token + user) in localStorage
- * via authSessionService.ts.
- * =============================================================================
+ * Authentication request/response TypeScript models.
+ * Matches MidnightApi account + access-token login endpoints.
  */
+
+export type AccessAuthType = "admin" | "access_token";
+export type AccessPermission = "View" | "Edit" | "ADMIN_FULL";
+export type AccessScope = "EntireFamily" | "SelectedMember" | "MemberDescendants";
 
 export interface RegisterRequest {
   username: string;
@@ -39,6 +34,28 @@ export interface LoginResponse {
   user?: AuthUser;
 }
 
+export interface AccessTokenLoginRequest {
+  accessToken: string;
+}
+
+export interface AccessTokenLoginUser {
+  authType: AccessAuthType;
+  familyId: number;
+  tokenId: number;
+  tokenName: string;
+  permission: AccessPermission;
+  scope: AccessScope;
+  scopeMemberId?: number | null;
+  isAdmin: boolean;
+}
+
+export interface AccessTokenLoginResponse {
+  accessToken: string;
+  expiresAtUtc: string;
+  tokenType: string;
+  user: AccessTokenLoginUser;
+}
+
 export interface AuthUser {
   id?: number;
   username?: string;
@@ -53,4 +70,12 @@ export interface AuthSession {
   tokenType: string;
   refreshToken?: string | null;
   user?: AuthUser | null;
+  authType?: AccessAuthType;
+  isAdmin?: boolean;
+  familyId?: number | null;
+  tokenId?: number | null;
+  tokenName?: string | null;
+  permission?: AccessPermission;
+  scope?: AccessScope;
+  scopeMemberId?: number | null;
 }

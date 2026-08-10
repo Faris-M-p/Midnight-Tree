@@ -1,16 +1,18 @@
 import { GitBranch, Pencil, Trash2, X } from "lucide-react";
 import type { MemberProfile, MemberRelationSummary } from "../../types/member";
-import { canDelete, canEdit } from "../../auth/permissions";
+import { canDeleteMember, canEditMember } from "../../auth/permissions";
 import { navigateTo } from "../../routing/navigate";
 import { formatMemberLabel, memberDisplayId, type MemberRanks } from "../../utils/memberRanks";
 import { memberDisplayName } from "../../utils/memberName";
 import { resolveAvatarUrl } from "../../utils/defaultAvatar";
 import { LocationView, toCoord } from "./LocationView";
+import type { MarriageUnion } from "../../types";
 
 export interface MemberDetailsProps {
   profile: MemberProfile;
   location?: string;
   memberRanks?: MemberRanks;
+  unions?: MarriageUnion[];
   onDelete?: () => void;
   onEdit?: () => void;
   onClose?: () => void;
@@ -91,6 +93,7 @@ export function MemberDetails({
   profile,
   location,
   memberRanks,
+  unions = [],
   onDelete,
   onEdit,
   onClose,
@@ -102,6 +105,8 @@ export function MemberDetails({
   const displayId = memberRanks ? memberDisplayId(memberRanks, String(profile.id)) : undefined;
   const hasMapPin = toCoord(profile.latitude) !== null && toCoord(profile.longitude) !== null;
   const socialLinks = profile.socialLinks ?? [];
+  const allowEdit = canEditMember(profile.id, unions);
+  const allowDelete = canDeleteMember(profile.id, unions);
 
   const handleEdit = () => {
     if (onEdit) onEdit();
@@ -134,7 +139,7 @@ export function MemberDetails({
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {canEdit() && (
+          {allowEdit && (
             <button
               type="button"
               onClick={handleEdit}
@@ -152,7 +157,7 @@ export function MemberDetails({
               <GitBranch size={14} /> View in family tree
             </button>
           ) : null}
-          {canDelete() && onDelete && (
+          {allowDelete && onDelete && (
             <button
               type="button"
               onClick={onDelete}

@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import type { MemberProfile } from "../../types/member";
 import type { MemberRanks } from "../../utils/memberRanks";
+import type { MarriageUnion } from "../../types";
 import { ErrorState, LoadingState } from "../ui/PageStates";
 import { MemberDetails } from "./MemberDetails";
 
@@ -11,6 +12,7 @@ interface MemberDetailsModalProps {
   profile: MemberProfile | null;
   location?: string;
   memberRanks?: MemberRanks;
+  unions?: MarriageUnion[];
   onClose: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -25,6 +27,7 @@ export function MemberDetailsModal({
   profile,
   location,
   memberRanks,
+  unions = [],
   onClose,
   onEdit,
   onDelete,
@@ -54,6 +57,7 @@ export function MemberDetailsModal({
               profile={profile}
               location={location}
               memberRanks={memberRanks}
+              unions={unions}
               onEdit={onEdit}
               onDelete={onDelete}
               onOpenMember={onOpenMember}

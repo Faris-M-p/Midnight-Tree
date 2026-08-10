@@ -1,73 +1,91 @@
 /**
- * Auth gate for the new shell: real JWT session OR dummy family-token session.
- * Password login still uses authSessionService / authService unchanged.
+ * Auth gate for the app shell. Authentication requires a JWT session
+ * (admin password login or access-token login).
  */
 
-import { clearAuthSession, getAccessToken } from "../services/authSessionService";
-import {
-  defaultMockUser,
-  setMockUser,
-  type PermissionLevel,
-  type TokenScope
-} from "./permissions";
+import { clearAuthSession, getAccessToken, getAuthSession, saveAuthSession } from "../services/authSessionService";
+import type { AccessAuthType, AccessPermission, AccessScope, AuthSession } from "../types/auth";
 
-const TOKEN_SESSION_KEY = "midnight.token.session";
-const MOCK_USER_KEY = "midnight.mock.user";
-
-export interface TokenSession {
-  token: string;
-  name: string;
-  permission: PermissionLevel;
-  scope: TokenScope;
-  expiresOn: string;
-}
-
-export function saveTokenSession(session: TokenSession) {
-  localStorage.setItem(TOKEN_SESSION_KEY, JSON.stringify(session));
-  setMockUser({
-    username: session.name,
-    displayName: session.name,
-    isAdmin: false,
-    permission: session.permission === "edit" ? "edit" : "view",
-    tokenScope: session.scope
-  });
-}
-
-export function getTokenSession(): TokenSession | null {
-  try {
-    const raw = localStorage.getItem(TOKEN_SESSION_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as TokenSession;
-  } catch {
-    return null;
-  }
-}
-
-export function clearTokenSession() {
-  localStorage.removeItem(TOKEN_SESSION_KEY);
-}
-
-export function hasTokenSession() {
-  return Boolean(getTokenSession());
-}
+const LEGACY_TOKEN_SESSION_KEY = "midnight.token.session";
+const LEGACY_MOCK_USER_KEY = "midnight.mock.user";
 
 export function isAuthenticated() {
-  return Boolean(getAccessToken()) || hasTokenSession();
+  return Boolean(getAccessToken());
 }
 
 export function markPasswordLoginAdmin(username: string) {
-  setMockUser({
-    ...defaultMockUser,
-    username,
-    displayName: username,
+  const current = getAuthSession();
+  if (!current) return;
+
+  const next: AuthSession = {
+    ...current,
+    authType: "admin",
     isAdmin: true,
-    permission: "admin",
-    tokenScope: "entire-family"
+    permission: "ADMIN_FULL",
+    scope: "EntireFamily",
+    scopeMemberId: null,
+    tokenName: null,
+    tokenId: null,
+    user: {
+      ...(current.user ?? {}),
+      username
+    }
+  };
+  saveAuthSession(next);
+}
+
+export function applyAccessTokenSession(input: {
+  accessToken: string;
+  expiresAtUtc: string;
+  tokenType?: string;
+  authType: AccessAuthType;
+  familyId: number;
+  tokenId: number;
+  tokenName: string;
+  permission: AccessPermission;
+  scope: AccessScope;
+  scopeMemberId?: number | null;
+}) {
+  saveAuthSession({
+    accessToken: input.accessToken,
+    expiresAtUtc: input.expiresAtUtc,
+    tokenType: input.tokenType ?? "Bearer",
+    refreshToken: null,
+    authType: input.authType,
+    isAdmin: false,
+    familyId: input.familyId,
+    tokenId: input.tokenId,
+    tokenName: input.tokenName,
+    permission: input.permission,
+    scope: input.scope,
+    scopeMemberId: input.scopeMemberId ?? null,
+    user: {
+      username: input.tokenName
+    }
   });
+  localStorage.removeItem(LEGACY_TOKEN_SESSION_KEY);
+  localStorage.removeItem(LEGACY_MOCK_USER_KEY);
 }
 
 export function logout() {
   clearAuthSession();
-  clearTokenSession();
-  localStorage.removeItem(MOCK_USER_KEY);
+  localStorage.removeItem(LEGACY_TOKEN_SESSION_KEY);
+  localStorage.removeItem(LEGACY_MOCK_USER_KEY);
+}
+
+/** @deprecated Token login now stores a JWT via applyAccessTokenSession. */
+export function saveTokenSession(_session: unknown) {
+  // no-op
+}
+
+export function getTokenSession() {
+  return null;
+}
+
+export function clearTokenSession() {
+  localStorage.removeItem(LEGACY_TOKEN_SESSION_KEY);
+}
+
+export function hasTokenSession() {
+  return getAuthSession()?.authType === "access_token";
 }

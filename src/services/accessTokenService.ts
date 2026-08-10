@@ -1,6 +1,7 @@
 /**
  * Admin Access Token API service.
  * Talks to MidnightApi AccessTokenController:
+ *   POST   /api/access-tokens/login
  *   GET    /api/access-tokens
  *   GET    /api/access-tokens/{id}
  *   POST   /api/access-tokens
@@ -10,14 +11,42 @@
  */
 
 import { apiRequest } from "./apiClient";
+import { applyAccessTokenSession } from "../auth/session";
 import type {
   AccessToken,
   CreateAccessTokenPayload,
   CreateAccessTokenResult,
   UpdateAccessTokenPayload
 } from "../types/accessToken";
+import type { AccessTokenLoginRequest, AccessTokenLoginResponse } from "../types/auth";
 
 const BASE = "/api/access-tokens";
+
+export function loginWithAccessToken(payload: AccessTokenLoginRequest): Promise<AccessTokenLoginResponse> {
+  return apiRequest<AccessTokenLoginResponse, AccessTokenLoginRequest>(`${BASE}/login`, {
+    method: "POST",
+    body: payload
+  });
+}
+
+export async function loginWithAccessTokenAndPersist(
+  payload: AccessTokenLoginRequest
+): Promise<AccessTokenLoginResponse> {
+  const response = await loginWithAccessToken(payload);
+  applyAccessTokenSession({
+    accessToken: response.accessToken,
+    expiresAtUtc: response.expiresAtUtc,
+    tokenType: response.tokenType,
+    authType: response.user.authType,
+    familyId: response.user.familyId,
+    tokenId: response.user.tokenId,
+    tokenName: response.user.tokenName,
+    permission: response.user.permission,
+    scope: response.user.scope,
+    scopeMemberId: response.user.scopeMemberId
+  });
+  return response;
+}
 
 export function listAccessTokens(): Promise<AccessToken[]> {
   return apiRequest<AccessToken[]>(BASE);

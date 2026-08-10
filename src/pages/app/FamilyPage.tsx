@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Camera, Pencil } from "lucide-react";
 import { mockFamily, type MockFamily } from "../../data/mockFamily";
 import { setFamilyBranding } from "../../data/familyBranding";
-import { canEdit } from "../../auth/permissions";
+import { canEditFamily } from "../../auth/permissions";
 import { navigateTo, matchPath } from "../../routing/navigate";
 import { ProfilePhotoPicker } from "../../components/ui/ProfilePhotoPicker";
 import { getFamily, updateFamily } from "../../services/familyService";
@@ -16,10 +16,18 @@ interface FamilyPageProps {
 
 export function FamilyPage({ pathname }: FamilyPageProps) {
   const isEdit = Boolean(matchPath("/family/edit", pathname));
+  const allowFamilyEdit = canEditFamily();
   const [draft, setDraft] = useState<MockFamily>({ ...mockFamily });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (isEdit && !allowFamilyEdit) {
+      notify.validation("You don't have permission to perform this action.");
+      navigateTo("/family");
+    }
+  }, [isEdit, allowFamilyEdit]);
 
   useEffect(() => {
     getFamily()
@@ -101,6 +109,9 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
   };
 
   if (isEdit) {
+    if (!allowFamilyEdit) {
+      return null;
+    }
     const preview = photoPreview || draft.logo || mockFamily.logo;
 
     return (
@@ -187,7 +198,7 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
     <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
       <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900">
         <div className="relative h-44 bg-cover bg-center md:h-56" style={{ backgroundImage: `url(${draft.cover || mockFamily.cover})` }}>
-          {canEdit() && (
+          {canEditFamily() && (
             <button
               type="button"
               className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-lg bg-slate-950/80 px-3 py-1.5 text-xs text-slate-200"
@@ -209,7 +220,7 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
               <p className="text-sm text-slate-400">{draft.location}</p>
             </div>
           </div>
-          {canEdit() && (
+          {canEditFamily() && (
             <button
               type="button"
               onClick={() => navigateTo("/family/edit")}

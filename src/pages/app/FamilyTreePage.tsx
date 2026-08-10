@@ -34,6 +34,7 @@ import { notify } from '../../utils/notify';
 import { logFailure, logUnexpected } from '../../utils/logFailure';
 import { computeMemberRanks } from '../../utils/memberRanks';
 import type { MemberProfile } from '../../types/member';
+import { canCreateMember } from '../../auth/permissions';
 
 import '@xyflow/react/dist/style.css';
 
@@ -738,13 +739,15 @@ function AppContent() {
               <div className="max-w-md rounded-2xl border border-slate-800 bg-slate-900/70 p-5 text-center">
                 <h3 className="text-lg font-semibold text-slate-100">No family members found.</h3>
                 <p className="mt-2 text-sm text-slate-400">Start by adding the first member to build your family tree.</p>
-                <button
-                  type="button"
-                  onClick={() => setIsCreateOpen(true)}
-                  className="mt-4 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
-                >
-                  Add First Member
-                </button>
+                {canCreateMember() ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateOpen(true)}
+                    className="mt-4 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+                  >
+                    Add First Member
+                  </button>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -769,6 +772,7 @@ function AppContent() {
         profile={selectedProfile}
         location={selectedMember?.location}
         memberRanks={memberRanks}
+        unions={unions}
         onClose={closeMemberSheets}
         onEdit={() => setEditOpen(true)}
         onDelete={() => void handleDeleteMember()}
