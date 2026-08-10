@@ -1,12 +1,10 @@
 import { mockStories, type MockStory } from "./mockStories";
 import { mockEvents, type MockEvent } from "./mockEvents";
 import { mockAlbums, type MockAlbum, type MockPhoto } from "./mockGallery";
-import { mockAccessTokens, type MockAccessToken } from "./mockAccessTokens";
 
 let stories = [...mockStories];
 let events = [...mockEvents];
 let albums = mockAlbums.map((album) => ({ ...album, photos: [...album.photos] }));
-let tokens = [...mockAccessTokens];
 
 export function listStories() {
   return stories;
@@ -59,16 +57,4 @@ export function removePhoto(albumId: string, photoId: string) {
   albums = albums.map((album) =>
     album.id === albumId ? { ...album, photos: album.photos.filter((p) => p.id !== photoId) } : album
   );
-}
-
-export function listTokens() {
-  return tokens;
-}
-export function getToken(id: string) {
-  return tokens.find((t) => t.id === id);
-}
-export function saveToken(token: MockAccessToken) {
-  const index = tokens.findIndex((t) => t.id === token.id);
-  if (index >= 0) tokens[index] = token;
-  else tokens = [token, ...tokens];
 }

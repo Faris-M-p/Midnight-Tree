@@ -66,7 +66,15 @@ const fieldAliasMap: Record<string, string> = {
   location: "locationName",
   "location name": "locationName",
   "parent id": "parentId",
-  "spouse id": "spouseId"
+  "spouse id": "spouseId",
+  "token name": "tokenName",
+  permission: "permission",
+  scope: "scope",
+  "selected member": "memberId",
+  "member id": "memberId",
+  expiry: "expiryPreset",
+  "expiry preset": "expiryPreset",
+  "custom expiry date": "customExpiresOn"
 };
 
 function normalizeFieldName(field?: string | null): string | null {
