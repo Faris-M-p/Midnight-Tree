@@ -15,7 +15,7 @@ import { ApiClientError } from "../services/apiClient";
 import { loginAndPersistSession } from "../services/authService";
 import { loginWithAccessTokenAndPersist } from "../services/accessTokenService";
 import { notify } from "../utils/notify";
-import { markPasswordLoginAdmin } from "../auth/session";
+import { logout, markPasswordLoginAdmin } from "../auth/session";
 
 type LoginField = "username" | "password";
 type LoginFormValues = Record<LoginField, string>;
@@ -73,6 +73,8 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
 
     setIsSubmitting(true);
     try {
+      // Auth state must come from this login response only — drop any prior JWT first.
+      logout();
       await loginAndPersistSession({
         username: values.username.trim(),
         password: values.password
@@ -81,6 +83,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
       notify.success("You have signed in successfully.");
       onNavigate("/home");
     } catch (error) {
+      logout();
       if (error instanceof ApiClientError) {
         notify.fromApiError(error);
       } else {
@@ -105,10 +108,13 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
     setIsSubmitting(true);
     setTokenError("");
     try {
+      // Auth state must come from this login response only — drop any prior JWT first.
+      logout();
       await loginWithAccessTokenAndPersist({ accessToken: token });
       notify.success("You have signed in successfully.");
       onNavigate("/home");
     } catch (error) {
+      logout();
       const message =
         error instanceof ApiClientError
           ? error.message

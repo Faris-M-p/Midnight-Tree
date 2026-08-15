@@ -40,9 +40,12 @@ export function loginAccount(payload: LoginRequest): Promise<LoginResponse> {
 /** Login + save session to localStorage in one step */
 export async function loginAndPersistSession(payload: LoginRequest): Promise<LoginResponse> {
   const response = await loginAccount(payload);
+  if (!response.accessToken?.trim()) {
+    throw new Error("Sign-in did not return an access token.");
+  }
 
   saveAuthSession({
-    accessToken: response.accessToken,
+    accessToken: response.accessToken.trim(),
     expiresAtUtc: response.expiresAtUtc,
     tokenType: response.tokenType,
     refreshToken: response.refreshToken ?? null,

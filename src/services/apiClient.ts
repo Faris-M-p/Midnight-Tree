@@ -17,6 +17,8 @@
  */
 
 import { env } from "../config/env";
+import { logout } from "../auth/session";
+import { navigateTo } from "../routing/navigate";
 import { getAccessToken } from "./authSessionService";
 import type { ApiErrorItem, ApiResponse } from "../types/api";
 import { logFailure } from "../utils/logFailure";
@@ -44,6 +46,42 @@ export class ApiClientError extends Error {
     this.statusCode = statusCode;
     this.fieldErrors = fieldErrors;
     this.errors = errors;
+  }
+}
+
+/** Login/register endpoints — 401 means bad credentials, not a dead session. */
+const ANONYMOUS_AUTH_PATHS = new Set([
+  "/api/accounts/login",
+  "/api/accounts/register",
+  "/api/access-tokens/login"
+]);
+
+let handlingUnauthorized = false;
+
+function isAnonymousAuthPath(path: string): boolean {
+  return ANONYMOUS_AUTH_PATHS.has(path.split("?")[0]);
+}
+
+/**
+ * Backend auth middleware is the only JWT authority.
+ * On 401 for a protected call: clear stored session and return to Login.
+ */
+function handleUnauthorized(path: string, statusCode: number): void {
+  if (statusCode !== 401) return;
+  if (isAnonymousAuthPath(path)) return;
+  if (handlingUnauthorized) return;
+
+  handlingUnauthorized = true;
+  try {
+    logout();
+    const currentPath = window.location.pathname;
+    if (currentPath !== "/login" && currentPath !== "/register") {
+      navigateTo("/login");
+    }
+  } finally {
+    queueMicrotask(() => {
+      handlingUnauthorized = false;
+    });
   }
 }
 
@@ -193,11 +231,14 @@ export async function apiRequest<TResponse, TBody = unknown>(
       ? "Something went wrong. Please try again."
       : (apiMessage || fallbackMessage);
 
+    const statusCode = payload?.statusCode ?? response.status;
+    handleUnauthorized(path, statusCode);
+
     throwApiError(
       method,
       path,
       friendlyMessage,
-      payload?.statusCode ?? response.status,
+      statusCode,
       payload?.errors ?? [],
       { traceId: payload?.traceId }
     );
@@ -244,11 +285,14 @@ export async function apiFormRequest<TResponse>(
       ? "Something went wrong. Please try again."
       : (apiMessage || "Request failed. Please check your input and try again.");
 
+    const statusCode = payload?.statusCode ?? response.status;
+    handleUnauthorized(path, statusCode);
+
     throwApiError(
       method,
       path,
       friendlyMessage,
-      payload?.statusCode ?? response.status,
+      statusCode,
       payload?.errors ?? [],
       { traceId: payload?.traceId }
     );

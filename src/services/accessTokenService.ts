@@ -33,8 +33,11 @@ export async function loginWithAccessTokenAndPersist(
   payload: AccessTokenLoginRequest
 ): Promise<AccessTokenLoginResponse> {
   const response = await loginWithAccessToken(payload);
+  if (!response.accessToken?.trim()) {
+    throw new Error("Sign-in did not return an access token.");
+  }
   applyAccessTokenSession({
-    accessToken: response.accessToken,
+    accessToken: response.accessToken.trim(),
     expiresAtUtc: response.expiresAtUtc,
     tokenType: response.tokenType,
     authType: response.user.authType,

@@ -49,7 +49,8 @@ export function getAuthSession(): AuthSession | null {
 
 /** Convenience helper used by apiClient for the Bearer token */
 export function getAccessToken(): string | null {
-  return getAuthSession()?.accessToken ?? null;
+  const token = getAuthSession()?.accessToken?.trim();
+  return token || null;
 }
 
 /** Remove session on logout */
