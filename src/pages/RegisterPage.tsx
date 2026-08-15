@@ -13,6 +13,7 @@ import type { FormEvent } from "react";
 import { PublicHeader } from "../components/layout/PublicHeader";
 import { ApiClientError } from "../services/apiClient";
 import { registerAccount } from "../services/authService";
+import { setPendingVerificationEmail } from "../auth/pendingAuth";
 import { notify } from "../utils/notify";
 
 type FormField =
@@ -157,9 +158,10 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
         description: values.description.trim() || undefined
       });
 
-      notify.success("Your account was created successfully. Redirecting to login...");
+      setPendingVerificationEmail(values.email.trim());
+      notify.success("Account created. Please verify your email.");
       setValues(initialValues);
-      window.setTimeout(() => onNavigate("/login"), 1200);
+      onNavigate("/verify-email");
     } catch (error) {
       if (error instanceof ApiClientError) {
         notify.fromApiError(error);

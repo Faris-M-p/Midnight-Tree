@@ -16,6 +16,7 @@ import { loginAndPersistSession } from "../services/authService";
 import { loginWithAccessTokenAndPersist } from "../services/accessTokenService";
 import { notify } from "../utils/notify";
 import { logout, markPasswordLoginAdmin } from "../auth/session";
+import { setPendingLoginOtp, setPendingVerificationEmail } from "../auth/pendingAuth";
 
 type LoginField = "username" | "password";
 type LoginFormValues = Record<LoginField, string>;
@@ -75,10 +76,31 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
     try {
       // Auth state must come from this login response only — drop any prior JWT first.
       logout();
-      await loginAndPersistSession({
+      const response = await loginAndPersistSession({
         username: values.username.trim(),
         password: values.password
       });
+
+      if (response.requiresEmailVerification) {
+        const email = response.email?.trim();
+        if (email) setPendingVerificationEmail(email);
+        notify.info("Please verify your email to continue.");
+        onNavigate("/verify-email");
+        return;
+      }
+
+      if (response.requiresLoginOtp) {
+        const email = response.email?.trim();
+        if (!email) {
+          notify.error("Unable to start sign-in verification. Please try again.");
+          return;
+        }
+        setPendingLoginOtp(email, response.username ?? values.username.trim());
+        notify.info("Enter the verification code sent to your email.");
+        onNavigate("/login/verify");
+        return;
+      }
+
       markPasswordLoginAdmin(values.username.trim());
       notify.success("You have signed in successfully.");
       onNavigate("/home");
@@ -242,6 +264,16 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                   </p>
                 </div>
               </fieldset>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => onNavigate("/forgot-password")}
+                  className="text-sm font-medium text-emerald-400 hover:text-emerald-300"
+                >
+                  Forgot Password?
+                </button>
+              </div>
 
               <button
                 type="submit"

@@ -17,8 +17,11 @@ export interface RegisterRequest {
 
 export interface RegisterResponse {
   accountId: number;
-  familyId: number;
-  username: string;
+  familyId?: number | null;
+  email: string;
+  maskedEmail: string;
+  requiresEmailVerification: boolean;
+  resendAvailableInSeconds?: number;
 }
 
 export interface LoginRequest {
@@ -27,11 +30,68 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  accessToken: string;
-  expiresAtUtc: string;
-  tokenType: string;
+  accessToken?: string;
+  expiresAtUtc?: string;
+  tokenType?: string;
   refreshToken?: string;
   user?: AuthUser;
+  requiresEmailVerification?: boolean;
+  requiresLoginOtp?: boolean;
+  username?: string | null;
+  email?: string | null;
+  maskedEmail?: string | null;
+  resendAvailableInSeconds?: number;
+}
+
+export interface VerifyEmailRequest {
+  email: string;
+  otp: string;
+}
+
+export interface VerifyLoginOtpRequest {
+  email: string;
+  otp: string;
+}
+
+export interface ResendLoginOtpRequest {
+  email: string;
+}
+
+export interface ResendVerificationRequest {
+  email: string;
+}
+
+export interface OtpChallengeResponse {
+  email: string;
+  maskedEmail: string;
+  resendAvailableInSeconds: number;
+  expiresInSeconds?: number;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ForgotPasswordResponse {
+  message: string;
+}
+
+export interface VerifyForgotPasswordOtpRequest {
+  email: string;
+  otp: string;
+}
+
+export interface VerifyForgotPasswordOtpResponse {
+  email: string;
+  maskedEmail: string;
+  resetToken: string;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  resetToken: string;
+  newPassword: string;
+  confirmPassword: string;
 }
 
 export interface AccessTokenLoginRequest {
