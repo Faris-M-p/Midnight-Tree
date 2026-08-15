@@ -3,8 +3,6 @@
  */
 
 const VERIFY_EMAIL_KEY = "midnight.verify.email";
-const LOGIN_OTP_EMAIL_KEY = "midnight.login.otp.email";
-const LOGIN_OTP_USERNAME_KEY = "midnight.login.otp.username";
 const FORGOT_EMAIL_KEY = "midnight.forgot.email";
 const RESET_TOKEN_KEY = "midnight.forgot.resetToken";
 
@@ -25,32 +23,6 @@ export function getPendingVerificationEmail(): string | null {
 export function clearPendingVerificationEmail() {
   if (!canUseSession()) return;
   window.sessionStorage.removeItem(VERIFY_EMAIL_KEY);
-}
-
-export function setPendingLoginOtp(email: string, username?: string | null) {
-  if (!canUseSession()) return;
-  window.sessionStorage.setItem(LOGIN_OTP_EMAIL_KEY, email.trim());
-  if (username?.trim()) {
-    window.sessionStorage.setItem(LOGIN_OTP_USERNAME_KEY, username.trim());
-  } else {
-    window.sessionStorage.removeItem(LOGIN_OTP_USERNAME_KEY);
-  }
-}
-
-export function getPendingLoginOtpEmail(): string | null {
-  if (!canUseSession()) return null;
-  return window.sessionStorage.getItem(LOGIN_OTP_EMAIL_KEY);
-}
-
-export function getPendingLoginOtpUsername(): string | null {
-  if (!canUseSession()) return null;
-  return window.sessionStorage.getItem(LOGIN_OTP_USERNAME_KEY);
-}
-
-export function clearPendingLoginOtp() {
-  if (!canUseSession()) return;
-  window.sessionStorage.removeItem(LOGIN_OTP_EMAIL_KEY);
-  window.sessionStorage.removeItem(LOGIN_OTP_USERNAME_KEY);
 }
 
 export function setPendingForgotPassword(email: string, resetToken?: string | null) {

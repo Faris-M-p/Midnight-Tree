@@ -3,7 +3,7 @@
  * FILE: src/pages/LoginPage.tsx
  * ROLE: Sign-in screen
  * =============================================================================
- * Username/password → admin JWT session.
+ * Email/password → admin JWT session.
  * Access Token only → scoped JWT session (family code is embedded in the token).
  * =============================================================================
  */
@@ -16,9 +16,9 @@ import { loginAndPersistSession } from "../services/authService";
 import { loginWithAccessTokenAndPersist } from "../services/accessTokenService";
 import { notify } from "../utils/notify";
 import { logout, markPasswordLoginAdmin } from "../auth/session";
-import { setPendingLoginOtp, setPendingVerificationEmail } from "../auth/pendingAuth";
+import { setPendingVerificationEmail } from "../auth/pendingAuth";
 
-type LoginField = "username" | "password";
+type LoginField = "email" | "password";
 type LoginFormValues = Record<LoginField, string>;
 type LoginErrors = Partial<Record<LoginField, string>>;
 
@@ -27,17 +27,17 @@ interface LoginPageProps {
 }
 
 const initialValues: LoginFormValues = {
-  username: "",
+  email: "",
   password: ""
 };
 
 function validateLogin(values: LoginFormValues): LoginErrors {
   const errors: LoginErrors = {};
 
-  if (!values.username.trim()) {
-    errors.username = "Username is required.";
-  } else if (values.username.trim().length < 3) {
-    errors.username = "Username must be at least 3 characters.";
+  if (!values.email.trim()) {
+    errors.email = "Email is required.";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
+    errors.email = "Please enter a valid email address.";
   }
 
   if (!values.password) {
@@ -77,31 +77,19 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
       // Auth state must come from this login response only — drop any prior JWT first.
       logout();
       const response = await loginAndPersistSession({
-        username: values.username.trim(),
+        email: values.email.trim(),
         password: values.password
       });
 
       if (response.requiresEmailVerification) {
-        const email = response.email?.trim();
+        const email = response.email?.trim() || values.email.trim();
         if (email) setPendingVerificationEmail(email);
-        notify.info("Please verify your email to continue.");
+        notify.info("We've sent a verification code to your email.");
         onNavigate("/verify-email");
         return;
       }
 
-      if (response.requiresLoginOtp) {
-        const email = response.email?.trim();
-        if (!email) {
-          notify.error("Unable to start sign-in verification. Please try again.");
-          return;
-        }
-        setPendingLoginOtp(email, response.username ?? values.username.trim());
-        notify.info("Enter the verification code sent to your email.");
-        onNavigate("/login/verify");
-        return;
-      }
-
-      markPasswordLoginAdmin(values.username.trim());
+      markPasswordLoginAdmin(response.username?.trim() || values.email.trim());
       notify.success("You have signed in successfully.");
       onNavigate("/home");
     } catch (error) {
@@ -166,7 +154,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
               onClick={() => setMode("password")}
               className={`rounded-lg px-3 py-2 text-sm ${mode === "password" ? "bg-emerald-500 text-slate-950" : "text-slate-300"}`}
             >
-              Username & Password
+              Email & Password
             </button>
             <button
               type="button"
@@ -220,24 +208,25 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
             <form onSubmit={(e) => void handlePasswordSubmit(e)} noValidate className="space-y-4">
               <fieldset disabled={isSubmitting} className="space-y-4 disabled:opacity-100">
                 <div className="space-y-2">
-                  <label htmlFor="username" className="block text-sm font-medium text-slate-200">
-                    Username
+                  <label htmlFor="email" className="block text-sm font-medium text-slate-200">
+                    Email
                   </label>
                   <input
-                    id="username"
-                    name="username"
-                    autoComplete="username"
-                    value={values.username}
-                    onChange={(event) => handleChange("username", event.target.value)}
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    value={values.email}
+                    onChange={(event) => handleChange("email", event.target.value)}
                     disabled={isSubmitting}
                     className={`w-full rounded-xl border px-4 py-3 text-slate-100 outline-none transition ${
-                      errors.username
+                      errors.email
                         ? "border-rose-500 bg-rose-950/20 focus:border-rose-400"
                         : "border-slate-700 bg-slate-900/80 focus:border-emerald-500"
                     } ${isSubmitting ? "cursor-not-allowed opacity-70" : ""}`}
                   />
-                  <p className={`min-h-[1.25rem] text-xs ${errors.username ? "text-rose-400" : "text-transparent"}`}>
-                    {errors.username ?? "placeholder"}
+                  <p className={`min-h-[1.25rem] text-xs ${errors.email ? "text-rose-400" : "text-transparent"}`}>
+                    {errors.email ?? "placeholder"}
                   </p>
                 </div>
 

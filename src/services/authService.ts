@@ -15,13 +15,11 @@ import type {
   OtpChallengeResponse,
   RegisterRequest,
   RegisterResponse,
-  ResendLoginOtpRequest,
   ResendVerificationRequest,
   ResetPasswordRequest,
   VerifyEmailRequest,
   VerifyForgotPasswordOtpRequest,
-  VerifyForgotPasswordOtpResponse,
-  VerifyLoginOtpRequest
+  VerifyForgotPasswordOtpResponse
 } from "../types/auth";
 
 const AUTH_BASE = "/api/accounts";
@@ -57,11 +55,18 @@ export function registerAccount(payload: RegisterRequest): Promise<RegisterRespo
   });
 }
 
-export function verifyEmail(payload: VerifyEmailRequest): Promise<void> {
-  return apiRequest<void, VerifyEmailRequest>(`${AUTH_BASE}/verify-email`, {
+export function verifyEmail(payload: VerifyEmailRequest): Promise<LoginResponse> {
+  return apiRequest<LoginResponse, VerifyEmailRequest>(`${AUTH_BASE}/verify-email`, {
     method: "POST",
     body: payload
   });
+}
+
+/** Verify email OTP + persist admin session (auto-login after registration). */
+export async function verifyEmailAndPersistSession(payload: VerifyEmailRequest): Promise<LoginResponse> {
+  const response = await verifyEmail(payload);
+  persistAdminSession(response, response.username ?? payload.email);
+  return response;
 }
 
 export function resendVerification(payload: ResendVerificationRequest): Promise<OtpChallengeResponse> {
@@ -71,7 +76,7 @@ export function resendVerification(payload: ResendVerificationRequest): Promise<
   });
 }
 
-/** Authenticate and return tokens (does not store them). May require email / login OTP. */
+/** Authenticate and return tokens (does not store them). May require email verification. */
 export function loginAccount(payload: LoginRequest): Promise<LoginResponse> {
   return apiRequest<LoginResponse, LoginRequest>(`${AUTH_BASE}/login`, {
     method: "POST",
@@ -79,36 +84,16 @@ export function loginAccount(payload: LoginRequest): Promise<LoginResponse> {
   });
 }
 
-/** Login + save session only when JWT is returned (after OTP when required). */
+/** Login + save session only when JWT is returned. */
 export async function loginAndPersistSession(payload: LoginRequest): Promise<LoginResponse> {
   const response = await loginAccount(payload);
 
-  if (response.requiresEmailVerification || response.requiresLoginOtp) {
+  if (response.requiresEmailVerification) {
     return response;
   }
 
-  persistAdminSession(response, payload.username);
+  persistAdminSession(response, payload.email);
   return response;
-}
-
-export function verifyLoginOtp(payload: VerifyLoginOtpRequest): Promise<LoginResponse> {
-  return apiRequest<LoginResponse, VerifyLoginOtpRequest>(`${AUTH_BASE}/login/verify-otp`, {
-    method: "POST",
-    body: payload
-  });
-}
-
-export async function verifyLoginOtpAndPersistSession(payload: VerifyLoginOtpRequest): Promise<LoginResponse> {
-  const response = await verifyLoginOtp(payload);
-  persistAdminSession(response);
-  return response;
-}
-
-export function resendLoginOtp(payload: ResendLoginOtpRequest): Promise<OtpChallengeResponse> {
-  return apiRequest<OtpChallengeResponse, ResendLoginOtpRequest>(`${AUTH_BASE}/login/resend-otp`, {
-    method: "POST",
-    body: payload
-  });
 }
 
 export function requestForgotPassword(payload: ForgotPasswordRequest): Promise<ForgotPasswordResponse> {

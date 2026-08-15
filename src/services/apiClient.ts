@@ -52,8 +52,6 @@ export class ApiClientError extends Error {
 /** Login/register endpoints — 401 means bad credentials, not a dead session. */
 const ANONYMOUS_AUTH_PATHS = new Set([
   "/api/accounts/login",
-  "/api/accounts/login/verify-otp",
-  "/api/accounts/login/resend-otp",
   "/api/accounts/register",
   "/api/accounts/verify-email",
   "/api/accounts/resend-verification",

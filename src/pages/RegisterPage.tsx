@@ -3,9 +3,6 @@
  * FILE: src/pages/RegisterPage.tsx
  * ROLE: Create-account screen
  * =============================================================================
- * Client-side validation + POST /api/accounts/register via authService.
- * On success, redirects to Login (does not auto-login).
- * =============================================================================
  */
 
 import { useMemo, useState } from "react";
@@ -16,14 +13,7 @@ import { registerAccount } from "../services/authService";
 import { setPendingVerificationEmail } from "../auth/pendingAuth";
 import { notify } from "../utils/notify";
 
-type FormField =
-  | "username"
-  | "email"
-  | "password"
-  | "confirmPassword"
-  | "familyName"
-  | "description";
-
+type FormField = "email" | "password" | "confirmPassword" | "familyName";
 type RegisterFormValues = Record<FormField, string>;
 type FormErrors = Partial<Record<FormField, string>>;
 
@@ -32,22 +22,14 @@ interface RegisterPageProps {
 }
 
 const initialValues: RegisterFormValues = {
-  username: "",
   email: "",
   password: "",
   confirmPassword: "",
-  familyName: "",
-  description: ""
+  familyName: ""
 };
 
 function validateForm(values: RegisterFormValues): FormErrors {
   const errors: FormErrors = {};
-
-  if (!values.username.trim()) {
-    errors.username = "Username is required.";
-  } else if (values.username.trim().length < 3) {
-    errors.username = "Username must be at least 3 characters.";
-  }
 
   if (!values.email.trim()) {
     errors.email = "Email is required.";
@@ -74,10 +56,6 @@ function validateForm(values: RegisterFormValues): FormErrors {
     errors.familyName = "Family name is required.";
   }
 
-  if (values.description.length > 1000) {
-    errors.description = "Description must be 1000 characters or less.";
-  }
-
   return errors;
 }
 
@@ -89,7 +67,6 @@ function InputField(props: {
   error?: string;
   disabled: boolean;
   onChange: (field: FormField, value: string) => void;
-  placeholder?: string;
 }) {
   const hasError = Boolean(props.error);
   return (
@@ -101,10 +78,9 @@ function InputField(props: {
         id={props.id}
         name={props.id}
         type={props.type ?? "text"}
-        autoComplete={props.id === "email" ? "email" : props.id}
+        autoComplete={props.id === "email" ? "email" : props.id === "password" || props.id === "confirmPassword" ? "new-password" : "organization"}
         value={props.value}
         onChange={(event) => props.onChange(props.id, event.target.value)}
-        placeholder={props.placeholder}
         disabled={props.disabled}
         className={`w-full rounded-xl border px-4 py-3 text-slate-100 outline-none transition ${
           hasError
@@ -137,9 +113,7 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canSubmit) {
-      return;
-    }
+    if (!canSubmit) return;
 
     const nextErrors = validateForm(values);
     if (Object.keys(nextErrors).length > 0) {
@@ -151,15 +125,13 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
 
     try {
       await registerAccount({
-        username: values.username.trim(),
         email: values.email.trim(),
         password: values.password,
-        familyName: values.familyName.trim(),
-        description: values.description.trim() || undefined
+        familyName: values.familyName.trim()
       });
 
       setPendingVerificationEmail(values.email.trim());
-      notify.success("Account created. Please verify your email.");
+      notify.info("We've sent a verification code to your email.");
       setValues(initialValues);
       onNavigate("/verify-email");
     } catch (error) {
@@ -176,37 +148,25 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
   return (
     <div className="min-h-full w-full overflow-y-auto bg-slate-950 text-slate-100">
       <PublicHeader pathname="/register" />
-      <div className="mx-auto w-full max-w-2xl px-4 py-8">
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30 backdrop-blur sm:p-7">
-        <div className="mb-6 space-y-2">
-          <p className="text-xs uppercase tracking-[0.2em] text-emerald-400">Midnight Chronicle</p>
-          <h1 className="font-serif text-3xl text-slate-100">Create your account</h1>
-          <p className="text-sm text-slate-400">
-            Register your family admin account to begin building your lineage.
-          </p>
-        </div>
+      <div className="mx-auto w-full max-w-md px-4 py-8">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30 backdrop-blur sm:p-7">
+          <div className="mb-6 space-y-2">
+            <p className="text-xs uppercase tracking-[0.2em] text-emerald-400">Midnight Chronicle</p>
+            <h1 className="font-serif text-3xl text-slate-100">Create your account</h1>
+            <p className="text-sm text-slate-400">Start your family chronicle in a few steps.</p>
+          </div>
 
-        <form onSubmit={handleSubmit} noValidate className="space-y-4">
-          <fieldset disabled={isSubmitting} className="space-y-4 disabled:opacity-100">
-            <InputField
-              id="username"
-              label="Username"
-              value={values.username}
-              error={errors.username}
-              disabled={isSubmitting}
-              onChange={updateField}
-            />
-            <InputField
-              id="email"
-              label="Email"
-              type="email"
-              value={values.email}
-              error={errors.email}
-              disabled={isSubmitting}
-              onChange={updateField}
-            />
-
-            <div className="grid gap-4 md:grid-cols-2">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
+            <fieldset disabled={isSubmitting} className="space-y-4 disabled:opacity-100">
+              <InputField
+                id="email"
+                label="Email"
+                type="email"
+                value={values.email}
+                error={errors.email}
+                disabled={isSubmitting}
+                onChange={updateField}
+              />
               <InputField
                 id="password"
                 label="Password"
@@ -225,75 +185,47 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                 disabled={isSubmitting}
                 onChange={updateField}
               />
-            </div>
-
-            <InputField
-              id="familyName"
-              label="Family name"
-              value={values.familyName}
-              error={errors.familyName}
-              disabled={isSubmitting}
-              onChange={updateField}
-            />
-
-            <div className="space-y-2">
-              <label htmlFor="description" className="block text-sm font-medium text-slate-200">
-                Description (optional)
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={values.description}
-                onChange={(event) => updateField("description", event.target.value)}
-                rows={4}
+              <InputField
+                id="familyName"
+                label="Family name"
+                value={values.familyName}
+                error={errors.familyName}
                 disabled={isSubmitting}
-                maxLength={1000}
-                className={`w-full resize-none rounded-xl border px-4 py-3 text-slate-100 outline-none transition ${
-                  errors.description
-                    ? "border-rose-500 bg-rose-950/20 focus:border-rose-400"
-                    : "border-slate-700 bg-slate-900/80 focus:border-emerald-500"
-                } ${isSubmitting ? "opacity-70 cursor-not-allowed" : ""}`}
+                onChange={updateField}
               />
-              <div className="flex items-center justify-between">
-                <p className={`text-xs ${errors.description ? "text-rose-400" : "text-slate-500"}`}>
-                  {errors.description ?? " "}
-                </p>
-                <p className="text-xs text-slate-500">{values.description.length}/1000</p>
-              </div>
-            </div>
-          </fieldset>
+            </fieldset>
 
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
-              canSubmit
-                ? "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
-                : "cursor-not-allowed bg-emerald-500/60 text-slate-900"
-            }`}
-          >
-            {isSubmitting ? (
-              <>
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
-                Registering...
-              </>
-            ) : (
-              "Register"
-            )}
-          </button>
-
-          <p className="text-center text-sm text-slate-400">
-            Already have an account?{" "}
             <button
-              type="button"
-              onClick={() => onNavigate("/login")}
-              className="font-medium text-emerald-400 transition hover:text-emerald-300"
+              type="submit"
+              disabled={!canSubmit}
+              className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                canSubmit
+                  ? "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
+                  : "cursor-not-allowed bg-emerald-500/60 text-slate-900"
+              }`}
             >
-              Go to Login
+              {isSubmitting ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
+                  Registering...
+                </>
+              ) : (
+                "Register"
+              )}
             </button>
-          </p>
-        </form>
-      </div>
+
+            <p className="text-center text-sm text-slate-400">
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={() => onNavigate("/login")}
+                className="font-medium text-emerald-400 transition hover:text-emerald-300"
+              >
+                Go to Login
+              </button>
+            </p>
+          </form>
+        </div>
       </div>
     </div>
   );

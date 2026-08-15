@@ -8,11 +8,9 @@ export type AccessPermission = "View" | "Edit" | "ADMIN_FULL";
 export type AccessScope = "EntireFamily" | "SelectedMember" | "MemberDescendants";
 
 export interface RegisterRequest {
-  username: string;
   email: string;
   password: string;
   familyName: string;
-  description?: string;
 }
 
 export interface RegisterResponse {
@@ -25,7 +23,7 @@ export interface RegisterResponse {
 }
 
 export interface LoginRequest {
-  username: string;
+  email: string;
   password: string;
 }
 
@@ -36,7 +34,6 @@ export interface LoginResponse {
   refreshToken?: string;
   user?: AuthUser;
   requiresEmailVerification?: boolean;
-  requiresLoginOtp?: boolean;
   username?: string | null;
   email?: string | null;
   maskedEmail?: string | null;
@@ -46,15 +43,6 @@ export interface LoginResponse {
 export interface VerifyEmailRequest {
   email: string;
   otp: string;
-}
-
-export interface VerifyLoginOtpRequest {
-  email: string;
-  otp: string;
-}
-
-export interface ResendLoginOtpRequest {
-  email: string;
 }
 
 export interface ResendVerificationRequest {

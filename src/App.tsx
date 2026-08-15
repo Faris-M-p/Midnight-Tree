@@ -17,7 +17,6 @@ import { matchPath, navigateTo } from "./routing/navigate";
 import { getPageTitle, isTreePath } from "./routing/titles";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
-import { LoginOtpPage } from "./pages/LoginOtpPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
@@ -42,7 +41,6 @@ const PUBLIC_PATHS = new Set([
   "/features",
   "/about",
   "/login",
-  "/login/verify",
   "/register",
   "/verify-email",
   "/forgot-password",
@@ -109,9 +107,6 @@ export default function App() {
   }
   if (pathname === "/login") {
     return <LoginPage onNavigate={navigateTo} />;
-  }
-  if (pathname === "/login/verify") {
-    return <LoginOtpPage onNavigate={navigateTo} />;
   }
   if (pathname === "/register") {
     return <RegisterPage onNavigate={navigateTo} />;

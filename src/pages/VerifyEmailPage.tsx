@@ -5,13 +5,14 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { PublicHeader } from "../components/layout/PublicHeader";
 import { ApiClientError } from "../services/apiClient";
-import { resendVerification, verifyEmail } from "../services/authService";
+import { resendVerification, verifyEmailAndPersistSession } from "../services/authService";
 import {
   clearPendingVerificationEmail,
   getPendingVerificationEmail,
   maskEmail,
   setPendingVerificationEmail
 } from "../auth/pendingAuth";
+import { markPasswordLoginAdmin } from "../auth/session";
 import { notify } from "../utils/notify";
 
 interface VerifyEmailPageProps {
@@ -30,7 +31,6 @@ export function VerifyEmailPage({ onNavigate }: VerifyEmailPageProps) {
 
   useEffect(() => {
     if (!email.trim()) {
-      notify.validation("Start from registration or sign-in to verify your email.");
       onNavigate("/login");
     }
   }, [email, onNavigate]);
@@ -85,10 +85,11 @@ export function VerifyEmailPage({ onNavigate }: VerifyEmailPageProps) {
     setIsSubmitting(true);
     setError("");
     try {
-      await verifyEmail({ email: email.trim(), otp: otpValue });
+      const result = await verifyEmailAndPersistSession({ email: email.trim(), otp: otpValue });
       clearPendingVerificationEmail();
-      notify.success("Email verified successfully. You can sign in now.");
-      onNavigate("/login");
+      markPasswordLoginAdmin(result.username?.trim() || email.trim());
+      notify.success("Email verified. Welcome!");
+      onNavigate("/home");
     } catch (err) {
       const message =
         err instanceof ApiClientError ? err.message : "Unable to verify this code. Please try again.";
@@ -130,7 +131,7 @@ export function VerifyEmailPage({ onNavigate }: VerifyEmailPageProps) {
             <p className="text-xs uppercase tracking-[0.2em] text-emerald-400">Midnight Chronicle</p>
             <h1 className="text-3xl font-semibold text-slate-100">Verify your email</h1>
             <p className="text-sm text-slate-400">
-              We&apos;ve sent a verification code to:
+              We&apos;ve sent a verification code to your email.
               <br />
               <span className="font-medium text-slate-200">{masked}</span>
             </p>

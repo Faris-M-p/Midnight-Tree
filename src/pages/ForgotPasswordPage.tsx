@@ -54,7 +54,9 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
           <div className="mb-6 space-y-2 text-center">
             <p className="text-xs uppercase tracking-[0.2em] text-emerald-400">Midnight Chronicle</p>
             <h1 className="text-3xl font-semibold text-slate-100">Forgot password</h1>
-            <p className="text-sm text-slate-400">Enter your account email and we&apos;ll send a verification code.</p>
+            <p className="text-sm text-slate-400">
+              Enter your account email and we&apos;ll send a verification code if an account exists.
+            </p>
           </div>
 
           <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
