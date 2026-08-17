@@ -54,7 +54,7 @@ export function GenealogyEdge({
       id={id}
       path={path}
       style={{
-        stroke: '#10b981',
+        stroke: "var(--theme-accent)",
         strokeWidth: 2.5,
         fill: 'none',
         ...style

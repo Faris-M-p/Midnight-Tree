@@ -26,8 +26,8 @@ export function NotificationDrawer({ open, onClose }: NotificationDrawerProps) {
   return (
     <DrawerPortal>
     <div className="fixed inset-0 z-[60]">
-      <div className="absolute inset-0 bg-slate-950/60" onClick={onClose} />
-      <aside className="absolute right-0 top-0 h-dvh w-full max-w-md border-l border-slate-800 bg-slate-950 shadow-2xl">
+      <div className="absolute inset-0 bg-overlay" onClick={onClose} />
+      <aside className="absolute right-0 top-0 h-dvh w-full max-w-md border-l border-edge bg-card shadow-theme">
         <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
           <div>
             <h2 className="text-base font-semibold text-slate-100">Notifications</h2>

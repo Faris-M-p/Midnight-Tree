@@ -255,7 +255,7 @@ export function MemoryCreateView() {
                 <button
                   type="button"
                   onClick={() => removePhoto(photo.id)}
-                  className="absolute right-1 top-1 rounded-full bg-slate-950/80 p-1 text-slate-200"
+                  className="absolute right-1 top-1 rounded-full bg-overlay p-1 text-slate-200"
                   aria-label="Remove photo"
                 >
                   <X size={14} />

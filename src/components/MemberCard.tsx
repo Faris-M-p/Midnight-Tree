@@ -54,8 +54,8 @@ export const MemberCard: React.FC<MemberCardProps> = ({ data }) => {
         w-[220px] h-[100px] rounded-xl bg-slate-900 border text-left p-3 cursor-pointer select-none transition-all duration-300 flex items-center gap-3
         ${
           isHighlighted
-            ? 'border-emerald-400 ring-4 ring-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.3)] scale-105 bg-slate-800'
-            : 'border-slate-800 hover:border-emerald-500/50 hover:shadow-[0_4px_15px_rgba(16,185,129,0.1)] hover:scale-[1.02]'
+            ? 'border-accent ring-4 ring-accent/20 shadow-[0_0_20px_color-mix(in_srgb,var(--theme-accent)_30%,transparent)] scale-105 bg-surface-hover'
+            : 'border-edge hover:border-accent/50 hover:shadow-[0_4px_15px_color-mix(in_srgb,var(--theme-accent)_10%,transparent)] hover:scale-[1.02]'
         }
         ${isDimmed ? 'opacity-30 filter grayscale duration-500' : 'opacity-100'}
       `}

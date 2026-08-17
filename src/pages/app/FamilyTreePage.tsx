@@ -33,6 +33,7 @@ import { getFamilyTreeData } from '../../services/treeService';
 import { notify } from '../../utils/notify';
 import { useActionLock } from '../../hooks/useActionLock';
 import { logFailure, logUnexpected } from '../../utils/logFailure';
+import { readThemeCssVar } from '../../theme';
 import { computeMemberRanks } from '../../utils/memberRanks';
 import type { MemberProfile } from '../../types/member';
 import { canCreateMember } from '../../auth/permissions';
@@ -566,7 +567,7 @@ function AppContent() {
           sourceHandle: 'right',
           targetHandle: 'left',
           type: 'straight',
-          style: { stroke: '#10b981', strokeDasharray: '5,5', strokeWidth: 2 },
+          style: { stroke: 'var(--theme-accent)', strokeDasharray: '5,5', strokeWidth: 2 },
           animated: true
         });
       }
@@ -579,7 +580,7 @@ function AppContent() {
           sourceHandle: 'right',
           targetHandle: 'left',
           type: 'straight',
-          style: { stroke: '#10b981', strokeDasharray: '5,5', strokeWidth: 2 },
+          style: { stroke: 'var(--theme-accent)', strokeDasharray: '5,5', strokeWidth: 2 },
           animated: true
         });
       }
@@ -614,7 +615,7 @@ function AppContent() {
               targetHandle: 'top',
               type: 'genealogy',
               data: { railY },
-              style: { stroke: '#10b981', strokeWidth: 2.5 }
+              style: { stroke: 'var(--theme-accent)', strokeWidth: 2.5 }
             });
           });
         }
@@ -660,7 +661,7 @@ function AppContent() {
     overlays.forEach((el) => ((el as HTMLElement).style.visibility = 'hidden'));
 
     toPng(flowElement, {
-      backgroundColor: '#030712',
+      backgroundColor: readThemeCssVar('--theme-page', '#030712'),
       quality: 0.98,
       pixelRatio: 2
     })

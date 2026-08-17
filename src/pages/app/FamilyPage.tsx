@@ -214,7 +214,7 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
             <button
               type="button"
               onClick={() => setCoverModalOpen(true)}
-              className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-lg bg-slate-950/80 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-950"
+              className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-lg bg-overlay px-3 py-1.5 text-xs text-slate-200 hover:bg-page"
             >
               <Camera size={12} /> Change cover
             </button>

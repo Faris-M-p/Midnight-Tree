@@ -24,7 +24,7 @@ export function ConfirmDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-overlay p-0 sm:items-center sm:p-4">
       <button type="button" className="absolute inset-0 cursor-default" aria-label="Close" onClick={onCancel} disabled={loading} />
       <div className="relative z-10 w-full border border-slate-800 bg-slate-950 p-5 shadow-2xl sm:max-w-md sm:rounded-2xl">
         <h3 className="text-base font-semibold text-slate-100">{title}</h3>

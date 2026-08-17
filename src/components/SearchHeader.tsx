@@ -72,7 +72,7 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-20 bg-slate-950/80 backdrop-blur-md border-b border-slate-900 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+    <header className="sticky top-0 z-20 bg-header/80 backdrop-blur-md border-b border-edge px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
       {/* Title / Identity */}
       <div className="flex items-center gap-3 self-start md:self-auto">
         <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">

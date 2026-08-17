@@ -6,6 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mehta Family Chronicle | Interactive Genealogy & Lineage Chart</title>
     <meta name="description" content="Explore the interactive 4-generation genealogy tree of the Mehta family. Discover generational connections, location filters, analytics, and historical milestones." />
+    <script>
+      try {
+        var id = localStorage.getItem("midnight.theme-id") || "midnight";
+        document.documentElement.setAttribute("data-theme", id);
+      } catch (e) {
+        document.documentElement.setAttribute("data-theme", "midnight");
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

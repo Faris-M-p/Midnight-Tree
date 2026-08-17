@@ -22,15 +22,15 @@ export function GrowthChart({ points }: { points: HomeGrowthPoint[] }) {
     <svg viewBox={`0 0 ${width} ${height}`} className="h-40 w-full" role="img" aria-label="Family growth chart">
       <defs>
         <linearGradient id="homeGrowthFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#34d399" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#34d399" stopOpacity="0.02" />
+          <stop offset="0%" stopColor="var(--theme-accent-hover)" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="var(--theme-accent-hover)" stopOpacity="0.02" />
         </linearGradient>
       </defs>
       <path d={area} fill="url(#homeGrowthFill)" />
-      <path d={line} fill="none" stroke="#34d399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={line} fill="none" stroke="var(--theme-accent-hover)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
       {coords.map((point) => (
         <g key={point.label}>
-          <circle cx={point.x} cy={point.y} r="3.5" fill="#064e3b" stroke="#34d399" strokeWidth="2" />
+          <circle cx={point.x} cy={point.y} r="3.5" fill="var(--theme-page)" stroke="var(--theme-accent-hover)" strokeWidth="2" />
           <text x={point.x} y={height - 2} textAnchor="middle" className="fill-slate-500 text-[10px]">
             {point.label}
           </text>
@@ -50,7 +50,7 @@ export function GenderDonut({ slices }: { slices: HomeGenderSlice[] }) {
   return (
     <div className="flex items-center gap-4">
       <svg viewBox="0 0 140 140" className="h-32 w-32 shrink-0" role="img" aria-label="Gender distribution">
-        <circle cx="70" cy="70" r={radius} fill="none" stroke="#1e293b" strokeWidth={stroke} />
+        <circle cx="70" cy="70" r={radius} fill="none" stroke="var(--theme-border)" strokeWidth={stroke} />
         {slices.map((slice) => {
           const length = (slice.value / total) * circumference;
           const dash = `${length} ${circumference - length}`;
@@ -105,7 +105,7 @@ export function AgeBars({ buckets }: { buckets: HomeAgeBucket[] }) {
           <span className="text-slate-500">{bucket.label}</span>
           <div className="h-2 min-w-0 overflow-hidden rounded-full bg-slate-800">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-teal-400"
+              className="h-full rounded-full bg-gradient-to-r from-accent to-accent-hover"
               style={{ width: `${bucket.value === 0 ? 0 : Math.max((bucket.value / max) * 100, 4)}%` }}
             />
           </div>

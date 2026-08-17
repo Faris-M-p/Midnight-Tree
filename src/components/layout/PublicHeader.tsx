@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { GitBranch, Menu, X } from "lucide-react";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
+import { ThemeSelector } from "../theme/ThemeSelector";
 import { isPublicNavActive, publicNavItems } from "../../navigation/publicNav";
 import { navigateTo } from "../../routing/navigate";
 import { DrawerPortal } from "./DrawerPortal";
@@ -31,8 +32,8 @@ export function PublicHeader({ pathname }: PublicHeaderProps) {
 
   return (
     <>
-    <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur">
-      <nav className="mx-auto flex h-14 w-full max-w-6xl items-center gap-2 overflow-hidden px-3 xl:h-16 xl:px-4">
+    <header className="sticky top-0 z-40 border-b border-edge/80 bg-header/90 backdrop-blur">
+      <nav className="mx-auto flex h-14 w-full max-w-6xl items-center gap-2 px-3 xl:h-16 xl:px-4">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -72,17 +73,18 @@ export function PublicHeader({ pathname }: PublicHeaderProps) {
             );
           })}
         </div>
+        <ThemeSelector variant="menu" />
       </nav>
     </header>
 
     <DrawerPortal>
       <div className={`fixed inset-0 z-50 xl:hidden ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
         <div
-          className={`absolute inset-0 bg-slate-950/70 transition-opacity duration-200 ${open ? "opacity-100" : "opacity-0"}`}
+          className={`absolute inset-0 bg-overlay transition-opacity duration-200 ${open ? "opacity-100" : "opacity-0"}`}
           onClick={() => setOpen(false)}
         />
         <aside
-          className={`absolute left-0 top-0 flex h-dvh w-[min(20rem,85vw)] max-w-xs flex-col bg-slate-950 shadow-2xl transition-transform duration-200 ${
+          className={`absolute left-0 top-0 flex h-dvh w-[min(20rem,85vw)] max-w-xs flex-col bg-sidebar shadow-theme transition-transform duration-200 ${
             open ? "translate-x-0" : "-translate-x-full"
           }`}
           role="dialog"
@@ -120,6 +122,9 @@ export function PublicHeader({ pathname }: PublicHeaderProps) {
               );
             })}
           </nav>
+          <div className="border-t border-edge p-3">
+            <ThemeSelector variant="panel" />
+          </div>
         </aside>
       </div>
     </DrawerPortal>

@@ -171,7 +171,7 @@ function ModalShell({
   wide?: boolean;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-overlay p-0 sm:items-center sm:p-4">
       <button type="button" className="absolute inset-0 cursor-default" aria-label="Close" onClick={onClose} />
       <div
         className={`relative z-10 max-h-[92vh] w-full overflow-y-auto border border-slate-800 bg-slate-950 shadow-2xl sm:rounded-2xl ${

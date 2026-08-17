@@ -354,7 +354,7 @@ export function HomePage() {
         actionHref="/family"
       >
         <div className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-4 sm:grid-cols-[1fr_1.1fr] sm:p-5">
-          <div className="relative min-h-44 overflow-hidden rounded-2xl border border-slate-800 bg-[radial-gradient(circle_at_30%_30%,rgba(16,185,129,0.18),transparent_45%),radial-gradient(circle_at_70%_60%,rgba(45,212,191,0.12),transparent_40%),linear-gradient(160deg,#0f172a,#020617)]">
+          <div className="relative min-h-44 overflow-hidden rounded-2xl border border-edge bg-[radial-gradient(circle_at_30%_30%,color-mix(in_srgb,var(--theme-accent)_18%,transparent),transparent_45%),radial-gradient(circle_at_70%_60%,color-mix(in_srgb,var(--theme-accent-hover)_12%,transparent),transparent_40%),linear-gradient(160deg,var(--theme-surface),var(--theme-page))]">
             <div className="absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.12)_1px,transparent_1px)] [background-size:28px_28px]" />
             {locations.slice(0, 5).map((loc, index) => (
               <span

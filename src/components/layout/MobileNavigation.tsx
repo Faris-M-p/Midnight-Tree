@@ -31,13 +31,13 @@ export function MobileNavigation({ open, pathname, onClose }: MobileNavigationPr
       aria-hidden={!open}
     >
       <div
-        className={`absolute inset-0 bg-slate-950/70 transition-opacity duration-200 ${
+        className={`absolute inset-0 bg-overlay transition-opacity duration-200 ${
           open ? "opacity-100" : "opacity-0"
         }`}
         onClick={onClose}
       />
       <aside
-        className={`absolute left-0 top-0 flex h-dvh w-[min(20rem,85vw)] max-w-xs flex-col bg-slate-950 shadow-2xl transition-transform duration-200 ${
+        className={`absolute left-0 top-0 flex h-dvh w-[min(20rem,85vw)] max-w-xs flex-col bg-sidebar shadow-theme transition-transform duration-200 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
         role="dialog"

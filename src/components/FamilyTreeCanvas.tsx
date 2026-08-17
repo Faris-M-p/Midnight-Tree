@@ -28,6 +28,7 @@ import type { Node, Edge } from '@xyflow/react';
 import { MemberCard } from './MemberCard';
 import { MarriageNode } from './MarriageNode';
 import { GenealogyEdge } from './GenealogyEdge';
+import { useTheme } from '../theme';
 
 import '@xyflow/react/dist/style.css';
 
@@ -58,6 +59,7 @@ export const FamilyTreeCanvas: React.FC<FamilyTreeCanvasProps> = ({
   onClearFocus
 }) => {
   const { setCenter, fitView } = useReactFlow();
+  const { theme } = useTheme();
 
   // Handle focus node transitions
   useEffect(() => {
@@ -119,7 +121,7 @@ export const FamilyTreeCanvas: React.FC<FamilyTreeCanvasProps> = ({
       >
         {/* Emerald themed dot grid background */}
         <Background
-          color="#10b981"
+          color={theme.colors.accent}
           gap={18}
           size={1}
           style={{ opacity: 0.15 }}
@@ -139,10 +141,10 @@ export const FamilyTreeCanvas: React.FC<FamilyTreeCanvasProps> = ({
           position="bottom-right"
           className="!m-4 hidden md:block"
           nodeColor={(n) => {
-            if (n.type === 'marriageNode') return '#10b981';
-            return '#1f2937';
+            if (n.type === 'marriageNode') return theme.colors.accent;
+            return theme.colors.surfaceHover;
           }}
-          maskColor="rgba(3, 7, 18, 0.7)"
+          maskColor={theme.colors.overlay}
         />
       </ReactFlow>
     </div>

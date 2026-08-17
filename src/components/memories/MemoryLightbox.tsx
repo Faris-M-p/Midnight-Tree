@@ -28,7 +28,7 @@ export function MemoryLightbox({ images, index, onClose, onChangeIndex }: Memory
   if (!current) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex flex-col bg-black/90">
+    <div className="fixed inset-0 z-[70] flex flex-col bg-overlay-strong">
       <div className="flex items-center justify-between gap-3 px-4 py-3 text-slate-100">
         <p className="text-sm font-medium tabular-nums">
           {index + 1} / {total}

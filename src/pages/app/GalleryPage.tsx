@@ -90,7 +90,7 @@ export function GalleryPage({ pathname }: GalleryPageProps) {
         </div>
 
         {activePhoto && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4">
             <div className="max-w-3xl rounded-2xl border border-slate-800 bg-slate-950 p-4">
               <img src={activePhoto.url} alt="" className="max-h-[70vh] w-full rounded-xl object-contain" />
               <p className="mt-3 text-sm text-slate-300">{activePhoto.caption}</p>

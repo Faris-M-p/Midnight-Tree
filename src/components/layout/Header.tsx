@@ -1,6 +1,7 @@
 import { Bell, Menu } from "lucide-react";
 import { useState } from "react";
 import { useFamilyBranding } from "../../hooks/useFamilyBranding";
+import { ThemeSelector } from "../theme/ThemeSelector";
 import { NotificationDrawer, unreadNotificationCount } from "./NotificationDrawer";
 
 interface HeaderProps {
@@ -15,7 +16,7 @@ export function Header({ title, onOpenMobileNav }: HeaderProps) {
 
   return (
     <>
-      <header className="flex h-14 shrink-0 items-center gap-2 overflow-hidden border-b border-slate-800 bg-slate-950/90 px-3 backdrop-blur xl:h-16 xl:px-4">
+      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-edge bg-header/90 px-3 backdrop-blur xl:h-16 xl:px-4">
         <button
           type="button"
           onClick={onOpenMobileNav}
@@ -37,15 +38,16 @@ export function Header({ title, onOpenMobileNav }: HeaderProps) {
           </div>
         </div>
 
+        <ThemeSelector variant="menu" />
         <button
           type="button"
           onClick={() => setNotificationsOpen(true)}
-          className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-300 transition hover:bg-slate-900 hover:text-emerald-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+          className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-fg-secondary transition hover:bg-surface hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           aria-label="Notifications"
         >
           <Bell size={18} aria-hidden="true" />
           {unread > 0 && (
-            <span className="absolute right-1.5 top-1.5 min-w-4 rounded-full bg-emerald-500 px-1 text-[10px] font-bold leading-4 text-slate-950">
+            <span className="absolute right-1.5 top-1.5 min-w-4 rounded-full bg-accent px-1 text-[10px] font-bold leading-4 text-accent-fg">
               {unread}
             </span>
           )}

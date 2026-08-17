@@ -14,7 +14,7 @@ export function AppLayout({ pathname, title, children, contentClassName = "" }: 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-slate-950 text-slate-100">
+    <div className="flex h-full w-full overflow-hidden bg-page text-fg">
       <Sidebar pathname={pathname} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header title={title} onOpenMobileNav={() => setMobileNavOpen(true)} />

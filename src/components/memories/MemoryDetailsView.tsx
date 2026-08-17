@@ -280,7 +280,7 @@ export function MemoryDetailsView({ memoryId }: MemoryDetailsViewProps) {
                     type="button"
                     disabled={isBusy}
                     onClick={() => setDeleteImageId(image.id)}
-                    className="absolute right-2 top-2 rounded-md border border-rose-500/40 bg-slate-950/80 p-1 text-rose-300 opacity-0 transition group-hover:opacity-100 disabled:opacity-40"
+                    className="absolute right-2 top-2 rounded-md border border-rose-500/40 bg-overlay p-1 text-rose-300 opacity-0 transition group-hover:opacity-100 disabled:opacity-40"
                     aria-label="Delete photo"
                   >
                     <Trash2 size={12} />

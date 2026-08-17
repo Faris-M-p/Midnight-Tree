@@ -2,6 +2,7 @@ import { isAdmin } from "../../auth/permissions";
 import { logout } from "../../auth/session";
 import { appNavItems, isAppNavActive } from "../../navigation/appNav";
 import { navigateTo } from "../../routing/navigate";
+import { ThemeSelector } from "../theme/ThemeSelector";
 
 interface AppNavItemsProps {
   pathname: string;
@@ -9,10 +10,10 @@ interface AppNavItemsProps {
 }
 
 const itemClass = (active: boolean) =>
-  `flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${
+  `flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
     active
-      ? "bg-emerald-500/15 text-emerald-300"
-      : "text-slate-300 hover:bg-slate-900 hover:text-slate-100"
+      ? "bg-accent-soft text-accent"
+      : "text-fg-secondary hover:bg-surface hover:text-fg"
   }`;
 
 export function AppNavItems({ pathname, onNavigate }: AppNavItemsProps) {
@@ -53,8 +54,8 @@ export function AppNavItems({ pathname, onNavigate }: AppNavItemsProps) {
         })}
 
         {adminItems.length > 0 && (
-          <div className="mt-6 border-t border-slate-800 pt-4">
-            <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <div className="mt-6 border-t border-edge pt-4">
+            <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-fg-muted">
               Administration
             </p>
             {adminItems.map((item) => {
@@ -77,7 +78,8 @@ export function AppNavItems({ pathname, onNavigate }: AppNavItemsProps) {
         )}
       </nav>
 
-      <div className="border-t border-slate-800 p-3">
+      <div className="space-y-3 border-t border-edge p-3">
+        <ThemeSelector variant="panel" />
         {bottomItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -85,7 +87,7 @@ export function AppNavItems({ pathname, onNavigate }: AppNavItemsProps) {
               key={item.label}
               type="button"
               onClick={handleLogout}
-              className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm text-slate-300 transition hover:bg-rose-950/40 hover:text-rose-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+              className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm text-fg-secondary transition hover:bg-danger-soft hover:text-danger focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               <Icon size={18} aria-hidden="true" />
               {item.label}

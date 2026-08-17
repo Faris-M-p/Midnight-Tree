@@ -16,11 +16,16 @@ import './index.css'
 import App from './App.tsx'
 import { AppToaster } from './components/AppToaster'
 import { GlobalLoader } from './components/ui/GlobalLoader'
+import { applyThemeById, readStoredThemeId, ThemeProvider } from './theme'
+
+applyThemeById(readStoredThemeId())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
-    <GlobalLoader />
-    <AppToaster />
+    <ThemeProvider>
+      <App />
+      <GlobalLoader />
+      <AppToaster />
+    </ThemeProvider>
   </StrictMode>,
 )
