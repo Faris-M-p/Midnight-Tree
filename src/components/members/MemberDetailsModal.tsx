@@ -18,6 +18,7 @@ interface MemberDetailsModalProps {
   onDelete?: () => void;
   onOpenMember?: (memberId: number) => void;
   showViewInTree?: boolean;
+  busy?: boolean;
 }
 
 export function MemberDetailsModal({
@@ -32,7 +33,8 @@ export function MemberDetailsModal({
   onEdit,
   onDelete,
   onOpenMember,
-  showViewInTree = false
+  showViewInTree = false,
+  busy = false
 }: MemberDetailsModalProps) {
   if (!open) return null;
 
@@ -63,6 +65,7 @@ export function MemberDetailsModal({
               onOpenMember={onOpenMember}
               showViewInTree={showViewInTree}
               embedded
+              busy={busy}
             />
           ) : null}
         </div>

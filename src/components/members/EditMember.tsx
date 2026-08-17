@@ -4,6 +4,7 @@ import type { MemberProfile, UpdateMemberPayload } from "../../types/member";
 import { getMemberDetails, updateMember } from "../../services/memberService";
 import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
+import { useActionLock } from "../../hooks/useActionLock";
 import { logUnexpected } from "../../utils/logFailure";
 import { DatePicker } from "../DatePicker";
 import { ProfilePhotoPicker } from "../ui/ProfilePhotoPicker";
@@ -64,7 +65,7 @@ export function EditMember({
   const [profile, setProfile] = useState<MemberProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const { isBusy, run } = useActionLock();
   const [lifeStatus, setLifeStatus] = useState<LifeStatus>("alive");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
@@ -170,40 +171,39 @@ export function EditMember({
       return;
     }
 
-    setSaving(true);
-    const payload: UpdateMemberPayload = {
-      firstName: form.firstName.trim(),
-      lastName: HIDDEN_LAST_NAME,
-      nickname: form.nickname || undefined,
-      gender: form.gender,
-      dateOfBirth: form.dateOfBirth || undefined,
-      dateOfDeath: lifeStatus === "deceased" ? form.dateOfDeath || undefined : undefined,
-      biography: form.biography || undefined,
-      profession: form.profession || undefined,
-      email: form.email || undefined,
-      phone: form.phone || undefined,
-      locationName: form.locationName.trim() || undefined,
-      latitude: form.latitude,
-      longitude: form.longitude,
-      isRoot: profile.isRoot,
-      parentId: profile.parent?.id,
-      spouseId: profile.spouse?.id,
-      socialLinks: [
-        form.instagram ? { platform: "Instagram", url: form.instagram } : null,
-        form.facebook ? { platform: "Facebook", url: form.facebook } : null
-      ].filter(Boolean) as UpdateMemberPayload["socialLinks"]
-    };
-    try {
-      const updated = await updateMember(memberId, payload, photoFile);
-      notify.success("Member updated successfully.");
-      await onSaved?.(updated);
-      onClose();
-    } catch (err) {
-      if (err instanceof ApiClientError) notify.fromApiError(err);
-      else notify.error("Unable to update member right now.");
-    } finally {
-      setSaving(false);
-    }
+    await run(async () => {
+      const payload: UpdateMemberPayload = {
+        firstName: form.firstName.trim(),
+        lastName: HIDDEN_LAST_NAME,
+        nickname: form.nickname || undefined,
+        gender: form.gender,
+        dateOfBirth: form.dateOfBirth || undefined,
+        dateOfDeath: lifeStatus === "deceased" ? form.dateOfDeath || undefined : undefined,
+        biography: form.biography || undefined,
+        profession: form.profession || undefined,
+        email: form.email || undefined,
+        phone: form.phone || undefined,
+        locationName: form.locationName.trim() || undefined,
+        latitude: form.latitude,
+        longitude: form.longitude,
+        isRoot: profile.isRoot,
+        parentId: profile.parent?.id,
+        spouseId: profile.spouse?.id,
+        socialLinks: [
+          form.instagram ? { platform: "Instagram", url: form.instagram } : null,
+          form.facebook ? { platform: "Facebook", url: form.facebook } : null
+        ].filter(Boolean) as UpdateMemberPayload["socialLinks"]
+      };
+      try {
+        const updated = await updateMember(memberId, payload, photoFile);
+        notify.success("Member updated successfully.");
+        await onSaved?.(updated);
+        onClose();
+      } catch (err) {
+        if (err instanceof ApiClientError) notify.fromApiError(err);
+        else notify.error("Unable to update member right now.");
+      }
+    });
   };
 
   const preview = photoPreview || existingPhoto(profile) || resolveAvatarUrl("", genderKey(form.gender));
@@ -345,8 +345,8 @@ export function EditMember({
         {formBody}
         {!loading && profile ? (
           <div className="flex gap-2">
-            <button type="submit" disabled={saving} className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60">
-              {saving ? "Saving..." : "Save member"}
+            <button type="submit" disabled={isBusy} className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60">
+              Save member
             </button>
             <button type="button" onClick={onClose} className="rounded-xl border border-slate-700 px-4 py-2 text-sm">
               Cancel
@@ -381,10 +381,10 @@ export function EditMember({
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={isBusy}
               className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
             >
-              {saving ? "Saving..." : "Save member"}
+              Save member
             </button>
           </div>
         ) : null}

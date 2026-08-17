@@ -17,6 +17,7 @@ import type { MemoryDetail } from "../../types/memory";
 import { MEMORY_MAX_IMAGES } from "../../types/memory";
 import { formatBytes, validateMemoryImage } from "../../utils/memoryImages";
 import { notify } from "../../utils/notify";
+import { useActionLock } from "../../hooks/useActionLock";
 
 interface MemoryDetailsViewProps {
   memoryId: number;
@@ -29,10 +30,8 @@ export function MemoryDetailsView({ memoryId }: MemoryDetailsViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [deleteMemoryOpen, setDeleteMemoryOpen] = useState(false);
-  const [deletingMemory, setDeletingMemory] = useState(false);
   const [deleteImageId, setDeleteImageId] = useState<number | null>(null);
-  const [deletingImage, setDeletingImage] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const { isBusy, run } = useActionLock();
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [storageInfo, setStorageInfo] = useState<{ used: number; limit: number } | null>(null);
 
@@ -73,59 +72,58 @@ export function MemoryDetailsView({ memoryId }: MemoryDetailsViewProps) {
     }
 
     const selected = Array.from(files).slice(0, remaining);
-    setUploading(true);
-    try {
-      for (let i = 0; i < selected.length; i += 1) {
-        const file = selected[i];
-        const validation = validateMemoryImage(file);
-        if (validation) {
-          notify.validation(validation);
-          continue;
+    await run(async () => {
+      try {
+        for (let i = 0; i < selected.length; i += 1) {
+          const file = selected[i];
+          const validation = validateMemoryImage(file);
+          if (validation) {
+            notify.validation(validation);
+            continue;
+          }
+          setUploadProgress(`Uploading ${i + 1} of ${selected.length}…`);
+          const result = await uploadMemoryImage(memory.id, file);
+          setStorageInfo({ used: result.storageUsedBytes, limit: result.storageLimitBytes });
         }
-        setUploadProgress(`Uploading ${i + 1} of ${selected.length}…`);
-        const result = await uploadMemoryImage(memory.id, file);
-        setStorageInfo({ used: result.storageUsedBytes, limit: result.storageLimitBytes });
+        notify.success("Photos uploaded.");
+        await load();
+      } catch (err) {
+        if (err instanceof ApiClientError) notify.fromApiError(err);
+        else notify.error("Unable to upload photos right now.");
+      } finally {
+        setUploadProgress(null);
       }
-      notify.success("Photos uploaded.");
-      await load();
-    } catch (err) {
-      if (err instanceof ApiClientError) notify.fromApiError(err);
-      else notify.error("Unable to upload photos right now.");
-    } finally {
-      setUploading(false);
-      setUploadProgress(null);
-    }
+    });
   };
 
   const confirmDeleteImage = async () => {
     if (!memory || deleteImageId == null) return;
-    setDeletingImage(true);
-    try {
-      const result = await deleteMemoryImage(memory.id, deleteImageId);
-      setStorageInfo({ used: result.storageUsedBytes, limit: result.storageLimitBytes });
-      notify.success("Photo deleted.");
-      setDeleteImageId(null);
-      await load();
-    } catch (err) {
-      if (err instanceof ApiClientError) notify.fromApiError(err);
-      else notify.error("Unable to delete this photo.");
-    } finally {
-      setDeletingImage(false);
-    }
+    await run(async () => {
+      try {
+        const result = await deleteMemoryImage(memory.id, deleteImageId);
+        setStorageInfo({ used: result.storageUsedBytes, limit: result.storageLimitBytes });
+        notify.success("Photo deleted.");
+        setDeleteImageId(null);
+        await load();
+      } catch (err) {
+        if (err instanceof ApiClientError) notify.fromApiError(err);
+        else notify.error("Unable to delete this photo.");
+      }
+    });
   };
 
   const confirmDeleteMemory = async () => {
     if (!memory) return;
-    setDeletingMemory(true);
-    try {
-      await deleteMemory(memory.id);
-      notify.success("Memory deleted.");
-      navigateTo("/memories");
-    } catch (err) {
-      if (err instanceof ApiClientError) notify.fromApiError(err);
-      else notify.error("Unable to delete this memory.");
-      setDeletingMemory(false);
-    }
+    await run(async () => {
+      try {
+        await deleteMemory(memory.id);
+        notify.success("Memory deleted.");
+        navigateTo("/memories");
+      } catch (err) {
+        if (err instanceof ApiClientError) notify.fromApiError(err);
+        else notify.error("Unable to delete this memory.");
+      }
+    });
   };
 
   if (loading) {
@@ -193,8 +191,9 @@ export function MemoryDetailsView({ memoryId }: MemoryDetailsViewProps) {
             </button>
             <button
               type="button"
+              disabled={isBusy}
               onClick={() => setDeleteMemoryOpen(true)}
-              className="inline-flex items-center gap-1 rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 hover:bg-rose-950/30"
+              className="inline-flex items-center gap-1 rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 hover:bg-rose-950/30 disabled:opacity-60"
             >
               <Trash2 size={14} /> Delete
             </button>
@@ -226,11 +225,11 @@ export function MemoryDetailsView({ memoryId }: MemoryDetailsViewProps) {
               />
               <button
                 type="button"
-                disabled={atMax || uploading}
+                disabled={atMax || isBusy}
                 onClick={() => fileInputRef.current?.click()}
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm disabled:opacity-40"
               >
-                {uploading ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />}
+                <ImagePlus size={14} />
                 Add Photos
               </button>
             </>
@@ -279,8 +278,9 @@ export function MemoryDetailsView({ memoryId }: MemoryDetailsViewProps) {
                 {canWrite && (
                   <button
                     type="button"
+                    disabled={isBusy}
                     onClick={() => setDeleteImageId(image.id)}
-                    className="absolute right-2 top-2 rounded-md border border-rose-500/40 bg-slate-950/80 p-1 text-rose-300 opacity-0 transition group-hover:opacity-100"
+                    className="absolute right-2 top-2 rounded-md border border-rose-500/40 bg-slate-950/80 p-1 text-rose-300 opacity-0 transition group-hover:opacity-100 disabled:opacity-40"
                     aria-label="Delete photo"
                   >
                     <Trash2 size={12} />
@@ -307,7 +307,7 @@ export function MemoryDetailsView({ memoryId }: MemoryDetailsViewProps) {
         title="Delete memory?"
         message="This memory will be cancelled and hidden from your family list."
         confirmLabel="Delete Memory"
-        loading={deletingMemory}
+        loading={isBusy}
         onCancel={() => setDeleteMemoryOpen(false)}
         onConfirm={() => void confirmDeleteMemory()}
       />
@@ -317,7 +317,7 @@ export function MemoryDetailsView({ memoryId }: MemoryDetailsViewProps) {
         title="Delete photo?"
         message="This photo will be removed from the memory and storage usage will be updated."
         confirmLabel="Delete Photo"
-        loading={deletingImage}
+        loading={isBusy}
         onCancel={() => setDeleteImageId(null)}
         onConfirm={() => void confirmDeleteImage()}
       />

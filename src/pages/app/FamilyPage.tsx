@@ -9,6 +9,7 @@ import { ChangeCoverModal } from "../../components/family/ChangeCoverModal";
 import { getFamily, updateFamily } from "../../services/familyService";
 import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
+import { useActionLock } from "../../hooks/useActionLock";
 import { logUnexpected } from "../../utils/logFailure";
 
 interface FamilyPageProps {
@@ -21,7 +22,7 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
   const [draft, setDraft] = useState<MockFamily>({ ...mockFamily });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
-  const [saving, setSaving] = useState(false);
+  const { isBusy, run } = useActionLock();
   const [coverModalOpen, setCoverModalOpen] = useState(false);
 
   useEffect(() => {
@@ -89,30 +90,29 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
       return;
     }
 
-    setSaving(true);
-    try {
-      const updated = await updateFamily(
-        {
-          familyName: draft.name.trim(),
-          description: draft.description,
-          photoUrl: draft.logo
-        },
-        photoFile
-      );
-      const logo = updated.photoUrl || photoPreview || draft.logo;
-      const name = updated.familyName || draft.name;
-      const code = updated.familyCode || draft.code;
-      Object.assign(mockFamily, draft, { logo, name, code });
-      setDraft((current) => ({ ...current, name, code, logo, description: updated.description || current.description }));
-      setFamilyBranding({ name, code, logo, description: updated.description || draft.description });
-      notify.success("Family details saved successfully.");
-      navigateTo("/family");
-    } catch (error) {
-      if (error instanceof ApiClientError) notify.fromApiError(error);
-      else notify.error("Unable to save family details right now.");
-    } finally {
-      setSaving(false);
-    }
+    await run(async () => {
+      try {
+        const updated = await updateFamily(
+          {
+            familyName: draft.name.trim(),
+            description: draft.description,
+            photoUrl: draft.logo
+          },
+          photoFile
+        );
+        const logo = updated.photoUrl || photoPreview || draft.logo;
+        const name = updated.familyName || draft.name;
+        const code = updated.familyCode || draft.code;
+        Object.assign(mockFamily, draft, { logo, name, code });
+        setDraft((current) => ({ ...current, name, code, logo, description: updated.description || current.description }));
+        setFamilyBranding({ name, code, logo, description: updated.description || draft.description });
+        notify.success("Family details saved successfully.");
+        navigateTo("/family");
+      } catch (error) {
+        if (error instanceof ApiClientError) notify.fromApiError(error);
+        else notify.error("Unable to save family details right now.");
+      }
+    });
   };
 
   const handleCoverSaved = (coverUrl: string) => {
@@ -196,10 +196,10 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
           </label>
           <button
             type="submit"
-            disabled={saving}
+            disabled={isBusy}
             className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
           >
-            {saving ? "Saving..." : "Save changes"}
+            Save changes
           </button>
         </form>
       </div>

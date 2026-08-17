@@ -12,6 +12,7 @@ import { ApiClientError } from "../services/apiClient";
 import { registerAccount } from "../services/authService";
 import { setPendingVerificationEmail } from "../auth/pendingAuth";
 import { notify } from "../utils/notify";
+import { useActionLock } from "../hooks/useActionLock";
 
 type FormField = "email" | "password" | "confirmPassword" | "familyName";
 type RegisterFormValues = Record<FormField, string>;
@@ -102,9 +103,8 @@ function InputField(props: {
 export function RegisterPage({ onNavigate }: RegisterPageProps) {
   const [values, setValues] = useState<RegisterFormValues>(initialValues);
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const canSubmit = useMemo(() => !isSubmitting, [isSubmitting]);
+  const { isBusy, run } = useActionLock();
+  const canSubmit = useMemo(() => !isBusy, [isBusy]);
 
   const updateField = (field: FormField, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
@@ -121,28 +121,26 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
       return;
     }
 
-    setIsSubmitting(true);
+    await run(async () => {
+      try {
+        await registerAccount({
+          email: values.email.trim(),
+          password: values.password,
+          familyName: values.familyName.trim()
+        });
 
-    try {
-      await registerAccount({
-        email: values.email.trim(),
-        password: values.password,
-        familyName: values.familyName.trim()
-      });
-
-      setPendingVerificationEmail(values.email.trim());
-      notify.info("We've sent a verification code to your email.");
-      setValues(initialValues);
-      onNavigate("/verify-email");
-    } catch (error) {
-      if (error instanceof ApiClientError) {
-        notify.fromApiError(error);
-      } else {
-        notify.error("Unable to register right now. Please try again.");
+        setPendingVerificationEmail(values.email.trim());
+        notify.info("We've sent a verification code to your email.");
+        setValues(initialValues);
+        onNavigate("/verify-email");
+      } catch (error) {
+        if (error instanceof ApiClientError) {
+          notify.fromApiError(error);
+        } else {
+          notify.error("Unable to register right now. Please try again.");
+        }
       }
-    } finally {
-      setIsSubmitting(false);
-    }
+    });
   };
 
   return (
@@ -157,14 +155,14 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
           </div>
 
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
-            <fieldset disabled={isSubmitting} className="space-y-4 disabled:opacity-100">
+            <fieldset disabled={isBusy} className="space-y-4 disabled:opacity-100">
               <InputField
                 id="email"
                 label="Email"
                 type="email"
                 value={values.email}
                 error={errors.email}
-                disabled={isSubmitting}
+                disabled={isBusy}
                 onChange={updateField}
               />
               <InputField
@@ -173,7 +171,7 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                 type="password"
                 value={values.password}
                 error={errors.password}
-                disabled={isSubmitting}
+                disabled={isBusy}
                 onChange={updateField}
               />
               <InputField
@@ -182,7 +180,7 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                 type="password"
                 value={values.confirmPassword}
                 error={errors.confirmPassword}
-                disabled={isSubmitting}
+                disabled={isBusy}
                 onChange={updateField}
               />
               <InputField
@@ -190,7 +188,7 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                 label="Family name"
                 value={values.familyName}
                 error={errors.familyName}
-                disabled={isSubmitting}
+                disabled={isBusy}
                 onChange={updateField}
               />
             </fieldset>
@@ -198,20 +196,13 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
             <button
               type="submit"
               disabled={!canSubmit}
-              className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
+              className={`inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition ${
                 canSubmit
                   ? "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
                   : "cursor-not-allowed bg-emerald-500/60 text-slate-900"
               }`}
             >
-              {isSubmitting ? (
-                <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
-                  Registering...
-                </>
-              ) : (
-                "Register"
-              )}
+              Register
             </button>
 
             <p className="text-center text-sm text-slate-400">

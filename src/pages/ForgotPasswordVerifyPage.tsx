@@ -12,6 +12,7 @@ import {
   setPendingForgotPassword
 } from "../auth/pendingAuth";
 import { notify } from "../utils/notify";
+import { useActionLock } from "../hooks/useActionLock";
 
 interface ForgotPasswordVerifyPageProps {
   onNavigate: (path: string) => void;
@@ -23,7 +24,7 @@ export function ForgotPasswordVerifyPage({ onNavigate }: ForgotPasswordVerifyPag
   const [email] = useState(() => getPendingForgotEmail() ?? "");
   const [digits, setDigits] = useState<string[]>(() => Array.from({ length: OTP_LENGTH }, () => ""));
   const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { isBusy, run } = useActionLock();
   const [cooldown, setCooldown] = useState(30);
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
 
@@ -75,41 +76,39 @@ export function ForgotPasswordVerifyPage({ onNavigate }: ForgotPasswordVerifyPag
       return;
     }
 
-    setIsSubmitting(true);
-    setError("");
-    try {
-      const result = await verifyForgotPasswordOtp({ email: email.trim(), otp: otpValue });
-      setPendingForgotPassword(result.email || email, result.resetToken);
-      notify.success("Verification successful. Create your new password.");
-      onNavigate("/forgot-password/reset");
-    } catch (err) {
-      const message =
-        err instanceof ApiClientError ? err.message : "Unable to verify this code. Please try again.";
-      setError(message);
-      notify.fromApiError(err instanceof ApiClientError ? err : { message });
-    } finally {
-      setIsSubmitting(false);
-    }
+    await run(async () => {
+      setError("");
+      try {
+        const result = await verifyForgotPasswordOtp({ email: email.trim(), otp: otpValue });
+        setPendingForgotPassword(result.email || email, result.resetToken);
+        notify.success("Verification successful. Create your new password.");
+        onNavigate("/forgot-password/reset");
+      } catch (err) {
+        const message =
+          err instanceof ApiClientError ? err.message : "Unable to verify this code. Please try again.";
+        setError(message);
+        notify.fromApiError(err instanceof ApiClientError ? err : { message });
+      }
+    });
   };
 
   const handleResend = async () => {
-    if (cooldown > 0 || isSubmitting) return;
-    setIsSubmitting(true);
-    setError("");
-    try {
-      await requestForgotPassword({ email: email.trim() });
-      setCooldown(30);
-      setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
-      notify.success("If an account exists for this email, a verification code has been sent.");
-      inputsRef.current[0]?.focus();
-    } catch (err) {
-      const message =
-        err instanceof ApiClientError ? err.message : "Unable to send verification email. Please try again.";
-      setError(message);
-      notify.fromApiError(err instanceof ApiClientError ? err : { message });
-    } finally {
-      setIsSubmitting(false);
-    }
+    if (cooldown > 0 || isBusy) return;
+    await run(async () => {
+      setError("");
+      try {
+        await requestForgotPassword({ email: email.trim() });
+        setCooldown(30);
+        setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
+        notify.success("If an account exists for this email, a verification code has been sent.");
+        inputsRef.current[0]?.focus();
+      } catch (err) {
+        const message =
+          err instanceof ApiClientError ? err.message : "Unable to send verification email. Please try again.";
+        setError(message);
+        notify.fromApiError(err instanceof ApiClientError ? err : { message });
+      }
+    });
   };
 
   return (
@@ -137,7 +136,7 @@ export function ForgotPasswordVerifyPage({ onNavigate }: ForgotPasswordVerifyPag
                   autoComplete={index === 0 ? "one-time-code" : "off"}
                   maxLength={1}
                   value={digit}
-                  disabled={isSubmitting}
+                  disabled={isBusy}
                   onChange={(e) => updateDigit(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   onPaste={handlePaste}
@@ -150,17 +149,17 @@ export function ForgotPasswordVerifyPage({ onNavigate }: ForgotPasswordVerifyPag
 
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isBusy}
               className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
             >
-              {isSubmitting ? "Verifying..." : "Verify code"}
+              Verify code
             </button>
           </form>
 
           <div className="mt-5 space-y-2 text-center text-sm text-slate-400">
             <button
               type="button"
-              disabled={cooldown > 0 || isSubmitting}
+              disabled={cooldown > 0 || isBusy}
               onClick={() => void handleResend()}
               className="font-medium text-emerald-400 hover:text-emerald-300 disabled:cursor-not-allowed disabled:text-slate-500"
             >

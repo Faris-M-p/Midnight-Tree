@@ -5,6 +5,7 @@ import type { MemberProfile } from "../../types/member";
 import { createMember } from "../../services/memberService";
 import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
+import { useActionLock } from "../../hooks/useActionLock";
 import { DatePicker } from "../DatePicker";
 import { ProfilePhotoPicker } from "../ui/ProfilePhotoPicker";
 import { resolveAvatarUrl } from "../../utils/defaultAvatar";
@@ -43,7 +44,7 @@ export function AddMember({
   const [photoPreview, setPhotoPreview] = useState("");
   const [connection, setConnection] = useState<Connection>("root");
   const [targetId, setTargetId] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const { isBusy, run } = useActionLock();
 
   const hasRoot = members.some((m) => m.isRoot);
   const memberRanks = useMemo(
@@ -128,31 +129,30 @@ export function AddMember({
     }
 
     const union = couples.find((c) => c.id === targetId);
-    setSubmitting(true);
-    try {
-      const created = await createMember(
-        {
-          firstName: firstName.trim(),
-          lastName: HIDDEN_LAST_NAME,
-          nickname: nickname.trim() || undefined,
-          gender: gender === "male" ? "Male" : "Female",
-          dateOfBirth: dob || undefined,
-          dateOfDeath: lifeStatus === "deceased" ? dateOfDeath || undefined : undefined,
-          isRoot: connection === "root",
-          parentId: connection === "child" && union ? Number(union.spouse1Id) : undefined,
-          spouseId: connection === "spouse" ? Number(targetId) : undefined
-        },
-        photoFile
-      );
-      notify.success("Member created successfully.");
-      onClose();
-      await onCreated?.(created);
-    } catch (error) {
-      if (error instanceof ApiClientError) notify.fromApiError(error);
-      else notify.error("Unable to create member right now.");
-    } finally {
-      setSubmitting(false);
-    }
+    await run(async () => {
+      try {
+        const created = await createMember(
+          {
+            firstName: firstName.trim(),
+            lastName: HIDDEN_LAST_NAME,
+            nickname: nickname.trim() || undefined,
+            gender: gender === "male" ? "Male" : "Female",
+            dateOfBirth: dob || undefined,
+            dateOfDeath: lifeStatus === "deceased" ? dateOfDeath || undefined : undefined,
+            isRoot: connection === "root",
+            parentId: connection === "child" && union ? Number(union.spouse1Id) : undefined,
+            spouseId: connection === "spouse" ? Number(targetId) : undefined
+          },
+          photoFile
+        );
+        notify.success("Member created successfully.");
+        onClose();
+        await onCreated?.(created);
+      } catch (error) {
+        if (error instanceof ApiClientError) notify.fromApiError(error);
+        else notify.error("Unable to create member right now.");
+      }
+    });
   };
 
   return (
@@ -297,20 +297,20 @@ export function AddMember({
         </div>
 
         <div className="flex justify-end gap-2 border-t border-slate-800 px-5 py-4">
-          <button type="button" onClick={onClose} className="rounded-xl border border-slate-700 px-4 py-2 text-sm">
+          <button type="button" onClick={onClose} disabled={isBusy} className="rounded-xl border border-slate-700 px-4 py-2 text-sm disabled:opacity-60">
             Cancel
           </button>
           <button
             type="submit"
             disabled={
-              submitting ||
+              isBusy ||
               (connection === "root" && hasRoot) ||
               (connection === "child" && couples.length === 0) ||
               (connection === "spouse" && singleMembers.length === 0)
             }
             className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
           >
-            {submitting ? "Saving..." : "Add member"}
+            Add member
           </button>
         </div>
       </form>

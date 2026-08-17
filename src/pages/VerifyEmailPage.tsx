@@ -14,6 +14,7 @@ import {
 } from "../auth/pendingAuth";
 import { markPasswordLoginAdmin } from "../auth/session";
 import { notify } from "../utils/notify";
+import { useActionLock } from "../hooks/useActionLock";
 
 interface VerifyEmailPageProps {
   onNavigate: (path: string) => void;
@@ -25,7 +26,7 @@ export function VerifyEmailPage({ onNavigate }: VerifyEmailPageProps) {
   const [email, setEmail] = useState(() => getPendingVerificationEmail() ?? "");
   const [digits, setDigits] = useState<string[]>(() => Array.from({ length: OTP_LENGTH }, () => ""));
   const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { isBusy, run } = useActionLock();
   const [cooldown, setCooldown] = useState(30);
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
 
@@ -82,44 +83,42 @@ export function VerifyEmailPage({ onNavigate }: VerifyEmailPageProps) {
       return;
     }
 
-    setIsSubmitting(true);
-    setError("");
-    try {
-      const result = await verifyEmailAndPersistSession({ email: email.trim(), otp: otpValue });
-      clearPendingVerificationEmail();
-      markPasswordLoginAdmin(result.username?.trim() || email.trim());
-      notify.success("Email verified. Welcome!");
-      onNavigate("/home");
-    } catch (err) {
-      const message =
-        err instanceof ApiClientError ? err.message : "Unable to verify this code. Please try again.";
-      setError(message);
-      notify.fromApiError(err instanceof ApiClientError ? err : { message });
-    } finally {
-      setIsSubmitting(false);
-    }
+    await run(async () => {
+      setError("");
+      try {
+        const result = await verifyEmailAndPersistSession({ email: email.trim(), otp: otpValue });
+        clearPendingVerificationEmail();
+        markPasswordLoginAdmin(result.username?.trim() || email.trim());
+        notify.success("Email verified. Welcome!");
+        onNavigate("/home");
+      } catch (err) {
+        const message =
+          err instanceof ApiClientError ? err.message : "Unable to verify this code. Please try again.";
+        setError(message);
+        notify.fromApiError(err instanceof ApiClientError ? err : { message });
+      }
+    });
   };
 
   const handleResend = async () => {
-    if (cooldown > 0 || isSubmitting) return;
-    setIsSubmitting(true);
-    setError("");
-    try {
-      const result = await resendVerification({ email: email.trim() });
-      setPendingVerificationEmail(result.email || email);
-      setEmail(result.email || email);
-      setCooldown(result.resendAvailableInSeconds || 30);
-      setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
-      notify.success("A new verification code has been sent.");
-      inputsRef.current[0]?.focus();
-    } catch (err) {
-      const message =
-        err instanceof ApiClientError ? err.message : "Unable to send verification email. Please try again.";
-      setError(message);
-      notify.fromApiError(err instanceof ApiClientError ? err : { message });
-    } finally {
-      setIsSubmitting(false);
-    }
+    if (cooldown > 0 || isBusy) return;
+    await run(async () => {
+      setError("");
+      try {
+        const result = await resendVerification({ email: email.trim() });
+        setPendingVerificationEmail(result.email || email);
+        setEmail(result.email || email);
+        setCooldown(result.resendAvailableInSeconds || 30);
+        setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
+        notify.success("A new verification code has been sent.");
+        inputsRef.current[0]?.focus();
+      } catch (err) {
+        const message =
+          err instanceof ApiClientError ? err.message : "Unable to send verification email. Please try again.";
+        setError(message);
+        notify.fromApiError(err instanceof ApiClientError ? err : { message });
+      }
+    });
   };
 
   return (
@@ -150,7 +149,7 @@ export function VerifyEmailPage({ onNavigate }: VerifyEmailPageProps) {
                   autoComplete={index === 0 ? "one-time-code" : "off"}
                   maxLength={1}
                   value={digit}
-                  disabled={isSubmitting}
+                  disabled={isBusy}
                   onChange={(e) => updateDigit(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   onPaste={handlePaste}
@@ -163,10 +162,10 @@ export function VerifyEmailPage({ onNavigate }: VerifyEmailPageProps) {
 
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isBusy}
               className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
             >
-              {isSubmitting ? "Verifying..." : "Verify Email"}
+              Verify Email
             </button>
           </form>
 
@@ -174,7 +173,7 @@ export function VerifyEmailPage({ onNavigate }: VerifyEmailPageProps) {
             <p>Didn&apos;t receive the code?</p>
             <button
               type="button"
-              disabled={cooldown > 0 || isSubmitting}
+              disabled={cooldown > 0 || isBusy}
               onClick={() => void handleResend()}
               className="font-medium text-emerald-400 hover:text-emerald-300 disabled:cursor-not-allowed disabled:text-slate-500"
             >

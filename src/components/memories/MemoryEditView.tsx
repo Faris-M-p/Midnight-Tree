@@ -18,6 +18,7 @@ import type { MemoryDetail } from "../../types/memory";
 import { MEMORY_MAX_IMAGES } from "../../types/memory";
 import { formatBytes, memoryInputClass, memoryLabelClass, validateMemoryImage } from "../../utils/memoryImages";
 import { notify } from "../../utils/notify";
+import { useActionLock } from "../../hooks/useActionLock";
 
 interface MemoryEditViewProps {
   memoryId: number;
@@ -35,10 +36,9 @@ export function MemoryEditView({ memoryId }: MemoryEditViewProps) {
   const [description, setDescription] = useState("");
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState("");
-  const [saving, setSaving] = useState(false);
+  const { isBusy, run } = useActionLock();
   const [progress, setProgress] = useState<string | null>(null);
   const [deleteImageId, setDeleteImageId] = useState<number | null>(null);
-  const [deletingImage, setDeletingImage] = useState(false);
   const [storageInfo, setStorageInfo] = useState<{ used: number; limit: number } | null>(null);
 
   const load = useCallback(async () => {
@@ -109,57 +109,60 @@ export function MemoryEditView({ memoryId }: MemoryEditViewProps) {
     }
 
     const selected = Array.from(files).slice(0, remaining);
-    setProgress("Uploading photos…");
-    try {
-      for (let i = 0; i < selected.length; i += 1) {
-        const validation = validateMemoryImage(selected[i]);
-        if (validation) {
-          notify.validation(validation);
-          continue;
+    await run(async () => {
+      setProgress("Uploading photos…");
+      try {
+        for (let i = 0; i < selected.length; i += 1) {
+          const validation = validateMemoryImage(selected[i]);
+          if (validation) {
+            notify.validation(validation);
+            continue;
+          }
+          setProgress(`Uploading ${i + 1} of ${selected.length}…`);
+          const result = await uploadMemoryImage(memory.id, selected[i]);
+          setStorageInfo({ used: result.storageUsedBytes, limit: result.storageLimitBytes });
         }
-        setProgress(`Uploading ${i + 1} of ${selected.length}…`);
-        const result = await uploadMemoryImage(memory.id, selected[i]);
-        setStorageInfo({ used: result.storageUsedBytes, limit: result.storageLimitBytes });
+        notify.success("Photos added.");
+        await load();
+      } catch (err) {
+        if (err instanceof ApiClientError) notify.fromApiError(err);
+        else notify.error("Unable to upload photos.");
+      } finally {
+        setProgress(null);
       }
-      notify.success("Photos added.");
-      await load();
-    } catch (err) {
-      if (err instanceof ApiClientError) notify.fromApiError(err);
-      else notify.error("Unable to upload photos.");
-    } finally {
-      setProgress(null);
-    }
+    });
   };
 
   const confirmDeleteImage = async () => {
     if (deleteImageId == null) return;
-    setDeletingImage(true);
-    try {
-      const result = await deleteMemoryImage(memory.id, deleteImageId);
-      setStorageInfo({ used: result.storageUsedBytes, limit: result.storageLimitBytes });
-      notify.success("Photo deleted.");
-      setDeleteImageId(null);
-      await load();
-    } catch (err) {
-      if (err instanceof ApiClientError) notify.fromApiError(err);
-      else notify.error("Unable to delete photo.");
-    } finally {
-      setDeletingImage(false);
-    }
+    await run(async () => {
+      try {
+        const result = await deleteMemoryImage(memory.id, deleteImageId);
+        setStorageInfo({ used: result.storageUsedBytes, limit: result.storageLimitBytes });
+        notify.success("Photo deleted.");
+        setDeleteImageId(null);
+        await load();
+      } catch (err) {
+        if (err instanceof ApiClientError) notify.fromApiError(err);
+        else notify.error("Unable to delete photo.");
+      }
+    });
   };
 
   const handleSetCover = async (mediaId: number) => {
-    try {
-      setProgress("Updating cover…");
-      await setMemoryCover(memory.id, mediaId);
-      notify.success("Cover updated.");
-      await load();
-    } catch (err) {
-      if (err instanceof ApiClientError) notify.fromApiError(err);
-      else notify.error("Unable to update cover.");
-    } finally {
-      setProgress(null);
-    }
+    await run(async () => {
+      try {
+        setProgress("Updating cover…");
+        await setMemoryCover(memory.id, mediaId);
+        notify.success("Cover updated.");
+        await load();
+      } catch (err) {
+        if (err instanceof ApiClientError) notify.fromApiError(err);
+        else notify.error("Unable to update cover.");
+      } finally {
+        setProgress(null);
+      }
+    });
   };
 
   const handleSubmit = async (event: FormEvent) => {
@@ -177,25 +180,22 @@ export function MemoryEditView({ memoryId }: MemoryEditViewProps) {
       return;
     }
 
-    setSaving(true);
-    setProgress("Saving memory…");
-    try {
-      await updateMemory(memory.id, {
-        title: title.trim(),
-        description: description.trim(),
-        memoryDate: new Date(`${memoryDate}T12:00:00`).toISOString(),
-        location: location.trim() || undefined,
-        coverImage: coverFile
-      });
-      notify.success("Memory updated.");
-      navigateTo(`/memories/${memory.id}`);
-    } catch (err) {
-      if (err instanceof ApiClientError) notify.fromApiError(err);
-      else notify.error("Unable to update memory.");
-    } finally {
-      setSaving(false);
-      setProgress(null);
-    }
+    await run(async () => {
+      try {
+        await updateMemory(memory.id, {
+          title: title.trim(),
+          description: description.trim(),
+          memoryDate: new Date(`${memoryDate}T12:00:00`).toISOString(),
+          location: location.trim() || undefined,
+          coverImage: coverFile
+        });
+        notify.success("Memory updated.");
+        navigateTo(`/memories/${memory.id}`);
+      } catch (err) {
+        if (err instanceof ApiClientError) notify.fromApiError(err);
+        else notify.error("Unable to update memory.");
+      }
+    });
   };
 
   return (
@@ -281,7 +281,7 @@ export function MemoryEditView({ memoryId }: MemoryEditViewProps) {
           />
           <button
             type="button"
-            disabled={atMax || Boolean(progress)}
+            disabled={atMax || isBusy}
             onClick={() => photosInputRef.current?.click()}
             className="rounded-xl border border-slate-700 px-3 py-2 text-sm disabled:opacity-40"
           >
@@ -340,15 +340,14 @@ export function MemoryEditView({ memoryId }: MemoryEditViewProps) {
       <div className="flex flex-wrap gap-2">
         <button
           type="submit"
-          disabled={saving}
-          className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
+          disabled={isBusy}
+          className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
         >
-          {saving ? <Loader2 size={16} className="animate-spin" /> : null}
           Save changes
         </button>
         <button
           type="button"
-          disabled={saving}
+          disabled={isBusy}
           onClick={() => navigateTo(`/memories/${memory.id}`)}
           className="inline-flex items-center gap-1 rounded-xl border border-slate-700 px-4 py-2 text-sm disabled:opacity-60"
         >
@@ -361,7 +360,7 @@ export function MemoryEditView({ memoryId }: MemoryEditViewProps) {
         title="Delete photo?"
         message="This photo will be removed and storage usage will be updated."
         confirmLabel="Delete Photo"
-        loading={deletingImage}
+        loading={isBusy}
         onCancel={() => setDeleteImageId(null)}
         onConfirm={() => void confirmDeleteImage()}
       />

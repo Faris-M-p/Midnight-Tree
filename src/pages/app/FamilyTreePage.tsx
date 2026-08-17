@@ -31,6 +31,7 @@ import { deleteMember, getMemberDetails } from '../../services/memberService';
 import { useFamilyData } from '../../context/FamilyDataContext';
 import { getFamilyTreeData } from '../../services/treeService';
 import { notify } from '../../utils/notify';
+import { useActionLock } from '../../hooks/useActionLock';
 import { logFailure, logUnexpected } from '../../utils/logFailure';
 import { computeMemberRanks } from '../../utils/memberRanks';
 import type { MemberProfile } from '../../types/member';
@@ -313,6 +314,7 @@ function computeDynamicLayout(
  */
 function AppContent() {
   const { refresh: refreshFamilyData } = useFamilyData();
+  const { isBusy, run } = useActionLock();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
@@ -480,16 +482,18 @@ function AppContent() {
 
     if (!window.confirm(`Delete ${selectedMember.name}? This cannot be undone.`)) return;
 
-    try {
-      await deleteMember(memberId);
-      closeMemberSheets();
-      await loadTreeData();
-      await refreshFamilyData();
-      notify.success('Member deleted successfully.');
-    } catch (error) {
-      if (error instanceof ApiClientError) notify.fromApiError(error);
-      else notify.error('Unable to delete member right now.');
-    }
+    await run(async () => {
+      try {
+        await deleteMember(memberId);
+        closeMemberSheets();
+        await loadTreeData();
+        await refreshFamilyData();
+        notify.success('Member deleted successfully.');
+      } catch (error) {
+        if (error instanceof ApiClientError) notify.fromApiError(error);
+        else notify.error('Unable to delete member right now.');
+      }
+    });
   };
 
   const memberRanks = useMemo(() => computeMemberRanks(members, unions), [members, unions]);
@@ -776,6 +780,7 @@ function AppContent() {
         onClose={closeMemberSheets}
         onEdit={() => setEditOpen(true)}
         onDelete={() => void handleDeleteMember()}
+        busy={isBusy}
         onOpenMember={(memberId) => {
           const existing = members.find((member) => member.id === String(memberId));
           void handleMemberSelect(

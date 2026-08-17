@@ -8,6 +8,7 @@ import { ApiClientError } from "../services/apiClient";
 import { requestForgotPassword } from "../services/authService";
 import { setPendingForgotPassword } from "../auth/pendingAuth";
 import { notify } from "../utils/notify";
+import { useActionLock } from "../hooks/useActionLock";
 
 interface ForgotPasswordPageProps {
   onNavigate: (path: string) => void;
@@ -16,8 +17,8 @@ interface ForgotPasswordPageProps {
 export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const canSubmit = useMemo(() => !isSubmitting, [isSubmitting]);
+  const { isBusy, run } = useActionLock();
+  const canSubmit = useMemo(() => !isBusy, [isBusy]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -31,19 +32,18 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
       return;
     }
 
-    setIsSubmitting(true);
-    setError("");
-    try {
-      const result = await requestForgotPassword({ email: value });
-      setPendingForgotPassword(value);
-      notify.success(result.message || "If an account exists for this email, a verification code has been sent.");
-      onNavigate("/forgot-password/verify");
-    } catch (err) {
-      if (err instanceof ApiClientError) notify.fromApiError(err);
-      else notify.error("Unable to send verification email. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    await run(async () => {
+      setError("");
+      try {
+        const result = await requestForgotPassword({ email: value });
+        setPendingForgotPassword(value);
+        notify.success(result.message || "If an account exists for this email, a verification code has been sent.");
+        onNavigate("/forgot-password/verify");
+      } catch (err) {
+        if (err instanceof ApiClientError) notify.fromApiError(err);
+        else notify.error("Unable to send verification email. Please try again.");
+      }
+    });
   };
 
   return (
@@ -81,7 +81,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
               disabled={!canSubmit}
               className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
             >
-              {isSubmitting ? "Sending..." : "Send verification code"}
+              Send verification code
             </button>
           </form>
 

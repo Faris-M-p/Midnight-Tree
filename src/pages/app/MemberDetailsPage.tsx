@@ -4,6 +4,7 @@ import { getMemberDetails, deleteMember } from "../../services/memberService";
 import type { MemberProfile } from "../../types/member";
 import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
+import { useActionLock } from "../../hooks/useActionLock";
 import { logUnexpected } from "../../utils/logFailure";
 import { MemberDetails } from "../../components/members/MemberDetails";
 import { EditMember } from "../../components/members/EditMember";
@@ -23,6 +24,7 @@ export function MemberDetailsPage({ pathname }: MemberDetailsPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editOpen, setEditOpen] = useState(false);
+  const { isBusy, run } = useActionLock();
 
   useEffect(() => {
     if (!Number.isFinite(id)) {
@@ -45,15 +47,17 @@ export function MemberDetailsPage({ pathname }: MemberDetailsPageProps) {
 
   const handleDelete = async () => {
     if (!window.confirm("Delete this member?")) return;
-    try {
-      await deleteMember(id);
-      notify.success("Member deleted successfully.");
-      await refresh();
-      navigateTo("/members");
-    } catch (err) {
-      if (err instanceof ApiClientError) notify.fromApiError(err);
-      else notify.error("Unable to delete member right now.");
-    }
+    await run(async () => {
+      try {
+        await deleteMember(id);
+        notify.success("Member deleted successfully.");
+        await refresh();
+        navigateTo("/members");
+      } catch (err) {
+        if (err instanceof ApiClientError) notify.fromApiError(err);
+        else notify.error("Unable to delete member right now.");
+      }
+    });
   };
 
   if (loading) return <LoadingState label="Loading member..." />;
@@ -68,6 +72,7 @@ export function MemberDetailsPage({ pathname }: MemberDetailsPageProps) {
         unions={unions}
         onEdit={() => setEditOpen(true)}
         onDelete={handleDelete}
+        busy={isBusy}
       />
       <EditMember
         open={editOpen}

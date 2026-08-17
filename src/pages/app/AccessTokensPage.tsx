@@ -9,6 +9,7 @@ import {
 } from "../../services/accessTokenService";
 import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
+import { useActionLock } from "../../hooks/useActionLock";
 import { matchPath, navigateTo } from "../../routing/navigate";
 import { EmptyState, ErrorState, LoadingState } from "../../components/ui/PageStates";
 import { useFamilyData } from "../../context/FamilyDataContext";
@@ -340,7 +341,7 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
   const [detail, setDetail] = useState<AccessToken | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [form, setForm] = useState<TokenFormState>(emptyForm());
-  const [saving, setSaving] = useState(false);
+  const { isBusy, run } = useActionLock();
   const [rawToken, setRawToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -504,18 +505,17 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
       notify.validation(validation);
       return;
     }
-    setSaving(true);
-    try {
-      const result = await createAccessToken(buildPayload(form));
-      setRawToken(result.rawToken);
-      setDetail(result.token);
-      notify.success("Token generated successfully.");
-      await loadTokens();
-    } catch (err) {
-      notify.fromApiError(err instanceof ApiClientError ? err : { message: "Unable to generate token." });
-    } finally {
-      setSaving(false);
-    }
+    await run(async () => {
+      try {
+        const result = await createAccessToken(buildPayload(form));
+        setRawToken(result.rawToken);
+        setDetail(result.token);
+        notify.success("Token generated successfully.");
+        await loadTokens();
+      } catch (err) {
+        notify.fromApiError(err instanceof ApiClientError ? err : { message: "Unable to generate token." });
+      }
+    });
   };
 
   const handleUpdate = async (e: FormEvent) => {
@@ -526,18 +526,17 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
       notify.validation(validation);
       return;
     }
-    setSaving(true);
-    try {
-      const token = await updateAccessToken(activeId, buildPayload(form));
-      setDetail(token);
-      notify.success("Access token updated.");
-      await loadTokens();
-      closeModal();
-    } catch (err) {
-      notify.fromApiError(err instanceof ApiClientError ? err : { message: "Unable to update token." });
-    } finally {
-      setSaving(false);
-    }
+    await run(async () => {
+      try {
+        const token = await updateAccessToken(activeId, buildPayload(form));
+        setDetail(token);
+        notify.success("Access token updated.");
+        await loadTokens();
+        closeModal();
+      } catch (err) {
+        notify.fromApiError(err instanceof ApiClientError ? err : { message: "Unable to update token." });
+      }
+    });
   };
 
   const handleToggleStatus = async (token: AccessToken) => {
@@ -551,30 +550,34 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
         ? window.confirm("Deactivate this access token?\n\nThis token will no longer be usable for login.")
         : window.confirm("Activate this access token?\n\nThis token will become usable for login again.");
     if (!ok) return;
-    try {
-      await setAccessTokenStatus(token.id, next);
-      notify.success(next === "Inactive" ? "Access token deactivated." : "Access token activated.");
-      await loadTokens();
-      if (detail?.id === token.id) {
-        const refreshed = await getAccessToken(token.id);
-        setDetail(refreshed);
+    await run(async () => {
+      try {
+        await setAccessTokenStatus(token.id, next);
+        notify.success(next === "Inactive" ? "Access token deactivated." : "Access token activated.");
+        await loadTokens();
+        if (detail?.id === token.id) {
+          const refreshed = await getAccessToken(token.id);
+          setDetail(refreshed);
+        }
+      } catch (err) {
+        notify.fromApiError(err instanceof ApiClientError ? err : { message: "Unable to update token status." });
       }
-    } catch (err) {
-      notify.fromApiError(err instanceof ApiClientError ? err : { message: "Unable to update token status." });
-    }
+    });
   };
 
   const handleDelete = async (token: AccessToken) => {
     const ok = window.confirm("Delete this access token?\n\nThis action cannot be undone.");
     if (!ok) return;
-    try {
-      await deleteAccessToken(token.id);
-      notify.success("Access token deleted.");
-      await loadTokens();
-      if (activeId === token.id) closeModal();
-    } catch (err) {
-      notify.fromApiError(err instanceof ApiClientError ? err : { message: "Unable to delete token." });
-    }
+    await run(async () => {
+      try {
+        await deleteAccessToken(token.id);
+        notify.success("Access token deleted.");
+        await loadTokens();
+        if (activeId === token.id) closeModal();
+      } catch (err) {
+        notify.fromApiError(err instanceof ApiClientError ? err : { message: "Unable to delete token." });
+      }
+    });
   };
 
   const copyRawToken = async () => {
@@ -735,10 +738,10 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
                 </button>
                 <button
                   type="submit"
-                  disabled={saving}
+                  disabled={isBusy}
                   className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
                 >
-                  {saving ? "Generating…" : "Generate Token"}
+                  Generate Token
                 </button>
               </div>
             </form>
@@ -764,16 +767,18 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
                   {detail.status !== "Expired" && (
                     <button
                       type="button"
+                      disabled={isBusy}
                       onClick={() => void handleToggleStatus(detail)}
-                      className="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-200"
+                      className="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-200 disabled:opacity-60"
                     >
                       {detail.status === "Active" ? "Deactivate" : "Activate"}
                     </button>
                   )}
                   <button
                     type="button"
+                    disabled={isBusy}
                     onClick={() => void handleDelete(detail)}
-                    className="rounded-xl border border-rose-500/40 px-3 py-2 text-xs text-rose-300"
+                    className="rounded-xl border border-rose-500/40 px-3 py-2 text-xs text-rose-300 disabled:opacity-60"
                   >
                     Delete
                   </button>
@@ -784,10 +789,10 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
                   </button>
                   <button
                     type="submit"
-                    disabled={saving}
+                    disabled={isBusy}
                     className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
                   >
-                    {saving ? "Saving…" : "Save Changes"}
+                    Save Changes
                   </button>
                 </div>
               </div>
@@ -861,16 +866,18 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
                 {detail.status !== "Expired" && (
                   <button
                     type="button"
+                    disabled={isBusy}
                     onClick={() => void handleToggleStatus(detail)}
-                    className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs"
+                    className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs disabled:opacity-60"
                   >
                     {detail.status === "Active" ? "Deactivate" : "Activate"}
                   </button>
                 )}
                 <button
                   type="button"
+                  disabled={isBusy}
                   onClick={() => void handleDelete(detail)}
-                  className="rounded-xl border border-rose-500/40 px-3 py-1.5 text-xs text-rose-300"
+                  className="rounded-xl border border-rose-500/40 px-3 py-1.5 text-xs text-rose-300 disabled:opacity-60"
                 >
                   Delete
                 </button>

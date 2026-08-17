@@ -5,6 +5,7 @@ import { matchPath, navigateTo } from "../../routing/navigate";
 import { canEdit } from "../../auth/permissions";
 import { EmptyState } from "../../components/ui/PageStates";
 import { mockMemberName } from "../../data/mockMembers";
+import { useActionLock } from "../../hooks/useActionLock";
 
 interface StoriesPageProps {
   pathname: string;
@@ -14,6 +15,7 @@ const inputClass =
   "w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500";
 
 function StoryForm({ initial, onCancel }: { initial?: MockStory; onCancel: () => void }) {
+  const { isBusy, run } = useActionLock();
   const [draft, setDraft] = useState<MockStory>(
     initial ?? {
       id: `story-${Date.now()}`,
@@ -35,8 +37,10 @@ function StoryForm({ initial, onCancel }: { initial?: MockStory; onCancel: () =>
       className="mx-auto max-w-3xl space-y-4 p-4 md:p-6"
       onSubmit={(e) => {
         e.preventDefault();
-        saveStory(draft);
-        navigateTo(`/stories/${draft.id}`);
+        void run(async () => {
+          saveStory(draft);
+          navigateTo(`/stories/${draft.id}`);
+        });
       }}
     >
       <label className="block text-sm">
@@ -78,7 +82,7 @@ function StoryForm({ initial, onCancel }: { initial?: MockStory; onCancel: () =>
         </label>
       </div>
       <div className="flex gap-2">
-        <button type="submit" className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950">
+        <button type="submit" disabled={isBusy} className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60">
           Save story
         </button>
         <button type="button" onClick={onCancel} className="rounded-xl border border-slate-700 px-4 py-2 text-sm">
@@ -92,6 +96,7 @@ function StoryForm({ initial, onCancel }: { initial?: MockStory; onCancel: () =>
 export function StoriesPage({ pathname }: StoriesPageProps) {
   const [, setTick] = useState(0);
   const refresh = () => setTick((n) => n + 1);
+  const { isBusy, run } = useActionLock();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | MockStory["status"]>("all");
 
@@ -128,21 +133,27 @@ export function StoriesPage({ pathname }: StoriesPageProps) {
               </button>
               <button
                 type="button"
+                disabled={isBusy}
                 onClick={() => {
-                  saveStory({ ...story, status: story.status === "published" ? "unpublished" : "published" });
-                  refresh();
+                  void run(async () => {
+                    saveStory({ ...story, status: story.status === "published" ? "unpublished" : "published" });
+                    refresh();
+                  });
                 }}
-                className="rounded-xl border border-slate-700 px-3 py-2 text-sm"
+                className="rounded-xl border border-slate-700 px-3 py-2 text-sm disabled:opacity-60"
               >
                 {story.status === "published" ? "Unpublish" : "Publish"}
               </button>
               <button
                 type="button"
+                disabled={isBusy}
                 onClick={() => {
-                  removeStory(story.id);
-                  navigateTo("/stories");
+                  void run(async () => {
+                    removeStory(story.id);
+                    navigateTo("/stories");
+                  });
                 }}
-                className="rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300"
+                className="rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 disabled:opacity-60"
               >
                 Delete
               </button>

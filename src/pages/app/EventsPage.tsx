@@ -5,6 +5,7 @@ import { matchPath, navigateTo } from "../../routing/navigate";
 import { canEdit } from "../../auth/permissions";
 import { EmptyState } from "../../components/ui/PageStates";
 import { mockMemberName } from "../../data/mockMembers";
+import { useActionLock } from "../../hooks/useActionLock";
 
 interface EventsPageProps {
   pathname: string;
@@ -30,13 +31,17 @@ function EventForm({ initial, onCancel }: { initial?: MockEvent; onCancel: () =>
     }
   );
 
+  const { isBusy, run } = useActionLock();
+
   return (
     <form
       className="mx-auto max-w-3xl space-y-4 p-4 md:p-6"
       onSubmit={(e) => {
         e.preventDefault();
-        saveEvent(draft);
-        navigateTo(`/events/${draft.id}`);
+        void run(async () => {
+          saveEvent(draft);
+          navigateTo(`/events/${draft.id}`);
+        });
       }}
     >
       <label className="block text-sm">
@@ -80,7 +85,7 @@ function EventForm({ initial, onCancel }: { initial?: MockEvent; onCancel: () =>
         />
       </label>
       <div className="flex gap-2">
-        <button type="submit" className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950">
+        <button type="submit" disabled={isBusy} className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60">
           Save event
         </button>
         <button type="button" onClick={onCancel} className="rounded-xl border border-slate-700 px-4 py-2 text-sm">
@@ -92,6 +97,7 @@ function EventForm({ initial, onCancel }: { initial?: MockEvent; onCancel: () =>
 }
 
 export function EventsPage({ pathname }: EventsPageProps) {
+  const { isBusy, run } = useActionLock();
   const createMatch = matchPath("/events/create", pathname);
   const editMatch = matchPath("/events/:id/edit", pathname);
   const detailMatch = matchPath("/events/:id", pathname);
@@ -123,11 +129,14 @@ export function EventsPage({ pathname }: EventsPageProps) {
             </button>
             <button
               type="button"
+              disabled={isBusy}
               onClick={() => {
-                removeEvent(event.id);
-                navigateTo("/events");
+                void run(async () => {
+                  removeEvent(event.id);
+                  navigateTo("/events");
+                });
               }}
-              className="rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300"
+              className="rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 disabled:opacity-60"
             >
               Delete
             </button>

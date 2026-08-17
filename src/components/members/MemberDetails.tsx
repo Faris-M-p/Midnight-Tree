@@ -19,6 +19,7 @@ export interface MemberDetailsProps {
   onOpenMember?: (memberId: number) => void;
   showViewInTree?: boolean;
   embedded?: boolean;
+  busy?: boolean;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -99,7 +100,8 @@ export function MemberDetails({
   onClose,
   onOpenMember,
   showViewInTree = true,
-  embedded = false
+  embedded = false,
+  busy = false
 }: MemberDetailsProps) {
   const photo = profile.images?.find((i) => i.isPrimary)?.imageUrl || profile.images?.[0]?.imageUrl;
   const displayId = memberRanks ? memberDisplayId(memberRanks, String(profile.id)) : undefined;
@@ -142,8 +144,9 @@ export function MemberDetails({
           {allowEdit && (
             <button
               type="button"
+              disabled={busy}
               onClick={handleEdit}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm hover:border-emerald-500"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm hover:border-emerald-500 disabled:opacity-60"
             >
               <Pencil size={14} /> Edit
             </button>
@@ -160,8 +163,9 @@ export function MemberDetails({
           {allowDelete && onDelete && (
             <button
               type="button"
+              disabled={busy}
               onClick={onDelete}
-              className="inline-flex items-center gap-2 rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 hover:bg-rose-950/30"
+              className="inline-flex items-center gap-2 rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 hover:bg-rose-950/30 disabled:opacity-60"
             >
               <Trash2 size={14} /> Delete
             </button>

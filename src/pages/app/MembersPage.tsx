@@ -9,6 +9,7 @@ import { canCreateMember, canDeleteMember, canEditMember } from "../../auth/perm
 import { deleteMember } from "../../services/memberService";
 import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
+import { useActionLock } from "../../hooks/useActionLock";
 import { matchesMemberRank, memberDisplayId } from "../../utils/memberRanks";
 
 const PAGE_SIZE = 12;
@@ -21,6 +22,7 @@ export function MembersPage() {
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
+  const { isBusy, run } = useActionLock();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -51,14 +53,16 @@ export function MembersPage() {
 
   const handleDelete = async (id: string, name: string) => {
     if (!window.confirm(`Delete ${name}? This cannot be undone.`)) return;
-    try {
-      await deleteMember(Number(id));
-      notify.success("Member deleted successfully.");
-      await refresh();
-    } catch (err) {
-      if (err instanceof ApiClientError) notify.fromApiError(err);
-      else notify.error("Unable to delete member right now.");
-    }
+    await run(async () => {
+      try {
+        await deleteMember(Number(id));
+        notify.success("Member deleted successfully.");
+        await refresh();
+      } catch (err) {
+        if (err instanceof ApiClientError) notify.fromApiError(err);
+        else notify.error("Unable to delete member right now.");
+      }
+    });
   };
 
   return (
@@ -183,7 +187,8 @@ export function MembersPage() {
                           <button
                             type="button"
                             onClick={() => void handleDelete(member.id, member.name)}
-                            className="rounded-lg p-1.5 text-rose-300 hover:bg-rose-950/40"
+                            disabled={isBusy}
+                            className="rounded-lg p-1.5 text-rose-300 hover:bg-rose-950/40 disabled:opacity-40"
                           >
                             <Trash2 size={14} />
                           </button>

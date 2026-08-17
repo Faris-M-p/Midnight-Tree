@@ -12,6 +12,7 @@ import {
   getPendingResetToken
 } from "../auth/pendingAuth";
 import { notify } from "../utils/notify";
+import { useActionLock } from "../hooks/useActionLock";
 
 interface ResetPasswordPageProps {
   onNavigate: (path: string) => void;
@@ -25,8 +26,8 @@ export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<{ newPassword?: string; confirmPassword?: string }>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const canSubmit = useMemo(() => !isSubmitting, [isSubmitting]);
+  const { isBusy, run } = useActionLock();
+  const canSubmit = useMemo(() => !isBusy, [isBusy]);
 
   useEffect(() => {
     if (!email.trim() || !resetToken.trim()) {
@@ -53,23 +54,22 @@ export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      await resetPassword({
-        email: email.trim(),
-        resetToken,
-        newPassword,
-        confirmPassword
-      });
-      clearPendingForgotPassword();
-      notify.success("Password updated successfully. You can sign in now.");
-      onNavigate("/login");
-    } catch (err) {
-      if (err instanceof ApiClientError) notify.fromApiError(err);
-      else notify.error("Unable to reset password right now.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    await run(async () => {
+      try {
+        await resetPassword({
+          email: email.trim(),
+          resetToken,
+          newPassword,
+          confirmPassword
+        });
+        clearPendingForgotPassword();
+        notify.success("Password updated successfully. You can sign in now.");
+        onNavigate("/login");
+      } catch (err) {
+        if (err instanceof ApiClientError) notify.fromApiError(err);
+        else notify.error("Unable to reset password right now.");
+      }
+    });
   };
 
   return (
@@ -119,7 +119,7 @@ export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
               disabled={!canSubmit}
               className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
             >
-              {isSubmitting ? "Saving..." : "Reset Password"}
+              Reset Password
             </button>
           </form>
         </div>

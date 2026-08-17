@@ -22,6 +22,7 @@ import { navigateTo } from "../routing/navigate";
 import { getAccessToken } from "./authSessionService";
 import type { ApiErrorItem, ApiResponse } from "../types/api";
 import { logFailure } from "../utils/logFailure";
+import { beginApiRequest, endApiRequest } from "./loadingTracker";
 
 /**
  * Error thrown when the API returns success=false or a non-OK HTTP status.
@@ -197,6 +198,22 @@ export async function apiRequest<TResponse, TBody = unknown>(
     headers?: Record<string, string>;
   } = {}
 ): Promise<TResponse> {
+  beginApiRequest();
+  try {
+    return await apiRequestInner<TResponse, TBody>(path, options);
+  } finally {
+    endApiRequest();
+  }
+}
+
+async function apiRequestInner<TResponse, TBody = unknown>(
+  path: string,
+  options: {
+    method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+    body?: TBody;
+    headers?: Record<string, string>;
+  } = {}
+): Promise<TResponse> {
   const token = getAccessToken();
   const method = options.method ?? "GET";
 
@@ -254,6 +271,19 @@ export async function apiRequest<TResponse, TBody = unknown>(
 
 /** Multipart request — do not set Content-Type so the browser can add the boundary. */
 export async function apiFormRequest<TResponse>(
+  path: string,
+  form: FormData,
+  method: "POST" | "PUT" = "POST"
+): Promise<TResponse> {
+  beginApiRequest();
+  try {
+    return await apiFormRequestInner<TResponse>(path, form, method);
+  } finally {
+    endApiRequest();
+  }
+}
+
+async function apiFormRequestInner<TResponse>(
   path: string,
   form: FormData,
   method: "POST" | "PUT" = "POST"

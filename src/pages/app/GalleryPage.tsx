@@ -4,6 +4,7 @@ import { addPhoto, getAlbum, listAlbums, removeAlbum, removePhoto, saveAlbum } f
 import type { MockAlbum } from "../../data/mockGallery";
 import { canEdit } from "../../auth/permissions";
 import { EmptyState } from "../../components/ui/PageStates";
+import { useActionLock } from "../../hooks/useActionLock";
 
 interface GalleryPageProps {
   pathname: string;
@@ -12,6 +13,7 @@ interface GalleryPageProps {
 export function GalleryPage({ pathname }: GalleryPageProps) {
   const [, setTick] = useState(0);
   const refresh = () => setTick((n) => n + 1);
+  const { isBusy, run } = useActionLock();
   const albumMatch = matchPath("/gallery/:albumId", pathname);
   const photoMatch = matchPath("/gallery/:albumId/photo/:photoId", pathname);
   const [creating, setCreating] = useState(false);
@@ -38,27 +40,33 @@ export function GalleryPage({ pathname }: GalleryPageProps) {
             <div className="flex gap-2">
               <button
                 type="button"
+                disabled={isBusy}
                 onClick={() => {
-                  addPhoto(album.id, {
-                    id: `p-${Date.now()}`,
-                    url: "https://images.unsplash.com/photo-1511895426328-dc8714191300?w=1200&h=800&fit=crop",
-                    caption: "New family photo",
-                    takenOn: new Date().toISOString().slice(0, 10),
-                    relatedMemberIds: []
+                  void run(async () => {
+                    addPhoto(album.id, {
+                      id: `p-${Date.now()}`,
+                      url: "https://images.unsplash.com/photo-1511895426328-dc8714191300?w=1200&h=800&fit=crop",
+                      caption: "New family photo",
+                      takenOn: new Date().toISOString().slice(0, 10),
+                      relatedMemberIds: []
+                    });
+                    refresh();
                   });
-                  refresh();
                 }}
-                className="rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950"
+                className="rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
               >
                 Upload photo
               </button>
               <button
                 type="button"
+                disabled={isBusy}
                 onClick={() => {
-                  removeAlbum(album.id);
-                  navigateTo("/gallery");
+                  void run(async () => {
+                    removeAlbum(album.id);
+                    navigateTo("/gallery");
+                  });
                 }}
-                className="rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300"
+                className="rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 disabled:opacity-60"
               >
                 Delete album
               </button>
@@ -100,13 +108,16 @@ export function GalleryPage({ pathname }: GalleryPageProps) {
                 {canEdit() && (
                   <button
                     type="button"
+                    disabled={isBusy}
                     onClick={() => {
-                      removePhoto(album.id, activePhoto.id);
-                      setViewer(null);
-                      navigateTo(`/gallery/${album.id}`);
-                      refresh();
+                      void run(async () => {
+                        removePhoto(album.id, activePhoto.id);
+                        setViewer(null);
+                        navigateTo(`/gallery/${album.id}`);
+                        refresh();
+                      });
                     }}
-                    className="rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300"
+                    className="rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 disabled:opacity-60"
                   >
                     Delete photo
                   </button>
@@ -136,18 +147,20 @@ export function GalleryPage({ pathname }: GalleryPageProps) {
           className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4"
           onSubmit={(e) => {
             e.preventDefault();
-            const album: MockAlbum = {
-              id: `album-${Date.now()}`,
-              title: title || "Untitled album",
-              description: "A new family album.",
-              coverUrl: "https://images.unsplash.com/photo-1511895426328-dc8714191300?w=900&h=600&fit=crop",
-              createdOn: new Date().toISOString().slice(0, 10),
-              photos: []
-            };
-            saveAlbum(album);
-            setTitle("");
-            setCreating(false);
-            navigateTo(`/gallery/${album.id}`);
+            void run(async () => {
+              const album: MockAlbum = {
+                id: `album-${Date.now()}`,
+                title: title || "Untitled album",
+                description: "A new family album.",
+                coverUrl: "https://images.unsplash.com/photo-1511895426328-dc8714191300?w=900&h=600&fit=crop",
+                createdOn: new Date().toISOString().slice(0, 10),
+                photos: []
+              };
+              saveAlbum(album);
+              setTitle("");
+              setCreating(false);
+              navigateTo(`/gallery/${album.id}`);
+            });
           }}
         >
           <input
@@ -157,7 +170,7 @@ export function GalleryPage({ pathname }: GalleryPageProps) {
             className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
           />
           <div className="mt-3 flex gap-2">
-            <button type="submit" className="rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950">
+            <button type="submit" disabled={isBusy} className="rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60">
               Save
             </button>
             <button type="button" onClick={() => setCreating(false)} className="rounded-xl border border-slate-700 px-3 py-2 text-sm">

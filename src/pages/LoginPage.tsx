@@ -17,6 +17,7 @@ import { loginWithAccessTokenAndPersist } from "../services/accessTokenService";
 import { notify } from "../utils/notify";
 import { logout, markPasswordLoginAdmin } from "../auth/session";
 import { setPendingVerificationEmail } from "../auth/pendingAuth";
+import { useActionLock } from "../hooks/useActionLock";
 
 type LoginField = "email" | "password";
 type LoginFormValues = Record<LoginField, string>;
@@ -53,9 +54,8 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
   const [errors, setErrors] = useState<LoginErrors>({});
   const [accessToken, setAccessToken] = useState("");
   const [tokenError, setTokenError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const canSubmit = useMemo(() => !isSubmitting, [isSubmitting]);
+  const { isBusy, run } = useActionLock();
+  const canSubmit = useMemo(() => !isBusy, [isBusy]);
 
   const handleChange = (field: LoginField, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
@@ -72,37 +72,36 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      // Auth state must come from this login response only — drop any prior JWT first.
-      logout();
-      const response = await loginAndPersistSession({
-        email: values.email.trim(),
-        password: values.password
-      });
+    await run(async () => {
+      try {
+        // Auth state must come from this login response only — drop any prior JWT first.
+        logout();
+        const response = await loginAndPersistSession({
+          email: values.email.trim(),
+          password: values.password
+        });
 
-      if (response.requiresEmailVerification) {
-        const email = response.email?.trim() || values.email.trim();
-        if (email) setPendingVerificationEmail(email);
-        notify.info("We've sent a verification code to your email.");
-        onNavigate("/verify-email");
-        return;
-      }
+        if (response.requiresEmailVerification) {
+          const email = response.email?.trim() || values.email.trim();
+          if (email) setPendingVerificationEmail(email);
+          notify.info("We've sent a verification code to your email.");
+          onNavigate("/verify-email");
+          return;
+        }
 
-      markPasswordLoginAdmin(response.username?.trim() || values.email.trim());
-      notify.success("You have signed in successfully.");
-      onNavigate("/home");
-    } catch (error) {
-      logout();
-      if (error instanceof ApiClientError) {
-        notify.fromApiError(error);
-      } else {
-        notify.error("Unable to sign in. Please try again.");
+        markPasswordLoginAdmin(response.username?.trim() || values.email.trim());
+        notify.success("You have signed in successfully.");
+        onNavigate("/home");
+      } catch (error) {
+        logout();
+        if (error instanceof ApiClientError) {
+          notify.fromApiError(error);
+        } else {
+          notify.error("Unable to sign in. Please try again.");
+        }
+        setValues((current) => ({ ...current, password: "" }));
       }
-      setValues((current) => ({ ...current, password: "" }));
-    } finally {
-      setIsSubmitting(false);
-    }
+    });
   };
 
   const handleTokenSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -115,26 +114,25 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
       return;
     }
 
-    setIsSubmitting(true);
     setTokenError("");
-    try {
-      // Auth state must come from this login response only — drop any prior JWT first.
-      logout();
-      await loginWithAccessTokenAndPersist({ accessToken: token });
-      notify.success("You have signed in successfully.");
-      onNavigate("/home");
-    } catch (error) {
-      logout();
-      const message =
-        error instanceof ApiClientError
-          ? error.message
-          : "Unable to sign in with this token.";
-      setTokenError(message);
-      notify.fromApiError(error instanceof ApiClientError ? error : { message });
-      setAccessToken("");
-    } finally {
-      setIsSubmitting(false);
-    }
+    await run(async () => {
+      try {
+        // Auth state must come from this login response only — drop any prior JWT first.
+        logout();
+        await loginWithAccessTokenAndPersist({ accessToken: token });
+        notify.success("You have signed in successfully.");
+        onNavigate("/home");
+      } catch (error) {
+        logout();
+        const message =
+          error instanceof ApiClientError
+            ? error.message
+            : "Unable to sign in with this token.";
+        setTokenError(message);
+        notify.fromApiError(error instanceof ApiClientError ? error : { message });
+        setAccessToken("");
+      }
+    });
   };
 
   return (
@@ -151,15 +149,17 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
           <div className="mb-5 grid grid-cols-2 rounded-xl border border-slate-800 p-1">
             <button
               type="button"
+              disabled={isBusy}
               onClick={() => setMode("password")}
-              className={`rounded-lg px-3 py-2 text-sm ${mode === "password" ? "bg-emerald-500 text-slate-950" : "text-slate-300"}`}
+              className={`rounded-lg px-3 py-2 text-sm disabled:opacity-60 ${mode === "password" ? "bg-emerald-500 text-slate-950" : "text-slate-300"}`}
             >
               Email & Password
             </button>
             <button
               type="button"
+              disabled={isBusy}
               onClick={() => setMode("token")}
-              className={`rounded-lg px-3 py-2 text-sm ${mode === "token" ? "bg-emerald-500 text-slate-950" : "text-slate-300"}`}
+              className={`rounded-lg px-3 py-2 text-sm disabled:opacity-60 ${mode === "token" ? "bg-emerald-500 text-slate-950" : "text-slate-300"}`}
             >
               Login with Token
             </button>
@@ -167,7 +167,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
 
           {mode === "token" ? (
             <form className="space-y-4" onSubmit={(e) => void handleTokenSubmit(e)}>
-              <fieldset disabled={isSubmitting} className="space-y-4">
+              <fieldset disabled={isBusy} className="space-y-4">
                 <label className="block text-sm">
                   Access Token
                   <input
@@ -190,23 +190,16 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isSubmitting ? (
-                  <>
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
-                    Validating...
-                  </>
-                ) : (
-                  "Login with Token"
-                )}
+                Login with Token
               </button>
             </form>
           ) : null}
 
           {mode === "password" ? (
             <form onSubmit={(e) => void handlePasswordSubmit(e)} noValidate className="space-y-4">
-              <fieldset disabled={isSubmitting} className="space-y-4 disabled:opacity-100">
+              <fieldset disabled={isBusy} className="space-y-4 disabled:opacity-100">
                 <div className="space-y-2">
                   <label htmlFor="email" className="block text-sm font-medium text-slate-200">
                     Email
@@ -218,12 +211,12 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                     autoComplete="email"
                     value={values.email}
                     onChange={(event) => handleChange("email", event.target.value)}
-                    disabled={isSubmitting}
+                    disabled={isBusy}
                     className={`w-full rounded-xl border px-4 py-3 text-slate-100 outline-none transition ${
                       errors.email
                         ? "border-rose-500 bg-rose-950/20 focus:border-rose-400"
                         : "border-slate-700 bg-slate-900/80 focus:border-emerald-500"
-                    } ${isSubmitting ? "cursor-not-allowed opacity-70" : ""}`}
+                    } ${isBusy ? "cursor-not-allowed opacity-70" : ""}`}
                   />
                   <p className={`min-h-[1.25rem] text-xs ${errors.email ? "text-rose-400" : "text-transparent"}`}>
                     {errors.email ?? "placeholder"}
@@ -241,12 +234,12 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                     autoComplete="current-password"
                     value={values.password}
                     onChange={(event) => handleChange("password", event.target.value)}
-                    disabled={isSubmitting}
+                    disabled={isBusy}
                     className={`w-full rounded-xl border px-4 py-3 text-slate-100 outline-none transition ${
                       errors.password
                         ? "border-rose-500 bg-rose-950/20 focus:border-rose-400"
                         : "border-slate-700 bg-slate-900/80 focus:border-emerald-500"
-                    } ${isSubmitting ? "cursor-not-allowed opacity-70" : ""}`}
+                    } ${isBusy ? "cursor-not-allowed opacity-70" : ""}`}
                   />
                   <p className={`min-h-[1.25rem] text-xs ${errors.password ? "text-rose-400" : "text-transparent"}`}>
                     {errors.password ?? "placeholder"}
@@ -267,20 +260,13 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                className={`inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition ${
                   canSubmit
                     ? "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
                     : "cursor-not-allowed bg-emerald-500/60 text-slate-900"
                 }`}
               >
-                {isSubmitting ? (
-                  <>
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
-                    Signing in...
-                  </>
-                ) : (
-                  "Login"
-                )}
+                Login
               </button>
             </form>
           ) : null}

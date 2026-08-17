@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ImagePlus, Loader2, X } from "lucide-react";
+import { ImagePlus, X } from "lucide-react";
 import { DatePicker } from "../DatePicker";
 import { canEditFamily } from "../../auth/permissions";
 import { navigateTo } from "../../routing/navigate";
@@ -8,6 +8,7 @@ import { createMemory } from "../../services/memoryService";
 import { MEMORY_MAX_IMAGES } from "../../types/memory";
 import { memoryInputClass, memoryLabelClass, validateMemoryImage } from "../../utils/memoryImages";
 import { notify } from "../../utils/notify";
+import { useActionLock } from "../../hooks/useActionLock";
 
 interface LocalPhoto {
   id: string;
@@ -25,8 +26,7 @@ export function MemoryCreateView() {
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState("");
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [progress, setProgress] = useState<string | null>(null);
+  const { isBusy, run } = useActionLock();
 
   useEffect(() => {
     return () => {
@@ -120,27 +120,24 @@ export function MemoryCreateView() {
       return;
     }
 
-    setSaving(true);
-    setProgress("Creating memory…");
-    try {
-      const created = await createMemory({
-        title: title.trim(),
-        description: description.trim(),
-        memoryDate: new Date(`${memoryDate}T12:00:00`).toISOString(),
-        location: location.trim() || undefined,
-        coverImage: coverFile,
-        images: photos.map((photo) => photo.file)
-      });
+    await run(async () => {
+      try {
+        const created = await createMemory({
+          title: title.trim(),
+          description: description.trim(),
+          memoryDate: new Date(`${memoryDate}T12:00:00`).toISOString(),
+          location: location.trim() || undefined,
+          coverImage: coverFile,
+          images: photos.map((photo) => photo.file)
+        });
 
-      notify.success("Memory created successfully.");
-      navigateTo(`/memories/${created.id}`);
-    } catch (error) {
-      if (error instanceof ApiClientError) notify.fromApiError(error);
-      else notify.error("Unable to create memory right now.");
-    } finally {
-      setSaving(false);
-      setProgress(null);
-    }
+        notify.success("Memory created successfully.");
+        navigateTo(`/memories/${created.id}`);
+      } catch (error) {
+        if (error instanceof ApiClientError) notify.fromApiError(error);
+        else notify.error("Unable to create memory right now.");
+      }
+    });
   };
 
   return (
@@ -244,7 +241,7 @@ export function MemoryCreateView() {
         />
         <button
           type="button"
-          disabled={totalImages >= MEMORY_MAX_IMAGES}
+          disabled={totalImages >= MEMORY_MAX_IMAGES || isBusy}
           onClick={() => photosInputRef.current?.click()}
           className="mt-2 rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-900 disabled:opacity-40"
         >
@@ -269,24 +266,17 @@ export function MemoryCreateView() {
         )}
       </div>
 
-      {progress && (
-        <p className="inline-flex items-center gap-2 text-sm text-emerald-300">
-          <Loader2 size={14} className="animate-spin" /> {progress}
-        </p>
-      )}
-
       <div className="flex flex-wrap gap-2 pt-2">
         <button
           type="submit"
-          disabled={saving}
-          className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
+          disabled={isBusy}
+          className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
         >
-          {saving ? <Loader2 size={16} className="animate-spin" /> : null}
-          {saving ? "Saving…" : "Create Memory"}
+          Create Memory
         </button>
         <button
           type="button"
-          disabled={saving}
+          disabled={isBusy}
           onClick={() => navigateTo("/memories")}
           className="rounded-xl border border-slate-700 px-4 py-2 text-sm disabled:opacity-60"
         >

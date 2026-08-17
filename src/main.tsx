@@ -15,10 +15,12 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { AppToaster } from './components/AppToaster'
+import { GlobalLoader } from './components/ui/GlobalLoader'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
+    <GlobalLoader />
     <AppToaster />
   </StrictMode>,
 )
