@@ -30,8 +30,7 @@ import { MembersPage } from "./pages/app/MembersPage";
 import { MemberDetailsPage } from "./pages/app/MemberDetailsPage";
 import { EditMemberPage } from "./pages/app/EditMemberPage";
 import { FamilyTreePage } from "./pages/app/FamilyTreePage";
-import { StoriesPage } from "./pages/app/StoriesPage";
-import { GalleryPage } from "./pages/app/GalleryPage";
+import { MemoriesPage } from "./pages/app/MemoriesPage";
 import { TimelinePage } from "./pages/app/TimelinePage";
 import { EventsPage } from "./pages/app/EventsPage";
 import { AccessTokensPage } from "./pages/app/AccessTokensPage";
@@ -55,8 +54,7 @@ function renderAuthenticatedPage(pathname: string) {
   if (matchPath("/members/:id/edit", pathname)) return <EditMemberPage pathname={pathname} />;
   if (matchPath("/members/:id", pathname)) return <MemberDetailsPage pathname={pathname} />;
   if (pathname === "/family-tree") return <FamilyTreePage />;
-  if (pathname.startsWith("/stories")) return <StoriesPage pathname={pathname} />;
-  if (pathname.startsWith("/gallery")) return <GalleryPage pathname={pathname} />;
+  if (pathname.startsWith("/memories")) return <MemoriesPage pathname={pathname} />;
   if (pathname === "/timeline") return <TimelinePage />;
   if (pathname.startsWith("/events")) return <EventsPage pathname={pathname} />;
   if (pathname.startsWith("/access-tokens")) {

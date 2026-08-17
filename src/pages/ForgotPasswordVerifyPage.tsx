@@ -20,7 +20,7 @@ interface ForgotPasswordVerifyPageProps {
 const OTP_LENGTH = 6;
 
 export function ForgotPasswordVerifyPage({ onNavigate }: ForgotPasswordVerifyPageProps) {
-  const [email, setEmail] = useState(() => getPendingForgotEmail() ?? "");
+  const [email] = useState(() => getPendingForgotEmail() ?? "");
   const [digits, setDigits] = useState<string[]>(() => Array.from({ length: OTP_LENGTH }, () => ""));
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
