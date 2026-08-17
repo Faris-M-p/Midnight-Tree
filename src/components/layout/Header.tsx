@@ -1,7 +1,7 @@
 import { Bell, Menu } from "lucide-react";
 import { useState } from "react";
 import { useFamilyBranding } from "../../hooks/useFamilyBranding";
-import { ThemeSelector } from "../theme/ThemeSelector";
+import { ThemeToggle } from "../theme/ThemeToggle";
 import { NotificationDrawer, unreadNotificationCount } from "./NotificationDrawer";
 
 interface HeaderProps {
@@ -38,7 +38,7 @@ export function Header({ title, onOpenMobileNav }: HeaderProps) {
           </div>
         </div>
 
-        <ThemeSelector variant="menu" />
+        <ThemeToggle />
         <button
           type="button"
           onClick={() => setNotificationsOpen(true)}

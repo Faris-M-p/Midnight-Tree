@@ -147,6 +147,7 @@ html, body, #root {
   font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
   background-color: var(--theme-page);
   color: var(--theme-fg);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Custom overrides for React Flow components */
@@ -211,6 +212,10 @@ html, body, #root {
 /* Keep toasts above modals */
 [data-sonner-toaster] {
   z-index: 9999 !important;
+}
+
+header, aside {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
 input,

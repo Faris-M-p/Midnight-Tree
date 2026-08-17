@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { GitBranch, Menu, X } from "lucide-react";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
-import { ThemeSelector } from "../theme/ThemeSelector";
+import { ThemeToggle } from "../theme/ThemeToggle";
 import { isPublicNavActive, publicNavItems } from "../../navigation/publicNav";
 import { navigateTo } from "../../routing/navigate";
 import { DrawerPortal } from "./DrawerPortal";
@@ -73,7 +73,7 @@ export function PublicHeader({ pathname }: PublicHeaderProps) {
             );
           })}
         </div>
-        <ThemeSelector variant="menu" />
+        <ThemeToggle />
       </nav>
     </header>
 
@@ -122,9 +122,6 @@ export function PublicHeader({ pathname }: PublicHeaderProps) {
               );
             })}
           </nav>
-          <div className="border-t border-edge p-3">
-            <ThemeSelector variant="panel" />
-          </div>
         </aside>
       </div>
     </DrawerPortal>

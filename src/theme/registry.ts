@@ -27,6 +27,10 @@ export function getTheme(id: string | null | undefined): ThemeDefinition {
   return (id && themesById.get(id)) || midnightTheme;
 }
 
+export function getThemeByScheme(scheme: ThemeDefinition["scheme"]): ThemeDefinition {
+  return THEME_REGISTRY.find((theme) => theme.scheme === scheme) ?? midnightTheme;
+}
+
 export function isThemeId(id: string): boolean {
   return themesById.has(id);
 }

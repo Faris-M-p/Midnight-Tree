@@ -2,7 +2,6 @@ import { isAdmin } from "../../auth/permissions";
 import { logout } from "../../auth/session";
 import { appNavItems, isAppNavActive } from "../../navigation/appNav";
 import { navigateTo } from "../../routing/navigate";
-import { ThemeSelector } from "../theme/ThemeSelector";
 
 interface AppNavItemsProps {
   pathname: string;
@@ -78,8 +77,7 @@ export function AppNavItems({ pathname, onNavigate }: AppNavItemsProps) {
         )}
       </nav>
 
-      <div className="space-y-3 border-t border-edge p-3">
-        <ThemeSelector variant="panel" />
+      <div className="border-t border-edge p-3">
         {bottomItems.map((item) => {
           const Icon = item.icon;
           return (
