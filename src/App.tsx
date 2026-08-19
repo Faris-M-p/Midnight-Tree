@@ -80,19 +80,18 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
+  const authenticated = isAuthenticated();
+  const isPublicPath = PUBLIC_PATHS.has(pathname);
+
   useEffect(() => {
     if (pathname === "/tree") {
       navigateTo("/family-tree");
       return;
     }
-    if (!PUBLIC_PATHS.has(pathname) && !isAuthenticated()) {
+    if (!isPublicPath && !authenticated) {
       navigateTo("/login");
-      return;
     }
-    if ((pathname === "/login" || pathname === "/register") && isAuthenticated()) {
-      navigateTo("/home");
-    }
-  }, [pathname]);
+  }, [pathname, isPublicPath, authenticated]);
 
   if (pathname === "/") {
     return <LandingPage onNavigate={navigateTo} />;
@@ -122,7 +121,7 @@ export default function App() {
     return <ResetPasswordPage onNavigate={navigateTo} />;
   }
 
-  if (!isAuthenticated()) {
+  if (!authenticated) {
     return <LoginPage onNavigate={navigateTo} />;
   }
 

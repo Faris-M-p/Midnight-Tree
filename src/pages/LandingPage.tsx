@@ -112,6 +112,8 @@ function SocialIcon(props: { type: "github" | "linkedin" | "facebook" | "x" }) {
 }
 
 export function LandingPage({ onNavigate }: LandingPageProps) {
+  const goGetStarted = () => onNavigate("/login");
+
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-slate-950 text-slate-100">
       <PublicHeader pathname="/" />
@@ -132,7 +134,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             <div className="mt-6 flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => onNavigate("/login")}
+                onClick={goGetStarted}
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
               >
                 Get Started
@@ -265,7 +267,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
         <section className="mt-16 flex justify-center">
           <button
             type="button"
-            onClick={() => onNavigate("/login")}
+            onClick={goGetStarted}
             className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
           >
             Get Started
