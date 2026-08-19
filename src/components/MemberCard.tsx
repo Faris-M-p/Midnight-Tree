@@ -11,20 +11,23 @@
 
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
+import { Link2 } from 'lucide-react';
 import type { FamilyMember } from '../types';
 
 interface MemberCardProps {
   data: {
     member: FamilyMember;
     onSelect: (member: FamilyMember) => void;
+    onGhostNavigate?: (memberId: string) => void;
     isDimmed?: boolean;
     isHighlighted?: boolean;
+    isGhost?: boolean;
     displayId?: string;
   };
 }
 
 export const MemberCard: React.FC<MemberCardProps> = ({ data }) => {
-  const { member, onSelect, isDimmed, isHighlighted, displayId } = data;
+  const { member, onSelect, onGhostNavigate, isDimmed, isHighlighted, isGhost, displayId } = data;
 
   // Set colors based on relationship
   const getBadgeStyles = (relation: string) => {
@@ -49,13 +52,26 @@ export const MemberCard: React.FC<MemberCardProps> = ({ data }) => {
 
   return (
     <div
-      onClick={() => onSelect(member)}
+      onClick={() => {
+        if (isGhost) {
+          onGhostNavigate?.(member.id);
+          return;
+        }
+        onSelect(member);
+      }}
       className={`
-        w-[220px] h-[100px] rounded-xl bg-slate-900 border text-left p-3 cursor-pointer select-none transition-all duration-300 flex items-center gap-3
+        w-[220px] h-[100px] rounded-xl border text-left p-3 cursor-pointer select-none transition-all duration-300 flex items-center gap-3
+        ${
+          isGhost
+            ? 'bg-ghost-card border-dashed border-ghost-border text-ghost-fg hover:border-ghost-fg'
+            : 'bg-slate-900'
+        }
         ${
           isHighlighted
-            ? 'border-accent ring-4 ring-accent/20 shadow-[0_0_20px_color-mix(in_srgb,var(--theme-accent)_30%,transparent)] scale-105 bg-surface-hover'
-            : 'border-edge hover:border-accent/50 hover:shadow-[0_4px_15px_color-mix(in_srgb,var(--theme-accent)_10%,transparent)] hover:scale-[1.02]'
+            ? 'border-accent ring-4 ring-accent/20 shadow-[0_0_20px_color-mix(in_srgb,var(--theme-accent)_30%,transparent)] scale-105'
+            : isGhost
+              ? ''
+              : 'border-edge hover:border-accent/50 hover:shadow-[0_4px_15px_color-mix(in_srgb,var(--theme-accent)_10%,transparent)] hover:scale-[1.02]'
         }
         ${isDimmed ? 'opacity-30 filter grayscale duration-500' : 'opacity-100'}
       `}
@@ -89,7 +105,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({ data }) => {
 
       {/* Avatar Container with glowing ring offset */}
       <div className="relative shrink-0">
-        <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-emerald-500/30 group-hover:border-emerald-500 transition-colors duration-300">
+        <div className={`w-14 h-14 rounded-full overflow-hidden border-2 transition-colors duration-300 ${isGhost ? 'border-ghost-border' : 'border-emerald-500/30 group-hover:border-emerald-500'}`}>
           <img
             src={member.avatar}
             alt={member.name}
@@ -97,14 +113,21 @@ export const MemberCard: React.FC<MemberCardProps> = ({ data }) => {
             loading="lazy"
           />
         </div>
-        <div className="absolute inset-0 rounded-full border border-emerald-500/10 scale-110 pointer-events-none animate-pulse"></div>
+        {isGhost ? null : (
+          <div className="absolute inset-0 rounded-full border border-emerald-500/10 scale-110 pointer-events-none animate-pulse"></div>
+        )}
       </div>
 
       {/* Member Metadata Info */}
       <div className="min-w-0 flex flex-col justify-center gap-1">
-        <h3 className="font-serif font-semibold text-slate-100 text-sm tracking-wide leading-tight truncate flex items-center gap-1.5">
-          {displayId && <span className="text-emerald-400 font-sans text-xs font-bold shrink-0">{displayId}</span>}
+        <h3 className={`font-serif font-semibold text-sm tracking-wide leading-tight truncate flex items-center gap-1.5 ${isGhost ? 'text-ghost-fg' : 'text-slate-100'}`}>
+          {displayId && (
+            <span className={`font-sans text-xs font-bold shrink-0 ${isGhost ? 'text-ghost-fg' : 'text-emerald-400'}`}>
+              {displayId}
+            </span>
+          )}
           <span className="truncate">{member.name}</span>
+          {isGhost ? <Link2 size={12} className="shrink-0 text-ghost-fg" aria-hidden="true" /> : null}
           {member.isDeceased && (
             <span 
               className="w-2 h-2 rounded-full bg-red-500 border border-red-400 shrink-0 inline-block animate-pulse" 
@@ -113,7 +136,7 @@ export const MemberCard: React.FC<MemberCardProps> = ({ data }) => {
           )}
         </h3>
         <div className="flex flex-wrap gap-1">
-          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wider ${getBadgeStyles(member.nickname || member.relation)}`}>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wider ${isGhost ? 'bg-ghost-border/20 text-ghost-fg border border-ghost-border/50' : getBadgeStyles(member.nickname || member.relation)}`}>
             {member.nickname || member.relation}
           </span>
         </div>

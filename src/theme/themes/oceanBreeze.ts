@@ -33,6 +33,9 @@ export const oceanBreezeTheme: ThemeDefinition = {
     overlayStrong: "rgba(16, 42, 67, 0.78)",
     shadow: "0 10px 30px rgba(16, 42, 67, 0.08)",
     map: "#e7f2f9",
-    ring: "#0e8f9e"
+    ring: "#0e8f9e",
+    ghostCard: "#1e293b",
+    ghostBorder: "#64748b",
+    ghostFg: "#e2e8f0"
   }
 };

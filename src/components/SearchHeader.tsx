@@ -8,9 +8,9 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, BarChart3, Clock, Download, X, UserPlus } from 'lucide-react';
+import { Search, BarChart3, Clock, Download, X, UserPlus, HeartHandshake } from 'lucide-react';
 import type { FamilyMember } from '../types';
-import { canCreateMember } from '../auth/permissions';
+import { canCreateMember, canEdit } from '../auth/permissions';
 
 interface SearchHeaderProps {
   members: FamilyMember[];
@@ -19,6 +19,7 @@ interface SearchHeaderProps {
   onOpenTimeline: () => void;
   onExportPNG: () => void;
   onAddMember: () => void;
+  onMapSpouse?: () => void;
 }
 
 export const SearchHeader: React.FC<SearchHeaderProps> = ({
@@ -27,13 +28,15 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
   onOpenAnalytics,
   onOpenTimeline,
   onExportPNG,
-  onAddMember
+  onAddMember,
+  onMapSpouse
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState<FamilyMember[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const showAddMember = canCreateMember();
+  const showMapSpouse = Boolean(onMapSpouse) && canEdit();
 
   // Filter members based on search query
   useEffect(() => {
@@ -161,6 +164,17 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
           >
             <UserPlus size={14} className="text-emerald-500" />
             <span className="hidden sm:inline">Add Member</span>
+          </button>
+        ) : null}
+
+        {showMapSpouse ? (
+          <button
+            onClick={onMapSpouse}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-750 text-slate-300 hover:text-slate-100 text-xs font-semibold transition-all cursor-pointer"
+            title="Map Existing Members as Spouses"
+          >
+            <HeartHandshake size={14} className="text-emerald-500" />
+            <span className="hidden sm:inline">Map Spouse</span>
           </button>
         ) : null}
 

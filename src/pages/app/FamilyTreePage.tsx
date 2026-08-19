@@ -25,6 +25,7 @@ import { AnalyticsPanel } from '../../components/AnalyticsPanel';
 import { TimelinePanel } from '../../components/TimelinePanel';
 import { AddMember } from '../../components/members/AddMember';
 import { EditMember } from '../../components/members/EditMember';
+import { MapSpouseModal } from '../../components/members/MapSpouseModal';
 import { MemberDetailsModal } from '../../components/members/MemberDetailsModal';
 import { ApiClientError } from '../../services/apiClient';
 import { deleteMember, getMemberDetails } from '../../services/memberService';
@@ -48,6 +49,32 @@ interface LayoutCoords {
   [id: string]: { x: number; y: number };
 }
 
+function ghostNodeId(realId: string, hostId: string) {
+  return `ghost:${realId}@${hostId}`;
+}
+
+function crossMarriageNodeId(hostId: string, spouseId: string) {
+  return `m_cross_${hostId}_${spouseId}`;
+}
+
+function parentUnionOf(memberId: string, unions: MarriageUnion[]) {
+  return unions.find((union) => union.childrenIds.includes(memberId));
+}
+
+function isCrossBranchUnion(union: MarriageUnion, unions: MarriageUnion[]) {
+  const parent1 = parentUnionOf(union.spouse1Id, unions);
+  const parent2 = parentUnionOf(union.spouse2Id, unions);
+  return Boolean(parent1 && parent2 && parent1.id !== parent2.id);
+}
+
+function childAnchorId(union: MarriageUnion, members: FamilyMember[]) {
+  const spouse1 = members.find((member) => member.id === union.spouse1Id);
+  const spouse2 = members.find((member) => member.id === union.spouse2Id);
+  if (spouse1?.gender === 'female' && spouse2?.gender !== 'female') return spouse1.id;
+  if (spouse2?.gender === 'female' && spouse1?.gender !== 'female') return spouse2.id;
+  return union.spouse2Id;
+}
+
 /**
  * Builds a hierarchical family layout.
  * Important: only true roots become top-level trees; children stay nested
@@ -63,6 +90,7 @@ function computeDynamicLayout(
     memberId?: string;
     spouse1Id?: string;
     spouse2Id?: string;
+    marriageNodeId?: string;
     children: LayoutEntity[];
     width?: number;
   };
@@ -103,6 +131,30 @@ function computeDynamicLayout(
     }
 
     const union = unionByMemberId.get(memberId);
+    if (union && isCrossBranchUnion(union, unions)) {
+      const localId = `cross_${union.id}_${memberId}`;
+      const cached = builtEntityByMember.get(memberId);
+      if (cached) return cached;
+
+      const otherId = union.spouse1Id === memberId ? union.spouse2Id : union.spouse1Id;
+      const host = members.find((member) => member.id === memberId);
+      const hostOnLeft = host?.gender !== 'female';
+      const ghostId = ghostNodeId(otherId, memberId);
+      const includeChildren = memberId === childAnchorId(union, members);
+      const children = includeChildren ? union.childrenIds.map((childId) => buildEntityForMember(childId)) : [];
+
+      const entity: LayoutEntity = {
+        id: localId,
+        type: 'union',
+        spouse1Id: hostOnLeft ? memberId : ghostId,
+        spouse2Id: hostOnLeft ? ghostId : memberId,
+        marriageNodeId: crossMarriageNodeId(memberId, otherId),
+        children
+      };
+      builtEntityByMember.set(memberId, entity);
+      return entity;
+    }
+
     if (!union) {
       const single: LayoutEntity = {
         id: `single_${memberId}`,
@@ -168,6 +220,7 @@ function computeDynamicLayout(
 
   // Primary roots: unions where neither spouse is listed as another union's child
   unions.forEach((union) => {
+    if (isCrossBranchUnion(union, unions)) return;
     const spouse1IsChild = childToParentUnionId.has(union.spouse1Id);
     const spouse2IsChild = childToParentUnionId.has(union.spouse2Id);
     if (!spouse1IsChild && !spouse2IsChild) {
@@ -202,6 +255,7 @@ function computeDynamicLayout(
   rootEntities.forEach(markPlaced);
 
   unions.forEach((union) => {
+    if (isCrossBranchUnion(union, unions)) return;
     if (placedUnions.has(union.id)) return;
     if (placedMembers.has(union.spouse1Id) || placedMembers.has(union.spouse2Id)) return;
     pushRoot(buildEntityForUnion(union.id), `orphan_union_${union.id}`);
@@ -283,7 +337,7 @@ function computeDynamicLayout(
       y
     };
 
-    coords[`m_${s1Id}_${s2Id}`] = {
+    coords[entity.marriageNodeId || `m_${s1Id}_${s2Id}`] = {
       x: centerX - MARRIAGE_WIDTH / 2,
       y: y + CARD_HEIGHT / 2 - MARRIAGE_HEIGHT / 2
     };
@@ -337,6 +391,7 @@ function AppContent() {
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isMapSpouseOpen, setIsMapSpouseOpen] = useState(false);
 
   // Focus and Highlight triggers
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
@@ -429,12 +484,20 @@ function AppContent() {
         );
 
         childUnions.forEach((childUnion) => {
+          const spouseId = childUnion.spouse1Id === childId ? childUnion.spouse2Id : childUnion.spouse1Id;
+
+          if (isCrossBranchUnion(childUnion, unions)) {
+            hiddenNodeIds.add(ghostNodeId(spouseId, childId));
+            hiddenNodeIds.add(crossMarriageNodeId(childId, spouseId));
+            if (childId === childAnchorId(childUnion, members)) {
+              recurseCollapse(childUnion.id);
+            }
+            return;
+          }
+
           const mNodeId = `m_${childUnion.spouse1Id}_${childUnion.spouse2Id}`;
           hiddenNodeIds.add(mNodeId);
-
-          const spouseId = childUnion.spouse1Id === childId ? childUnion.spouse2Id : childUnion.spouse1Id;
           hiddenNodeIds.add(spouseId);
-
           recurseCollapse(childUnion.id);
         });
       });
@@ -499,6 +562,19 @@ function AppContent() {
 
   const memberRanks = useMemo(() => computeMemberRanks(members, unions), [members, unions]);
 
+  const revealAndFocusMember = (memberId: string) => {
+    setCollapsedUnions((prev) => {
+      const hiding = prev.filter((unionId) => getHiddenEntities([unionId]).has(memberId));
+      if (hiding.length === 0) return prev;
+      return prev.filter((id) => !hiding.includes(id));
+    });
+    setFocusedNodeId(memberId);
+    setHighlightedMemberId(memberId);
+    window.setTimeout(() => {
+      setHighlightedMemberId((current) => (current === memberId ? null : current));
+    }, 3000);
+  };
+
   // Recalculate nodes and edges when states mutate
   useEffect(() => {
     const hiddenNodeIds = getHiddenEntities(collapsedUnions);
@@ -529,8 +605,9 @@ function AppContent() {
       });
     });
 
-    // 2. Populate Marriage Junction Nodes
+    // 2. Populate Marriage Junction Nodes (same-branch couples only)
     unions.forEach((u) => {
+      if (isCrossBranchUnion(u, unions)) return;
       const marriageNodeId = `m_${u.spouse1Id}_${u.spouse2Id}`;
       if (hiddenNodeIds.has(marriageNodeId)) return;
 
@@ -550,8 +627,119 @@ function AppContent() {
       });
     });
 
+    // Cross-branch: keep both real members in place and add ghost cards only
+    unions.forEach((u) => {
+      if (!isCrossBranchUnion(u, unions)) return;
+      const anchorId = childAnchorId(u, members);
+
+      [u.spouse1Id, u.spouse2Id].forEach((hostId) => {
+        const otherId = hostId === u.spouse1Id ? u.spouse2Id : u.spouse1Id;
+        const ghostId = ghostNodeId(otherId, hostId);
+        const marriageId = crossMarriageNodeId(hostId, otherId);
+        if (hiddenNodeIds.has(hostId) || hiddenNodeIds.has(ghostId) || hiddenNodeIds.has(marriageId)) return;
+
+        const ghostPos = layoutCoords[ghostId];
+        const marriagePos = layoutCoords[marriageId];
+        const otherMember = members.find((member) => member.id === otherId);
+        if (!ghostPos || !marriagePos || !otherMember) return;
+
+        activeNodes.push({
+          id: ghostId,
+          type: 'memberCard',
+          position: ghostPos,
+          draggable: false,
+          data: {
+            member: otherMember,
+            isGhost: true,
+            onSelect: () => undefined,
+            onGhostNavigate: revealAndFocusMember,
+            displayId: `#${memberRanks[otherId] ?? '?'}`
+          }
+        });
+
+        activeNodes.push({
+          id: marriageId,
+          type: 'marriageNode',
+          position: marriagePos,
+          draggable: false,
+          data: {
+            collapsed: hostId === anchorId && collapsedUnions.includes(u.id),
+            onToggle: () => toggleUnion(u.id),
+            hasChildren: hostId === anchorId && u.childrenIds.length > 0
+          }
+        });
+
+        const hostOnLeft = !activeNodes.some((node) => node.id === hostId)
+          ? true
+          : (layoutCoords[hostId]?.x ?? 0) <= ghostPos.x;
+        const leftId = hostOnLeft ? hostId : ghostId;
+        const rightId = hostOnLeft ? ghostId : hostId;
+
+        activeEdges.push({
+          id: `e_${leftId}_to_${marriageId}`,
+          source: leftId,
+          target: marriageId,
+          sourceHandle: 'right',
+          targetHandle: 'left',
+          type: 'straight',
+          style: { stroke: 'var(--theme-accent)', strokeDasharray: '5,5', strokeWidth: 2 },
+          animated: true
+        });
+        activeEdges.push({
+          id: `e_${marriageId}_to_${rightId}`,
+          source: marriageId,
+          target: rightId,
+          sourceHandle: 'right',
+          targetHandle: 'left',
+          type: 'straight',
+          style: { stroke: 'var(--theme-accent)', strokeDasharray: '5,5', strokeWidth: 2 },
+          animated: true
+        });
+      });
+    });
+
     // 3. Populate Connections (Edges)
     unions.forEach((u) => {
+      if (isCrossBranchUnion(u, unions)) {
+        const isCollapsed = collapsedUnions.includes(u.id);
+        if (isCollapsed) return;
+        const anchorId = childAnchorId(u, members);
+        const otherId = anchorId === u.spouse1Id ? u.spouse2Id : u.spouse1Id;
+        const marriageNodeId = crossMarriageNodeId(anchorId, otherId);
+        if (hiddenNodeIds.has(marriageNodeId)) return;
+
+        const linkedTargets: string[] = [];
+        u.childrenIds.forEach((childId) => {
+          if (linkedTargets.includes(childId)) return;
+          if (!activeNodes.some((n) => n.id === childId)) return;
+          linkedTargets.push(childId);
+        });
+
+        if (linkedTargets.length === 0) return;
+
+        const parentPos = layoutCoords[marriageNodeId];
+        const parentBottom = parentPos ? parentPos.y + 24 : 0;
+        const childTops = linkedTargets
+          .map((targetId) => layoutCoords[targetId]?.y)
+          .filter((y): y is number => typeof y === 'number');
+        const nearestChildTop = childTops.length > 0 ? Math.min(...childTops) : parentBottom + 80;
+        const railY = parentBottom + Math.max(40, (nearestChildTop - parentBottom) * 0.42);
+
+        linkedTargets.forEach((targetId) => {
+          activeEdges.push({
+            id: `e_child_${marriageNodeId}_to_${targetId}`,
+            source: marriageNodeId,
+            target: targetId,
+            sourceHandle: 'bottom',
+            targetHandle: 'top',
+            type: 'genealogy',
+            data: { railY },
+            style: { stroke: 'var(--theme-accent)', strokeWidth: 2.5 }
+          });
+        });
+        return;
+      }
+
       const marriageNodeId = `m_${u.spouse1Id}_${u.spouse2Id}`;
       if (hiddenNodeIds.has(marriageNodeId)) return;
 
@@ -585,8 +773,6 @@ function AppContent() {
         });
       }
 
-      // Vertical descendants: leave from couple center (−), land on each
-      // bloodline child's card — never on the midpoint between that child and their spouse.
       const isCollapsed = collapsedUnions.includes(u.id);
       if (!isCollapsed) {
         const linkedTargets: string[] = [];
@@ -603,7 +789,6 @@ function AppContent() {
             .map((targetId) => layoutCoords[targetId]?.y)
             .filter((y): y is number => typeof y === 'number');
           const nearestChildTop = childTops.length > 0 ? Math.min(...childTops) : parentBottom + 80;
-          // Shared horizontal rail between parent couple and next generation
           const railY = parentBottom + Math.max(40, (nearestChildTop - parentBottom) * 0.42);
 
           linkedTargets.forEach((targetId) => {
@@ -628,8 +813,7 @@ function AppContent() {
 
   // Center view on search match and flash target node
   const handleSearchMatch = (memberId: string) => {
-    setFocusedNodeId(memberId);
-    setHighlightedMemberId(memberId);
+    revealAndFocusMember(memberId);
 
     confetti({
       particleCount: 80,
@@ -637,10 +821,6 @@ function AppContent() {
       origin: { y: 0.8 },
       colors: ['#10b981', '#34d399', '#059669', '#3b82f6', '#8b5cf6']
     });
-
-    setTimeout(() => {
-      setHighlightedMemberId((current) => (current === memberId ? null : current));
-    }, 3000);
   };
 
   const deepLinkedMember = useRef(false);
@@ -711,6 +891,7 @@ function AppContent() {
         }}
         onExportPNG={handleExportPNG}
         onAddMember={() => setIsCreateOpen(true)}
+        onMapSpouse={() => setIsMapSpouseOpen(true)}
       />
 
       <div className="relative flex min-h-0 flex-1">
@@ -846,6 +1027,18 @@ function AppContent() {
           setFocusedNodeId(createdId);
           setHighlightedMemberId(createdId);
           setTimeout(() => setHighlightedMemberId((current) => (current === createdId ? null : current)), 3000);
+        }}
+      />
+
+      <MapSpouseModal
+        open={isMapSpouseOpen}
+        onClose={() => setIsMapSpouseOpen(false)}
+        members={members}
+        unions={unions}
+        memberRanks={memberRanks}
+        onMapped={async () => {
+          await loadTreeData();
+          await refreshFamilyData();
         }}
       />
     </div>

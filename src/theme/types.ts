@@ -32,6 +32,9 @@ export interface ThemeColors {
   shadow: string;
   map: string;
   ring: string;
+  ghostCard: string;
+  ghostBorder: string;
+  ghostFg: string;
 }
 
 export interface ThemeDefinition {
@@ -69,5 +72,8 @@ export const THEME_COLOR_TO_CSS: Record<keyof ThemeColors, string> = {
   overlayStrong: "--theme-overlay-strong",
   shadow: "--theme-shadow",
   map: "--theme-map",
-  ring: "--theme-ring"
+  ring: "--theme-ring",
+  ghostCard: "--theme-ghost-card",
+  ghostBorder: "--theme-ghost-border",
+  ghostFg: "--theme-ghost-fg"
 };

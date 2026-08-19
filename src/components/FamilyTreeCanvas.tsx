@@ -61,41 +61,46 @@ export const FamilyTreeCanvas: React.FC<FamilyTreeCanvasProps> = ({
   const { setCenter, fitView } = useReactFlow();
   const { theme } = useTheme();
 
-  // Handle focus node transitions
+  // Handle focus node transitions (real member only — never a ghost card)
   useEffect(() => {
     if (!focusedNodeId) return;
 
-    const node = nodes.find((n) => n.id === focusedNodeId);
+    const node = nodes.find((n) => {
+      if (n.id !== focusedNodeId) return false;
+      const data = n.data as { isGhost?: boolean } | undefined;
+      return !data?.isGhost;
+    });
     if (!node) return;
 
-    // Node coordinates are based on top-left. Let's center on the card.
-    // For MemberCard (width=220, height=100), center is offset by +110, +50
-    // For MarriageNode (width=24, height=24), center is offset by +12, +12
     const isMarriage = node.type === 'marriageNode';
     const offsetX = isMarriage ? 12 : 110;
     const offsetY = isMarriage ? 12 : 50;
 
-    setCenter(node.position.x + offsetX, node.position.y + offsetY, {
-      zoom: 1.15,
-      duration: 800
-    });
+    const panTimer = window.setTimeout(() => {
+      setCenter(node.position.x + offsetX, node.position.y + offsetY, {
+        zoom: 1.15,
+        duration: 800
+      });
+    }, 40);
 
-    // Reset focused node state after panning completes
-    const timer = setTimeout(() => {
+    const clearTimer = window.setTimeout(() => {
       onClearFocus();
-    }, 1000);
+    }, 1100);
 
-    return () => clearTimeout(timer);
+    return () => {
+      window.clearTimeout(panTimer);
+      window.clearTimeout(clearTimer);
+    };
   }, [focusedNodeId, nodes, setCenter, onClearFocus]);
 
   // Keep the full hierarchical tree framed whenever nodes change
   useEffect(() => {
-    if (nodes.length === 0) return;
+    if (nodes.length === 0 || focusedNodeId) return;
     const timer = setTimeout(() => {
       fitView({ padding: 0.22, duration: 350 });
     }, 60);
     return () => clearTimeout(timer);
-  }, [nodes, fitView]);
+  }, [nodes, fitView, focusedNodeId]);
 
   return (
     <div className="w-full h-full relative" id="family-tree-canvas-wrapper">

@@ -33,6 +33,9 @@ export const midnightTheme: ThemeDefinition = {
     overlayStrong: "rgba(0, 0, 0, 0.9)",
     shadow: "0 25px 50px -12px rgba(0, 0, 0, 0.35)",
     map: "#0f172a",
-    ring: "#34d399"
+    ring: "#34d399",
+    ghostCard: "#3b4657",
+    ghostBorder: "#94a3b8",
+    ghostFg: "#e2e8f0"
   }
 };

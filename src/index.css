@@ -31,6 +31,9 @@
   --theme-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
   --theme-map: #0f172a;
   --theme-ring: #34d399;
+  --theme-ghost-card: #3b4657;
+  --theme-ghost-border: #94a3b8;
+  --theme-ghost-fg: #e2e8f0;
 }
 
 [data-theme="ocean-breeze"] {
@@ -62,6 +65,9 @@
   --theme-shadow: 0 10px 30px rgba(16, 42, 67, 0.08);
   --theme-map: #e7f2f9;
   --theme-ring: #0e8f9e;
+  --theme-ghost-card: #1e293b;
+  --theme-ghost-border: #64748b;
+  --theme-ghost-fg: #e2e8f0;
 }
 
 @theme {
@@ -93,6 +99,9 @@
   --color-overlay: var(--theme-overlay);
   --color-overlay-strong: var(--theme-overlay-strong);
   --color-ring: var(--theme-ring);
+  --color-ghost-card: var(--theme-ghost-card);
+  --color-ghost-border: var(--theme-ghost-border);
+  --color-ghost-fg: var(--theme-ghost-fg);
 
   --color-slate-50: var(--theme-fg);
   --color-slate-100: var(--theme-fg);

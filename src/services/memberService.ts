@@ -160,6 +160,14 @@ export async function updateMember(
   return resolveMemberProfile(result);
 }
 
+/** Map two existing members as spouses (sets FK_Members_Spouse both ways). */
+export function mapSpouse(memberId: number, spouseId: number): Promise<void> {
+  return apiRequest<void>(`${MEMBERS_BASE}/map-spouse`, {
+    method: "POST",
+    body: { memberId, spouseId }
+  });
+}
+
 /** Soft-delete a member (API may reject if they still have children) */
 export function deleteMember(memberId: number): Promise<void> {
   return apiRequest<void>(`${MEMBERS_BASE}/${memberId}`, {
