@@ -11,9 +11,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, BarChart3, Clock, Download, X, UserPlus, HeartHandshake } from 'lucide-react';
 import type { FamilyMember } from '../types';
 import { canCreateMember, canEdit } from '../auth/permissions';
+import { matchesMemberRank, memberDisplayId, type MemberRanks } from '../utils/memberRanks';
 
 interface SearchHeaderProps {
   members: FamilyMember[];
+  memberRanks: MemberRanks;
   onSearchMatch: (memberId: string) => void;
   onOpenAnalytics: () => void;
   onOpenTimeline: () => void;
@@ -24,6 +26,7 @@ interface SearchHeaderProps {
 
 export const SearchHeader: React.FC<SearchHeaderProps> = ({
   members,
+  memberRanks,
   onSearchMatch,
   onOpenAnalytics,
   onOpenTimeline,
@@ -52,10 +55,11 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
         (m.nickname || '').toLowerCase().includes(query) ||
         m.relation.toLowerCase().includes(query) ||
         m.location.toLowerCase().includes(query) ||
-        m.profession.toLowerCase().includes(query)
+        m.profession.toLowerCase().includes(query) ||
+        matchesMemberRank(memberRanks, m.id, query)
     );
     setSuggestions(filtered);
-  }, [searchQuery, members]);
+  }, [searchQuery, members, memberRanks]);
 
   // Click outside listener to close search autocomplete
   useEffect(() => {
@@ -103,7 +107,7 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
                 setIsOpen(true);
               }}
               onFocus={() => setIsOpen(true)}
-              placeholder="Search relative, role, or location..."
+              placeholder="Search by name, #id, role, or location..."
               className="w-full pl-10 pr-10 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 text-sm focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30 focus:outline-none transition-all placeholder-slate-500"
             />
             {searchQuery && (
@@ -132,9 +136,12 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
                   />
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-emerald-400 shrink-0">
+                        {memberDisplayId(memberRanks, m.id)}
+                      </span>
                       <p className="text-sm font-semibold text-slate-200 truncate">{m.name}</p>
                       <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 border border-slate-750 text-slate-400 font-medium">
-                        {m.relation}
+                        {m.nickname || m.relation}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 truncate mt-0.5">

@@ -880,6 +880,7 @@ function AppContent() {
     <div className="w-full h-full bg-slate-950 flex flex-col relative select-none">
       <SearchHeader
         members={members}
+        memberRanks={memberRanks}
         onSearchMatch={handleSearchMatch}
         onOpenAnalytics={() => {
           setIsAnalyticsOpen(true);

@@ -1,9 +1,7 @@
 import { mockStories, type MockStory } from "./mockStories";
-import { mockEvents, type MockEvent } from "./mockEvents";
 import { mockAlbums, type MockAlbum, type MockPhoto } from "./mockGallery";
 
 let stories = [...mockStories];
-let events = [...mockEvents];
 let albums = mockAlbums.map((album) => ({ ...album, photos: [...album.photos] }));
 
 export function listStories() {
@@ -19,21 +17,6 @@ export function saveStory(story: MockStory) {
 }
 export function removeStory(id: string) {
   stories = stories.filter((s) => s.id !== id);
-}
-
-export function listEvents() {
-  return events;
-}
-export function getEvent(id: string) {
-  return events.find((e) => e.id === id);
-}
-export function saveEvent(event: MockEvent) {
-  const index = events.findIndex((e) => e.id === event.id);
-  if (index >= 0) events[index] = event;
-  else events = [event, ...events];
-}
-export function removeEvent(id: string) {
-  events = events.filter((e) => e.id !== id);
 }
 
 export function listAlbums() {
