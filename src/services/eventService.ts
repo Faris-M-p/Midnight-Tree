@@ -111,7 +111,11 @@ function buildFormData(input: EventUpsertInput): FormData {
 }
 
 export async function listEvents(query: EventListQuery = {}): Promise<PagedEvents> {
-  const data = asRecord(await apiRequest<unknown>(`/api/events${buildListQuery(query)}`));
+  const data = asRecord(
+    await apiRequest<unknown>(`/api/events${buildListQuery(query)}`, {
+      trackLoading: false
+    })
+  );
   const itemsRaw = pick<unknown[]>(data, "items", "Items") ?? [];
   return {
     items: Array.isArray(itemsRaw) ? itemsRaw.map(mapListItem) : [],

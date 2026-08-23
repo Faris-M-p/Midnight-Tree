@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ImagePlus, Search, X } from "lucide-react";
+import { Calendar, ImageIcon, ImagePlus, Search, Sparkles, X } from "lucide-react";
 import { matchPath, navigateTo } from "../../routing/navigate";
 import { canEditFamily } from "../../auth/permissions";
 import { DateTimePicker } from "../../components/DateTimePicker";
@@ -378,6 +378,14 @@ function EventDetailsView({ eventId }: { eventId: number }) {
 
   return (
     <article className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
+      <button
+        type="button"
+        onClick={() => navigateTo("/events")}
+        className="inline-flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300"
+      >
+        ← Back to Events
+      </button>
+
       {event.coverImageUrl ? (
         <img
           src={event.coverImageUrl}
@@ -487,6 +495,78 @@ function EventCard({ event }: { event: EventListItem }) {
   );
 }
 
+function EventCardSkeleton() {
+  return (
+    <div
+      className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40"
+      aria-hidden="true"
+    >
+      <div className="flex h-32 w-full animate-pulse items-center justify-center bg-slate-800/70">
+        <ImageIcon className="h-8 w-8 text-slate-600" strokeWidth={1.25} />
+      </div>
+      <div className="space-y-2 p-4">
+        <div className="h-2.5 w-14 animate-pulse rounded bg-slate-800" />
+        <div className="h-4 w-2/3 animate-pulse rounded bg-slate-800" />
+        <div className="h-3 w-1/2 animate-pulse rounded bg-slate-800" />
+      </div>
+    </div>
+  );
+}
+
+function EventsSectionSkeleton({ title, count }: { title: string; count: number }) {
+  return (
+    <section className="space-y-3" aria-busy="true" aria-label={`Loading ${title}`}>
+      <h3 className="font-semibold text-slate-100">{title}</h3>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {Array.from({ length: count }).map((_, index) => (
+          <EventCardSkeleton key={`${title}-${index}`} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function UpcomingEventsEmpty() {
+  const canCreate = canEditFamily();
+
+  return (
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 bg-slate-900/20 px-6 py-12 text-center">
+      <div className="relative mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/15 shadow-[0_0_36px_rgba(16,185,129,0.22)]">
+        <Calendar className="h-10 w-10 text-emerald-400" strokeWidth={1.5} />
+        <Sparkles
+          className="absolute -right-0.5 top-1.5 h-4 w-4 text-emerald-400"
+          strokeWidth={1.75}
+        />
+      </div>
+      <h4 className="text-base font-semibold text-slate-100">No upcoming events yet</h4>
+      <p className="mt-2 max-w-sm text-sm text-slate-400">
+        Create an event to keep track of your family&apos;s important dates.
+      </p>
+      {canCreate ? (
+        <button
+          type="button"
+          onClick={() => navigateTo("/events/create")}
+          className="mt-5 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
+        >
+          Create event
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function PastEventsEmpty() {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800/80 bg-transparent px-6 py-10 text-center">
+      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full border border-slate-800 bg-slate-900/30">
+        <Calendar className="h-7 w-7 text-slate-500" strokeWidth={1.25} />
+      </div>
+      <h4 className="text-sm font-semibold text-slate-100">No past events yet</h4>
+      <p className="mt-1.5 text-sm text-slate-500">Your past events will appear here.</p>
+    </div>
+  );
+}
+
 function EventsListView() {
   const [events, setEvents] = useState<EventListItem[]>([]);
   const [search, setSearch] = useState("");
@@ -526,28 +606,10 @@ function EventsListView() {
     [events]
   );
 
-  const List = ({ title, items }: { title: string; items: EventListItem[] }) => (
-    <section className="space-y-3">
-      <h3 className="font-semibold text-slate-100">{title}</h3>
-      {items.length === 0 ? (
-        <p className="text-sm text-slate-500">None yet.</p>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {items.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </div>
-      )}
-    </section>
-  );
-
-  if (loading) return <LoadingState label="Loading events..." />;
-  if (error) return <ErrorState message={error} onRetry={() => void load()} />;
-
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-md">
+        <div className="relative max-w-md flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <input
             type="search"
@@ -561,20 +623,58 @@ function EventsListView() {
             }}
             placeholder="Search events..."
             className={`${eventInputClass} pl-9`}
+            disabled={loading}
           />
         </div>
         {canEditFamily() && (
           <button
             type="button"
             onClick={() => navigateTo("/events/create")}
-            className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950"
+            className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
           >
             Create event
           </button>
         )}
       </div>
-      <List title="Upcoming events" items={upcoming} />
-      <List title="Past events" items={past} />
+
+      {loading ? (
+        <>
+          <EventsSectionSkeleton title="Upcoming events" count={2} />
+          <EventsSectionSkeleton title="Past events" count={2} />
+        </>
+      ) : null}
+
+      {!loading && error ? <ErrorState message={error} onRetry={() => void load()} /> : null}
+
+      {!loading && !error ? (
+        <>
+          <section className="space-y-3">
+            <h3 className="font-semibold text-slate-100">Upcoming events</h3>
+            {upcoming.length === 0 ? (
+              <UpcomingEventsEmpty />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {upcoming.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="space-y-3 border-t border-slate-800 pt-6">
+            <h3 className="font-semibold text-slate-100">Past events</h3>
+            {past.length === 0 ? (
+              <PastEventsEmpty />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {past.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
+              </div>
+            )}
+          </section>
+        </>
+      ) : null}
     </div>
   );
 }

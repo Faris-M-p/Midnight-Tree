@@ -196,13 +196,16 @@ export async function apiRequest<TResponse, TBody = unknown>(
     method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     body?: TBody;
     headers?: Record<string, string>;
+    /** When false, skip GlobalLoader (use page-local shimmer instead). Default true. */
+    trackLoading?: boolean;
   } = {}
 ): Promise<TResponse> {
-  beginApiRequest();
+  const trackLoading = options.trackLoading !== false;
+  if (trackLoading) beginApiRequest();
   try {
     return await apiRequestInner<TResponse, TBody>(path, options);
   } finally {
-    endApiRequest();
+    if (trackLoading) endApiRequest();
   }
 }
 
