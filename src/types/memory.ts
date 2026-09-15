@@ -4,7 +4,7 @@ export interface MemoryListItem {
   description?: string | null;
   memoryDate: string;
   location?: string | null;
-  coverImageId?: number | null;
+  coverImageId?: number | string | null;
   coverUrl?: string | null;
   imageCount: number;
   createdOn?: string;
@@ -39,7 +39,7 @@ export interface MemoryDetail {
   description?: string | null;
   memoryDate: string;
   location?: string | null;
-  coverImageId?: number | null;
+  coverImageId?: number | string | null;
   coverUrl?: string | null;
   cover?: MemoryCover | null;
   images: MemoryImageItem[];

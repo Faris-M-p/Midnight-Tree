@@ -9,6 +9,9 @@
     "lint": "oxlint",
     "preview": "vite preview"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "@xyflow/react": "^12.11.1",
     "canvas-confetti": "^1.9.4",
