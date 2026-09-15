@@ -1,24 +1,30 @@
 /**
- * =============================================================================
- * FILE: src/config/env.ts
- * ROLE: Environment / configuration
- * =============================================================================
- * Reads values from the `.env` file (Vite prefix: VITE_*).
- *
- * Important:
- *   VITE_API_BASE_URL  →  base address of MidnightApi
- *                         example: https://localhost:7187
- *
- * All API services should import `env.apiBaseUrl` instead of hardcoding URLs.
- * =============================================================================
+ * Client environment. Firebase is required. MidnightApi is not used.
  */
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
-if (!apiBaseUrl) {
-  throw new Error("Missing VITE_API_BASE_URL environment variable.");
+function readOptional(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 export const env = {
-  /** ASP.NET API root without a trailing slash */
-  apiBaseUrl: apiBaseUrl.replace(/\/+$/, "")
+  firebase: {
+    apiKey: readOptional(import.meta.env.VITE_FIREBASE_API_KEY),
+    authDomain: readOptional(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN),
+    projectId: readOptional(import.meta.env.VITE_FIREBASE_PROJECT_ID),
+    storageBucket: readOptional(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET),
+    messagingSenderId: readOptional(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID),
+    appId: readOptional(import.meta.env.VITE_FIREBASE_APP_ID)
+  }
 };
+
+export function isFirebaseConfigured(): boolean {
+  const firebase = env.firebase;
+  return Boolean(
+    firebase.apiKey &&
+      firebase.authDomain &&
+      firebase.projectId &&
+      firebase.storageBucket &&
+      firebase.messagingSenderId &&
+      firebase.appId
+  );
+}

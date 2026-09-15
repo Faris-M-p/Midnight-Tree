@@ -26,7 +26,22 @@ function TreeNode({ node, isRoot = false }: { node: HomeTreePreviewNode; isRoot?
   );
 }
 
-export function FamilyTreePreview({ root }: { root: HomeTreePreviewNode }) {
+export function FamilyTreePreview({ root }: { root: HomeTreePreviewNode | null }) {
+  if (!root) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 px-4 py-10 text-center">
+        <p className="text-sm text-slate-400">No family tree yet.</p>
+        <button
+          type="button"
+          onClick={() => navigateTo("/family-tree")}
+          className="mt-4 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
+        >
+          View Full Family Tree
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/40 p-4 sm:p-6">
       <div className="mx-auto flex min-w-[20rem] justify-center">

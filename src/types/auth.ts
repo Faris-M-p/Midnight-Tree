@@ -89,11 +89,11 @@ export interface AccessTokenLoginRequest {
 export interface AccessTokenLoginUser {
   authType: AccessAuthType;
   familyId: number;
-  tokenId: number;
+  tokenId: number | string;
   tokenName: string;
   permission: AccessPermission;
   scope: AccessScope;
-  scopeMemberId?: number | null;
+  scopeMemberId?: number | string | null;
   isAdmin: boolean;
 }
 
@@ -111,6 +111,8 @@ export interface AuthUser {
   [key: string]: unknown;
 }
 
+export type AuthProvider = "api" | "firebase";
+
 /** Persisted login session kept in the browser */
 export interface AuthSession {
   accessToken: string;
@@ -119,11 +121,13 @@ export interface AuthSession {
   refreshToken?: string | null;
   user?: AuthUser | null;
   authType?: AccessAuthType;
+  authProvider?: AuthProvider;
+  firebaseFamilyId?: string | null;
   isAdmin?: boolean;
   familyId?: number | null;
-  tokenId?: number | null;
+  tokenId?: number | string | null;
   tokenName?: string | null;
   permission?: AccessPermission;
   scope?: AccessScope;
-  scopeMemberId?: number | null;
+  scopeMemberId?: number | string | null;
 }

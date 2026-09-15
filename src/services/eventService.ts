@@ -1,4 +1,18 @@
-import { apiFormRequest, apiRequest } from "./apiClient";
+import { FirebaseClientError } from "../firebase/errors/firebaseErrorHandler";
+import { getCurrentFirebaseUser } from "../firebase/auth/firebaseAuth";
+import { ensureCurrentFamilyId } from "../firebase/auth/currentFamily";
+import {
+  createEvent as createFirebaseEvent,
+  deleteEvent as deleteFirebaseEvent,
+  getEvent as getFirebaseEvent,
+  getEventsByFamily,
+  updateEvent as updateFirebaseEvent
+} from "../firebase/firestore/eventService";
+import { getMembersByFamily } from "../firebase/firestore/memberService";
+import type { FirebaseEvent, FirebaseFamilyMember } from "../firebase/types/firebaseTypes";
+import { fileToCompressedDataUrl, isLikelyImageFile } from "../utils/imageFile";
+import { EVENT_MAX_IMAGE_BYTES } from "../utils/eventImages";
+import { formatEventDateTime } from "../utils/eventDateTime";
 import type {
   EventDetail,
   EventListItem,
@@ -7,139 +21,202 @@ import type {
   EventUpsertInput,
   PagedEvents
 } from "../types/event";
-import { EVENT_TYPES } from "../types/event";
-import { formatEventDateTime } from "../utils/eventDateTime";
 
-type AnyRecord = Record<string, unknown>;
-
-function asRecord(value: unknown): AnyRecord {
-  return value && typeof value === "object" ? (value as AnyRecord) : {};
+function asId(value: string | number | null | undefined): string {
+  return value == null ? "" : String(value);
 }
 
-function pick<T>(obj: AnyRecord, ...keys: string[]): T | undefined {
-  for (const key of keys) {
-    if (obj[key] !== undefined && obj[key] !== null) {
-      return obj[key] as T;
+function timestampToIso(value: unknown): string | undefined {
+  if (!value) return undefined;
+  if (typeof value === "string") return value;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "object" && value !== null && "toDate" in value) {
+    try {
+      return (value as { toDate: () => Date }).toDate().toISOString();
+    } catch {
+      return undefined;
     }
   }
   return undefined;
 }
 
-function normalizeEventType(value?: string | null): string {
-  const raw = (value ?? "").trim().toLowerCase();
-  return (EVENT_TYPES as string[]).includes(raw) ? raw : raw || "custom";
+function fullName(member: Pick<FirebaseFamilyMember, "firstName" | "lastName">): string {
+  return `${member.firstName} ${member.lastName ?? ""}`.replace(/\s+/g, " ").trim();
 }
 
-function mapMember(raw: unknown): EventMemberItem {
-  const item = asRecord(raw);
-  const firstName = String(pick<string>(item, "firstName", "FirstName") ?? "");
-  const lastName = String(pick<string>(item, "lastName", "LastName") ?? "");
-  const fullName =
-    String(pick<string>(item, "fullName", "FullName") ?? "").trim() ||
-    `${firstName} ${lastName}`.trim();
+function toMemberItem(member: FirebaseFamilyMember): EventMemberItem {
   return {
-    id: Number(pick<number>(item, "id", "Id") ?? 0),
-    firstName,
-    lastName,
-    fullName,
-    photoUrl: pick<string | null>(item, "photoUrl", "PhotoUrl") ?? null
+    id: member.id ?? "",
+    firstName: member.firstName,
+    lastName: member.lastName ?? "",
+    fullName: fullName(member),
+    photoUrl: member.photoUrl ?? null
   };
 }
 
-function mapListItem(raw: unknown): EventListItem {
-  const item = asRecord(raw);
-  return {
-    id: Number(pick<number>(item, "id", "Id") ?? 0),
-    title: String(pick<string>(item, "title", "Title") ?? ""),
-    eventType: normalizeEventType(pick<string>(item, "eventType", "EventType")),
-    eventDateTime: String(pick<string>(item, "eventDateTime", "EventDateTime") ?? ""),
-    locationName: pick<string | null>(item, "locationName", "LocationName", "location", "Location") ?? null,
-    latitude: pick<number | null>(item, "latitude", "Latitude") ?? null,
-    longitude: pick<number | null>(item, "longitude", "Longitude") ?? null,
-    description: pick<string | null>(item, "description", "Description") ?? null,
-    coverImageUrl: pick<string | null>(item, "coverImageUrl", "CoverImageUrl") ?? null,
-    memberCount: Number(pick<number>(item, "memberCount", "MemberCount") ?? 0),
-    memberNames: pick<string | null>(item, "memberNames", "MemberNames") ?? null,
-    createdOn: pick<string>(item, "createdOn", "CreatedOn")
-  };
-}
-
-function mapDetail(raw: unknown): EventDetail {
-  const data = asRecord(raw);
-  const membersRaw = pick<unknown[]>(data, "members", "Members") ?? [];
-  return {
-    id: Number(pick<number>(data, "id", "Id") ?? 0),
-    title: String(pick<string>(data, "title", "Title") ?? ""),
-    eventType: normalizeEventType(pick<string>(data, "eventType", "EventType")),
-    eventDateTime: String(pick<string>(data, "eventDateTime", "EventDateTime") ?? ""),
-    locationName: pick<string | null>(data, "locationName", "LocationName", "location", "Location") ?? null,
-    latitude: pick<number | null>(data, "latitude", "Latitude") ?? null,
-    longitude: pick<number | null>(data, "longitude", "Longitude") ?? null,
-    description: pick<string | null>(data, "description", "Description") ?? null,
-    coverImageUrl: pick<string | null>(data, "coverImageUrl", "CoverImageUrl") ?? null,
-    members: Array.isArray(membersRaw) ? membersRaw.map(mapMember).filter((m) => m.id > 0) : [],
-    createdOn: pick<string>(data, "createdOn", "CreatedOn"),
-    updatedOn: pick<string | null>(data, "updatedOn", "UpdatedOn") ?? null
-  };
-}
-
-function buildListQuery(query: EventListQuery = {}): string {
-  const params = new URLSearchParams();
-  if (query.search?.trim()) params.set("search", query.search.trim());
-  if (query.sortBy) params.set("sortBy", query.sortBy);
-  if (query.page) params.set("page", String(query.page));
-  if (query.pageSize) params.set("pageSize", String(query.pageSize));
-  const qs = params.toString();
-  return qs ? `?${qs}` : "";
-}
-
-function buildFormData(input: EventUpsertInput): FormData {
-  const form = new FormData();
-  form.append("Title", input.title.trim());
-  form.append("EventType", normalizeEventType(input.eventType));
-  form.append("EventDateTime", input.eventDateTime);
-  if (input.locationName?.trim()) form.append("LocationName", input.locationName.trim());
-  if (input.latitude != null) form.append("Latitude", String(input.latitude));
-  if (input.longitude != null) form.append("Longitude", String(input.longitude));
-  if (input.description?.trim()) form.append("Description", input.description.trim());
-  for (const id of input.memberIds.filter((value) => Number.isFinite(value) && value > 0)) {
-    form.append("MemberIds", String(id));
+async function compressCover(file: File): Promise<string> {
+  if (!isLikelyImageFile(file)) {
+    throw new FirebaseClientError("Please choose a JPG, JPEG, PNG, or WEBP image.", "invalid-argument");
   }
-  if (input.coverImage) form.append("CoverImage", input.coverImage);
-  if (input.removeCover) form.append("RemoveCover", "true");
-  return form;
+  if (file.size > EVENT_MAX_IMAGE_BYTES) {
+    throw new FirebaseClientError("Image must be 10 MB or smaller.", "invalid-argument");
+  }
+  try {
+    return await fileToCompressedDataUrl(file, 1000, 0.78);
+  } catch {
+    throw new FirebaseClientError("Could not read this image. Try a JPG or PNG.", "invalid-argument");
+  }
+}
+
+function toListItem(event: FirebaseEvent, membersById: Map<string, FirebaseFamilyMember>): EventListItem {
+  const memberIds = (event.memberIds ?? []).map(asId).filter(Boolean);
+  const named = memberIds
+    .map((id) => membersById.get(id))
+    .filter((member): member is FirebaseFamilyMember => Boolean(member))
+    .map((member) => fullName(member));
+  return {
+    id: event.id ?? "",
+    title: event.title,
+    eventType: event.eventType,
+    eventDateTime: event.eventDateTime,
+    locationName: event.locationName ?? null,
+    latitude: event.latitude ?? null,
+    longitude: event.longitude ?? null,
+    description: event.description ?? null,
+    coverImageUrl: event.coverImageUrl ?? null,
+    memberCount: memberIds.length,
+    memberNames: named.length ? named.join(", ") : null,
+    createdOn: timestampToIso(event.createdAt)
+  };
+}
+
+function toDetail(event: FirebaseEvent, membersById: Map<string, FirebaseFamilyMember>): EventDetail {
+  const members = (event.memberIds ?? [])
+    .map((id) => membersById.get(asId(id)))
+    .filter((member): member is FirebaseFamilyMember => Boolean(member))
+    .map(toMemberItem);
+  return {
+    id: event.id ?? "",
+    title: event.title,
+    eventType: event.eventType,
+    eventDateTime: event.eventDateTime,
+    locationName: event.locationName ?? null,
+    latitude: event.latitude ?? null,
+    longitude: event.longitude ?? null,
+    description: event.description ?? null,
+    coverImageUrl: event.coverImageUrl ?? null,
+    members,
+    createdOn: timestampToIso(event.createdAt),
+    updatedOn: timestampToIso(event.updatedAt) ?? null
+  };
+}
+
+async function membersMap(familyId: string): Promise<Map<string, FirebaseFamilyMember>> {
+  const members = await getMembersByFamily(familyId);
+  return new Map(members.filter((member) => member.id).map((member) => [member.id as string, member]));
+}
+
+async function coverUrlFromInput(
+  input: EventUpsertInput,
+  existingCover?: string | null
+): Promise<string | null> {
+  if (input.removeCover) return null;
+  if (input.coverImage) return compressCover(input.coverImage);
+  return existingCover ?? null;
 }
 
 export async function listEvents(query: EventListQuery = {}): Promise<PagedEvents> {
-  const data = asRecord(
-    await apiRequest<unknown>(`/api/events${buildListQuery(query)}`, {
-      trackLoading: false
-    })
-  );
-  const itemsRaw = pick<unknown[]>(data, "items", "Items") ?? [];
+  const familyId = await ensureCurrentFamilyId();
+  const page = Math.max(1, query.page ?? 1);
+  const pageSize = Math.max(1, query.pageSize ?? 100);
+  const search = (query.search ?? "").trim().toLowerCase();
+  const byId = await membersMap(familyId);
+
+  let rows = await getEventsByFamily(familyId);
+  if (search) {
+    rows = rows.filter((event) => {
+      const haystack = `${event.title} ${event.description ?? ""} ${event.locationName ?? ""} ${event.eventType}`.toLowerCase();
+      return haystack.includes(search);
+    });
+  }
+
+  rows.sort((left, right) => {
+    if (query.sortBy === "title") return left.title.localeCompare(right.title);
+    if (query.sortBy === "recent") {
+      return (timestampToIso(right.createdAt) ?? "").localeCompare(timestampToIso(left.createdAt) ?? "");
+    }
+    return (left.eventDateTime || "").localeCompare(right.eventDateTime || "");
+  });
+
+  const totalCount = rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const start = (page - 1) * pageSize;
   return {
-    items: Array.isArray(itemsRaw) ? itemsRaw.map(mapListItem) : [],
-    page: Number(pick<number>(data, "page", "Page") ?? 1),
-    pageSize: Number(pick<number>(data, "pageSize", "PageSize") ?? 100),
-    totalCount: Number(pick<number>(data, "totalCount", "TotalCount") ?? 0),
-    totalPages: Number(pick<number>(data, "totalPages", "TotalPages") ?? 0)
+    items: rows.slice(start, start + pageSize).map((event) => toListItem(event, byId)),
+    page,
+    pageSize,
+    totalCount,
+    totalPages
   };
 }
 
-export async function getEvent(id: number): Promise<EventDetail> {
-  return mapDetail(await apiRequest<unknown>(`/api/events/${id}`));
+export async function getEvent(id: string | number): Promise<EventDetail> {
+  const eventId = asId(id);
+  const event = await getFirebaseEvent(eventId);
+  if (!event?.id) {
+    throw new FirebaseClientError("Event not found.", "not-found");
+  }
+  const byId = await membersMap(event.familyId);
+  return toDetail(event, byId);
 }
 
 export async function createEvent(input: EventUpsertInput): Promise<EventDetail> {
-  return mapDetail(await apiFormRequest<unknown>("/api/events", buildFormData(input), "POST"));
+  const familyId = await ensureCurrentFamilyId();
+  const user = getCurrentFirebaseUser();
+  const coverImageUrl = await coverUrlFromInput(input, null);
+  const created = await createFirebaseEvent({
+    familyId,
+    title: input.title,
+    eventType: input.eventType,
+    eventDateTime: input.eventDateTime,
+    locationName: input.locationName ?? null,
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
+    description: input.description ?? null,
+    coverImageUrl,
+    memberIds: input.memberIds.map(asId).filter(Boolean),
+    createdBy: user?.uid ?? "unknown"
+  });
+  if (!created.id) {
+    throw new FirebaseClientError("Event could not be created.", "failed-precondition");
+  }
+  const byId = await membersMap(familyId);
+  return toDetail(created, byId);
 }
 
-export async function updateEvent(id: number, input: EventUpsertInput): Promise<EventDetail> {
-  return mapDetail(await apiFormRequest<unknown>(`/api/events/${id}`, buildFormData(input), "PUT"));
+export async function updateEvent(id: string | number, input: EventUpsertInput): Promise<EventDetail> {
+  const eventId = asId(id);
+  const existing = await getFirebaseEvent(eventId);
+  if (!existing?.id) {
+    throw new FirebaseClientError("Event not found.", "not-found");
+  }
+  const coverImageUrl = await coverUrlFromInput(input, existing.coverImageUrl);
+  await updateFirebaseEvent(eventId, {
+    title: input.title,
+    eventType: input.eventType,
+    eventDateTime: input.eventDateTime,
+    locationName: input.locationName ?? null,
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
+    description: input.description ?? null,
+    coverImageUrl,
+    memberIds: input.memberIds.map(asId).filter(Boolean)
+  });
+  return getEvent(eventId);
 }
 
-export async function deleteEvent(id: number): Promise<void> {
-  await apiRequest(`/api/events/${id}`, { method: "DELETE" });
+export async function deleteEvent(id: string | number): Promise<void> {
+  await deleteFirebaseEvent(asId(id));
 }
 
 export function formatEventTypeLabel(type?: string | null): string {

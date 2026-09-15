@@ -4,11 +4,11 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { PublicHeader } from "../components/layout/PublicHeader";
-import { ApiClientError } from "../services/apiClient";
+import { FirebaseClientError } from "../firebase/errors/firebaseErrorHandler";
 import { requestForgotPassword } from "../services/authService";
-import { setPendingForgotPassword } from "../auth/pendingAuth";
 import { notify } from "../utils/notify";
 import { useActionLock } from "../hooks/useActionLock";
+import { BusyContent } from "../components/ui/RoundSpinner";
 
 interface ForgotPasswordPageProps {
   onNavigate: (path: string) => void;
@@ -36,12 +36,11 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
       setError("");
       try {
         const result = await requestForgotPassword({ email: value });
-        setPendingForgotPassword(value);
-        notify.success(result.message || "If an account exists for this email, a verification code has been sent.");
-        onNavigate("/forgot-password/verify");
+        notify.success(result.message || "If an account exists for this email, a reset link has been sent.");
+        onNavigate("/login");
       } catch (err) {
-        if (err instanceof ApiClientError) notify.fromApiError(err);
-        else notify.error("Unable to send verification email. Please try again.");
+        if (err instanceof FirebaseClientError) notify.error(err.message);
+        else notify.error("Unable to send the reset email. Please try again.");
       }
     });
   };
@@ -55,7 +54,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
             <p className="text-xs uppercase tracking-[0.2em] text-emerald-400">Midnight Chronicle</p>
             <h1 className="text-3xl font-semibold text-slate-100">Forgot password</h1>
             <p className="text-sm text-slate-400">
-              Enter your account email and we&apos;ll send a verification code if an account exists.
+              Enter your account email and we&apos;ll send a reset link if an account exists.
             </p>
           </div>
 
@@ -81,7 +80,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
               disabled={!canSubmit}
               className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
             >
-              Send verification code
+              <BusyContent busy={isBusy}>Send reset link</BusyContent>
             </button>
           </form>
 

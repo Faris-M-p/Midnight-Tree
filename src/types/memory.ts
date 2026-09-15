@@ -1,5 +1,5 @@
 export interface MemoryListItem {
-  id: number;
+  id: number | string;
   title: string;
   description?: string | null;
   memoryDate: string;
@@ -11,7 +11,7 @@ export interface MemoryListItem {
 }
 
 export interface MemoryImageItem {
-  id: number;
+  id: number | string;
   fileName?: string | null;
   storageKey?: string | null;
   imageUrl?: string | null;
@@ -24,7 +24,7 @@ export interface MemoryImageItem {
 }
 
 export interface MemoryCover {
-  id: number;
+  id: number | string;
   fileName?: string | null;
   storageKey?: string | null;
   imageUrl?: string | null;
@@ -34,7 +34,7 @@ export interface MemoryCover {
 }
 
 export interface MemoryDetail {
-  id: number;
+  id: number | string;
   title: string;
   description?: string | null;
   memoryDate: string;
@@ -56,7 +56,7 @@ export interface PagedMemories {
 }
 
 export interface MemoryImageAction {
-  imageId: number;
+  imageId: number | string;
   url?: string | null;
   fileSize: number;
   imageCount: number;

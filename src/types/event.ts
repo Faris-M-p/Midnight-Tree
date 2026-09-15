@@ -16,7 +16,7 @@ export const EVENT_TYPES: EventType[] = [
 ];
 
 export interface EventMemberItem {
-  id: number;
+  id: number | string;
   firstName: string;
   lastName: string;
   fullName: string;
@@ -24,7 +24,7 @@ export interface EventMemberItem {
 }
 
 export interface EventListItem {
-  id: number;
+  id: number | string;
   title: string;
   eventType: EventType | string;
   eventDateTime: string;
@@ -39,7 +39,7 @@ export interface EventListItem {
 }
 
 export interface EventDetail {
-  id: number;
+  id: number | string;
   title: string;
   eventType: EventType | string;
   eventDateTime: string;
@@ -76,7 +76,7 @@ export interface EventUpsertInput {
   latitude?: number | null;
   longitude?: number | null;
   description?: string | null;
-  memberIds: number[];
+  memberIds: Array<number | string>;
   coverImage?: File | null;
   removeCover?: boolean;
 }

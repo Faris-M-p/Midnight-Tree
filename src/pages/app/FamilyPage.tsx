@@ -1,16 +1,30 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Camera, Pencil } from "lucide-react";
-import { mockFamily, type MockFamily } from "../../data/mockFamily";
+import { DEFAULT_FAMILY_COVER, type MockFamily } from "../../data/mockFamily";
 import { setFamilyBranding } from "../../data/familyBranding";
 import { canEditFamily } from "../../auth/permissions";
 import { navigateTo, matchPath } from "../../routing/navigate";
 import { ProfilePhotoPicker } from "../../components/ui/ProfilePhotoPicker";
 import { ChangeCoverModal } from "../../components/family/ChangeCoverModal";
 import { getFamily, updateFamily } from "../../services/familyService";
-import { ApiClientError } from "../../services/apiClient";
+import { FirebaseClientError } from "../../firebase/errors/firebaseErrorHandler";
 import { notify } from "../../utils/notify";
 import { useActionLock } from "../../hooks/useActionLock";
 import { logUnexpected } from "../../utils/logFailure";
+import { isLikelyImageFile } from "../../utils/imageFile";
+import { BusyContent } from "../../components/ui/RoundSpinner";
+
+const emptyFamily: MockFamily = {
+  name: "Your Family",
+  code: "",
+  description: "",
+  origin: "",
+  history: "",
+  logo: "",
+  cover: DEFAULT_FAMILY_COVER,
+  foundedYear: new Date().getFullYear(),
+  location: ""
+};
 
 interface FamilyPageProps {
   pathname: string;
@@ -19,7 +33,7 @@ interface FamilyPageProps {
 export function FamilyPage({ pathname }: FamilyPageProps) {
   const isEdit = Boolean(matchPath("/family/edit", pathname));
   const allowFamilyEdit = canEditFamily();
-  const [draft, setDraft] = useState<MockFamily>({ ...mockFamily });
+  const [draft, setDraft] = useState<MockFamily>({ ...emptyFamily });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
   const { isBusy, run } = useActionLock();
@@ -35,13 +49,13 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
   useEffect(() => {
     getFamily()
       .then((family) => {
-        const logo = family.photoUrl || mockFamily.logo;
-        const cover = family.coverUrl || mockFamily.cover;
+        const logo = family.photoUrl || "";
+        const cover = family.coverUrl || DEFAULT_FAMILY_COVER;
         setFamilyBranding({
-          name: family.familyName || mockFamily.name,
-          code: family.familyCode || mockFamily.code,
+          name: family.familyName || "Your Family",
+          code: family.familyCode || "",
           logo,
-          description: family.description || mockFamily.description
+          description: family.description || ""
         });
         setDraft((current) => ({
           ...current,
@@ -51,13 +65,10 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
           logo,
           cover
         }));
-        if (family.coverUrl) {
-          mockFamily.cover = family.coverUrl;
-        }
       })
       .catch((error) => {
         logUnexpected("FamilyPage", error);
-        setDraft({ ...mockFamily });
+        setDraft({ ...emptyFamily });
       });
   }, []);
 
@@ -68,7 +79,7 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
   }, [photoPreview]);
 
   const handlePhotoSelected = (file: File) => {
-    if (!file.type.startsWith("image/")) {
+    if (!isLikelyImageFile(file)) {
       notify.validation("Please choose an image file.");
       return;
     }
@@ -103,20 +114,18 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
         const logo = updated.photoUrl || photoPreview || draft.logo;
         const name = updated.familyName || draft.name;
         const code = updated.familyCode || draft.code;
-        Object.assign(mockFamily, draft, { logo, name, code });
         setDraft((current) => ({ ...current, name, code, logo, description: updated.description || current.description }));
         setFamilyBranding({ name, code, logo, description: updated.description || draft.description });
         notify.success("Family details saved successfully.");
         navigateTo("/family");
       } catch (error) {
-        if (error instanceof ApiClientError) notify.fromApiError(error);
+        if (error instanceof FirebaseClientError) notify.error(error.message);
         else notify.error("Unable to save family details right now.");
       }
     });
   };
 
   const handleCoverSaved = (coverUrl: string) => {
-    mockFamily.cover = coverUrl;
     setDraft((current) => ({ ...current, cover: coverUrl }));
   };
 
@@ -124,7 +133,7 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
     if (!allowFamilyEdit) {
       return null;
     }
-    const preview = photoPreview || draft.logo || mockFamily.logo;
+    const preview = photoPreview || draft.logo;
 
     return (
       <div className="mx-auto max-w-3xl space-y-6 p-4 md:p-6">
@@ -197,9 +206,9 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
           <button
             type="submit"
             disabled={isBusy}
-            className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
           >
-            Save changes
+            <BusyContent busy={isBusy}>Save changes</BusyContent>
           </button>
         </form>
       </div>
@@ -209,7 +218,7 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
       <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900">
-        <div className="relative h-44 bg-cover bg-center md:h-56" style={{ backgroundImage: `url(${draft.cover || mockFamily.cover})` }}>
+        <div className="relative h-44 bg-cover bg-center md:h-56" style={{ backgroundImage: `url(${draft.cover || DEFAULT_FAMILY_COVER})` }}>
           {canEditFamily() && (
             <button
               type="button"
@@ -223,7 +232,14 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
         <div className="flex flex-col gap-4 px-5 py-5 md:flex-row md:items-end md:justify-between">
           <div className="flex items-end gap-4">
             <div className="relative -mt-14">
-              <img src={draft.logo || mockFamily.logo} alt="" className="h-24 w-24 rounded-2xl border-4 border-slate-900 object-cover" />
+              <img
+                src={
+                  draft.logo ||
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(draft.name || "Family")}&background=064e3b&color=fff`
+                }
+                alt=""
+                className="h-24 w-24 rounded-2xl border-4 border-slate-900 object-cover"
+              />
             </div>
             <div>
               <h2 className="text-2xl font-semibold text-slate-100">{draft.name}</h2>
@@ -264,7 +280,7 @@ export function FamilyPage({ pathname }: FamilyPageProps) {
 
       <ChangeCoverModal
         open={coverModalOpen}
-        currentCoverUrl={draft.cover || mockFamily.cover}
+        currentCoverUrl={draft.cover || DEFAULT_FAMILY_COVER}
         onClose={() => setCoverModalOpen(false)}
         onSaved={handleCoverSaved}
       />

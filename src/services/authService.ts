@@ -1,12 +1,10 @@
 /**
- * =============================================================================
- * FILE: src/services/authService.ts
- * ROLE: Account register / login / email verification / password recovery
- * =============================================================================
+ * Password recovery uses Firebase Auth. MidnightApi account endpoints are gone.
  */
 
-import { apiRequest } from "./apiClient";
-import { saveAuthSession } from "./authSessionService";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { getFirebaseAuth } from "../firebase/config/firebase";
+import { FirebaseClientError, runFirebase } from "../firebase/errors/firebaseErrorHandler";
 import type {
   ForgotPasswordRequest,
   ForgotPasswordResponse,
@@ -22,102 +20,49 @@ import type {
   VerifyForgotPasswordOtpResponse
 } from "../types/auth";
 
-const AUTH_BASE = "/api/accounts";
-
-function persistAdminSession(response: LoginResponse, fallbackUsername?: string) {
-  if (!response.accessToken?.trim()) {
-    throw new Error("Sign-in did not return an access token.");
-  }
-
-  saveAuthSession({
-    accessToken: response.accessToken.trim(),
-    expiresAtUtc: response.expiresAtUtc ?? new Date().toISOString(),
-    tokenType: response.tokenType ?? "Bearer",
-    refreshToken: response.refreshToken ?? null,
-    user: response.user ?? {
-      username: response.username ?? fallbackUsername
-    },
-    authType: "admin",
-    isAdmin: true,
-    permission: "ADMIN_FULL",
-    scope: "EntireFamily",
-    scopeMemberId: null,
-    tokenId: null,
-    tokenName: null
-  });
+function unavailable(): never {
+  throw new FirebaseClientError("This action uses Firebase sign-in only.", "failed-precondition");
 }
 
-/** Create a new family admin account (unverified until OTP succeeds). */
-export function registerAccount(payload: RegisterRequest): Promise<RegisterResponse> {
-  return apiRequest<RegisterResponse, RegisterRequest>(`${AUTH_BASE}/register`, {
-    method: "POST",
-    body: payload
-  });
+export function registerAccount(_payload: RegisterRequest): Promise<RegisterResponse> {
+  unavailable();
 }
 
-export function verifyEmail(payload: VerifyEmailRequest): Promise<LoginResponse> {
-  return apiRequest<LoginResponse, VerifyEmailRequest>(`${AUTH_BASE}/verify-email`, {
-    method: "POST",
-    body: payload
-  });
+export function verifyEmail(_payload: VerifyEmailRequest): Promise<LoginResponse> {
+  unavailable();
 }
 
-/** Verify email OTP + persist admin session (auto-login after registration). */
-export async function verifyEmailAndPersistSession(payload: VerifyEmailRequest): Promise<LoginResponse> {
-  const response = await verifyEmail(payload);
-  persistAdminSession(response, response.username ?? payload.email);
-  return response;
+export async function verifyEmailAndPersistSession(_payload: VerifyEmailRequest): Promise<LoginResponse> {
+  unavailable();
 }
 
-export function resendVerification(payload: ResendVerificationRequest): Promise<OtpChallengeResponse> {
-  return apiRequest<OtpChallengeResponse, ResendVerificationRequest>(`${AUTH_BASE}/resend-verification`, {
-    method: "POST",
-    body: payload
-  });
+export function resendVerification(_payload: ResendVerificationRequest): Promise<OtpChallengeResponse> {
+  unavailable();
 }
 
-/** Authenticate and return tokens (does not store them). May require email verification. */
-export function loginAccount(payload: LoginRequest): Promise<LoginResponse> {
-  return apiRequest<LoginResponse, LoginRequest>(`${AUTH_BASE}/login`, {
-    method: "POST",
-    body: payload
-  });
+export function loginAccount(_payload: LoginRequest): Promise<LoginResponse> {
+  unavailable();
 }
 
-/** Login + save session only when JWT is returned. */
-export async function loginAndPersistSession(payload: LoginRequest): Promise<LoginResponse> {
-  const response = await loginAccount(payload);
-
-  if (response.requiresEmailVerification) {
-    return response;
-  }
-
-  persistAdminSession(response, payload.email);
-  return response;
+export async function loginAndPersistSession(_payload: LoginRequest): Promise<LoginResponse> {
+  unavailable();
 }
 
 export function requestForgotPassword(payload: ForgotPasswordRequest): Promise<ForgotPasswordResponse> {
-  return apiRequest<ForgotPasswordResponse, ForgotPasswordRequest>(`${AUTH_BASE}/forgot-password`, {
-    method: "POST",
-    body: payload
+  return runFirebase("firebase.auth.resetEmail", async () => {
+    await sendPasswordResetEmail(getFirebaseAuth(), payload.email.trim());
+    return {
+      message: "If an account exists for this email, a reset link has been sent."
+    };
   });
 }
 
 export function verifyForgotPasswordOtp(
-  payload: VerifyForgotPasswordOtpRequest
+  _payload: VerifyForgotPasswordOtpRequest
 ): Promise<VerifyForgotPasswordOtpResponse> {
-  return apiRequest<VerifyForgotPasswordOtpResponse, VerifyForgotPasswordOtpRequest>(
-    `${AUTH_BASE}/forgot-password/verify-otp`,
-    {
-      method: "POST",
-      body: payload
-    }
-  );
+  unavailable();
 }
 
-export function resetPassword(payload: ResetPasswordRequest): Promise<void> {
-  return apiRequest<void, ResetPasswordRequest>(`${AUTH_BASE}/forgot-password/reset`, {
-    method: "POST",
-    body: payload
-  });
+export function resetPassword(_payload: ResetPasswordRequest): Promise<void> {
+  unavailable();
 }

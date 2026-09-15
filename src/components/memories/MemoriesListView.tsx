@@ -4,6 +4,7 @@ import { EmptyState, ErrorState } from "../ui/PageStates";
 import { canEditFamily } from "../../auth/permissions";
 import { navigateTo } from "../../routing/navigate";
 import { ApiClientError } from "../../services/apiClient";
+import { FirebaseClientError } from "../../firebase/errors/firebaseErrorHandler";
 import { formatMemoryDate, listMemories, truncateText } from "../../services/memoryService";
 import type { MemoryListItem, MemorySortBy, PagedMemories } from "../../types/memory";
 import { memoryInputClass } from "../../utils/memoryImages";
@@ -78,7 +79,9 @@ export function MemoriesListView() {
       setData(result);
     } catch (err) {
       const message =
-        err instanceof ApiClientError ? err.message : "Unable to load memories right now.";
+        err instanceof FirebaseClientError || err instanceof ApiClientError
+          ? err.message
+          : "Unable to load memories right now.";
       setError(message);
       setData(null);
     } finally {

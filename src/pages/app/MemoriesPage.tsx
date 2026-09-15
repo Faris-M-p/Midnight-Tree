@@ -9,6 +9,12 @@ interface MemoriesPageProps {
   pathname: string;
 }
 
+function memoryIdFromParams(id?: string): string {
+  const value = id?.trim() ?? "";
+  if (!value || value === "create") return "";
+  return value;
+}
+
 export function MemoriesPage({ pathname }: MemoriesPageProps) {
   if (pathname === "/memories/create") {
     return <MemoryCreateView />;
@@ -16,8 +22,8 @@ export function MemoriesPage({ pathname }: MemoriesPageProps) {
 
   const editMatch = matchPath("/memories/:id/edit", pathname);
   if (editMatch) {
-    const id = Number(editMatch.params.id);
-    if (!Number.isFinite(id) || id <= 0) {
+    const id = memoryIdFromParams(editMatch.params.id);
+    if (!id) {
       return <EmptyState title="Memory not found" message="This memory is no longer available." />;
     }
     return <MemoryEditView memoryId={id} />;
@@ -25,8 +31,8 @@ export function MemoriesPage({ pathname }: MemoriesPageProps) {
 
   const detailMatch = matchPath("/memories/:id", pathname);
   if (detailMatch && detailMatch.params.id !== "create") {
-    const id = Number(detailMatch.params.id);
-    if (!Number.isFinite(id) || id <= 0) {
+    const id = memoryIdFromParams(detailMatch.params.id);
+    if (!id) {
       return <EmptyState title="Memory not found" message="This memory is no longer available." />;
     }
     return <MemoryDetailsView memoryId={id} />;

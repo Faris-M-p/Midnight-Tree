@@ -7,6 +7,7 @@ import { memberDisplayName } from "../../utils/memberName";
 import { resolveAvatarUrl } from "../../utils/defaultAvatar";
 import { LocationView, toCoord } from "./LocationView";
 import type { MarriageUnion } from "../../types";
+import { BusyContent } from "../ui/RoundSpinner";
 
 export interface MemberDetailsProps {
   profile: MemberProfile;
@@ -16,7 +17,7 @@ export interface MemberDetailsProps {
   onDelete?: () => void;
   onEdit?: () => void;
   onClose?: () => void;
-  onOpenMember?: (memberId: number) => void;
+  onOpenMember?: (memberId: number | string) => void;
   showViewInTree?: boolean;
   embedded?: boolean;
   busy?: boolean;
@@ -45,7 +46,7 @@ function RelationPerson({
 }: {
   rel: MemberRelationSummary;
   memberRanks?: MemberRanks;
-  onOpen: (memberId: number) => void;
+  onOpen: (memberId: number | string) => void;
 }) {
   const name = memberDisplayName(rel);
   const label = memberRanks ? formatMemberLabel(memberRanks, String(rel.id), name) : name;
@@ -72,7 +73,7 @@ function RelationList({
   title: string;
   people: MemberRelationSummary[];
   memberRanks?: MemberRanks;
-  onOpen: (memberId: number) => void;
+  onOpen: (memberId: number | string) => void;
 }) {
   return (
     <div>
@@ -103,7 +104,10 @@ export function MemberDetails({
   embedded = false,
   busy = false
 }: MemberDetailsProps) {
-  const photo = profile.images?.find((i) => i.isPrimary)?.imageUrl || profile.images?.[0]?.imageUrl;
+  const photo = resolveAvatarUrl(
+    profile.images?.find((i) => i.isPrimary)?.imageUrl || profile.images?.[0]?.imageUrl,
+    relationGender(profile.gender)
+  );
   const displayId = memberRanks ? memberDisplayId(memberRanks, String(profile.id)) : undefined;
   const hasMapPin = toCoord(profile.latitude) !== null && toCoord(profile.longitude) !== null;
   const socialLinks = profile.socialLinks ?? [];
@@ -115,7 +119,7 @@ export function MemberDetails({
     else navigateTo(`/members/${profile.id}/edit`);
   };
 
-  const openMember = (memberId: number) => {
+  const openMember = (memberId: number | string) => {
     if (onOpenMember) onOpenMember(memberId);
     else navigateTo(`/members/${memberId}`);
   };
@@ -125,7 +129,7 @@ export function MemberDetails({
       <div className="flex flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/60 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <img
-            src={photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(memberDisplayName(profile))}&background=064e3b&color=fff`}
+            src={photo}
             alt=""
             className="h-20 w-20 rounded-2xl object-cover"
           />
@@ -167,7 +171,9 @@ export function MemberDetails({
               onClick={onDelete}
               className="inline-flex items-center gap-2 rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 hover:bg-rose-950/30 disabled:opacity-60"
             >
-              <Trash2 size={14} /> Delete
+              <BusyContent busy={busy}>
+                {busy ? null : <Trash2 size={14} />} Delete
+              </BusyContent>
             </button>
           )}
           {onClose ? (

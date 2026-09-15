@@ -1,3 +1,5 @@
+import { BusyContent } from "../ui/RoundSpinner";
+
 interface ConfirmDialogProps {
   open: boolean;
   title: string;
@@ -46,7 +48,7 @@ export function ConfirmDialog({
               danger ? "bg-rose-500 text-white hover:bg-rose-400" : "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
             }`}
           >
-            {confirmLabel}
+            <BusyContent busy={loading}>{confirmLabel}</BusyContent>
           </button>
         </div>
       </div>

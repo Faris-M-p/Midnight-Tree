@@ -12,19 +12,19 @@ interface EditMemberPageProps {
 
 export function EditMemberPage({ pathname }: EditMemberPageProps) {
   const match = matchPath("/members/:id/edit", pathname);
-  const id = Number(match?.params.id);
+  const id = match?.params.id ?? "";
   const { members, unions, refresh } = useFamilyData();
-  const fallback = members.find((m) => m.id === String(id));
-  const allowed = Number.isFinite(id) && canEditMember(id, unions);
+  const fallback = members.find((m) => m.id === id);
+  const allowed = Boolean(id) && canEditMember(id, unions);
 
   useEffect(() => {
-    if (Number.isFinite(id) && !allowed) {
+    if (id && !allowed) {
       notify.validation("You don't have permission to perform this action.");
       navigateTo(`/members/${id}`);
     }
   }, [id, allowed]);
 
-  if (!Number.isFinite(id)) {
+  if (!id) {
     return <ErrorState message="Invalid member id." />;
   }
 

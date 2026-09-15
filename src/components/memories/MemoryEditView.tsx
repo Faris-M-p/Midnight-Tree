@@ -6,6 +6,7 @@ import { EmptyState, ErrorState, LoadingState } from "../ui/PageStates";
 import { canEditFamily } from "../../auth/permissions";
 import { navigateTo } from "../../routing/navigate";
 import { ApiClientError } from "../../services/apiClient";
+import { FirebaseClientError } from "../../firebase/errors/firebaseErrorHandler";
 import {
   deleteMemoryImage,
   getMemory,
@@ -19,9 +20,10 @@ import { MEMORY_MAX_IMAGES } from "../../types/memory";
 import { formatBytes, memoryInputClass, memoryLabelClass, validateMemoryImage } from "../../utils/memoryImages";
 import { notify } from "../../utils/notify";
 import { useActionLock } from "../../hooks/useActionLock";
+import { BusyContent } from "../ui/RoundSpinner";
 
 interface MemoryEditViewProps {
-  memoryId: number;
+  memoryId: string | number;
 }
 
 export function MemoryEditView({ memoryId }: MemoryEditViewProps) {
@@ -38,7 +40,7 @@ export function MemoryEditView({ memoryId }: MemoryEditViewProps) {
   const [coverPreview, setCoverPreview] = useState("");
   const { isBusy, run } = useActionLock();
   const [progress, setProgress] = useState<string | null>(null);
-  const [deleteImageId, setDeleteImageId] = useState<number | null>(null);
+  const [deleteImageId, setDeleteImageId] = useState<string | number | null>(null);
   const [storageInfo, setStorageInfo] = useState<{ used: number; limit: number } | null>(null);
 
   const load = useCallback(async () => {
@@ -55,7 +57,7 @@ export function MemoryEditView({ memoryId }: MemoryEditViewProps) {
       setCoverFile(null);
     } catch (err) {
       setMemory(null);
-      setError(err instanceof ApiClientError ? err.message : "Unable to load this memory.");
+      setError(err instanceof FirebaseClientError || err instanceof ApiClientError ? err.message : "Unable to load this memory.");
     } finally {
       setLoading(false);
     }
@@ -125,7 +127,8 @@ export function MemoryEditView({ memoryId }: MemoryEditViewProps) {
         notify.success("Photos added.");
         await load();
       } catch (err) {
-        if (err instanceof ApiClientError) notify.fromApiError(err);
+        if (err instanceof FirebaseClientError) notify.error(err.message);
+        else if (err instanceof ApiClientError) notify.fromApiError(err);
         else notify.error("Unable to upload photos.");
       } finally {
         setProgress(null);
@@ -143,13 +146,14 @@ export function MemoryEditView({ memoryId }: MemoryEditViewProps) {
         setDeleteImageId(null);
         await load();
       } catch (err) {
-        if (err instanceof ApiClientError) notify.fromApiError(err);
+        if (err instanceof FirebaseClientError) notify.error(err.message);
+        else if (err instanceof ApiClientError) notify.fromApiError(err);
         else notify.error("Unable to delete photo.");
       }
     });
   };
 
-  const handleSetCover = async (mediaId: number) => {
+  const handleSetCover = async (mediaId: string | number) => {
     await run(async () => {
       try {
         setProgress("Updating cover…");
@@ -157,7 +161,8 @@ export function MemoryEditView({ memoryId }: MemoryEditViewProps) {
         notify.success("Cover updated.");
         await load();
       } catch (err) {
-        if (err instanceof ApiClientError) notify.fromApiError(err);
+        if (err instanceof FirebaseClientError) notify.error(err.message);
+        else if (err instanceof ApiClientError) notify.fromApiError(err);
         else notify.error("Unable to update cover.");
       } finally {
         setProgress(null);
@@ -192,7 +197,8 @@ export function MemoryEditView({ memoryId }: MemoryEditViewProps) {
         notify.success("Memory updated.");
         navigateTo(`/memories/${memory.id}`);
       } catch (err) {
-        if (err instanceof ApiClientError) notify.fromApiError(err);
+        if (err instanceof FirebaseClientError) notify.error(err.message);
+        else if (err instanceof ApiClientError) notify.fromApiError(err);
         else notify.error("Unable to update memory.");
       }
     });
@@ -341,9 +347,9 @@ export function MemoryEditView({ memoryId }: MemoryEditViewProps) {
         <button
           type="submit"
           disabled={isBusy}
-          className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
+          className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
         >
-          Save changes
+          <BusyContent busy={isBusy}>Save changes</BusyContent>
         </button>
         <button
           type="button"

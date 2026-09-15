@@ -1,7 +1,13 @@
-import { useState } from "react";
-import { mockTimeline, type TimelineCategory } from "../../data/mockTimeline";
+import { useEffect, useMemo, useState } from "react";
+import type { TimelineCategory } from "../../data/mockTimeline";
+import { useFamilyData } from "../../context/FamilyDataContext";
 import { navigateTo } from "../../routing/navigate";
 import { EmptyState } from "../../components/ui/PageStates";
+import { listEvents } from "../../services/eventService";
+import { listMemories } from "../../services/memoryService";
+import type { EventListItem } from "../../types/event";
+import type { MemoryListItem } from "../../types/memory";
+import { buildFamilyTimeline } from "../../utils/homeDashboard";
 
 const categories: Array<TimelineCategory | "all"> = [
   "all",
@@ -27,10 +33,34 @@ const colors: Record<TimelineCategory, string> = {
 };
 
 export function TimelinePage() {
+  const { members } = useFamilyData();
   const [category, setCategory] = useState<(typeof categories)[number]>("all");
-  const items = mockTimeline
-    .filter((item) => category === "all" || item.category === category)
-    .sort((a, b) => b.year - a.year);
+  const [events, setEvents] = useState<EventListItem[]>([]);
+  const [memories, setMemories] = useState<MemoryListItem[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const [eventPage, memoryPage] = await Promise.all([
+        listEvents({ pageSize: 50, sortBy: "date" }).catch(() => ({ items: [] as EventListItem[] })),
+        listMemories({ pageSize: 50, sortBy: "recent" }).catch(() => ({ items: [] as MemoryListItem[] }))
+      ]);
+      if (!alive) return;
+      setEvents(eventPage.items);
+      setMemories(memoryPage.items);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [members]);
+
+  const items = useMemo(
+    () =>
+      buildFamilyTimeline(members, events, memories).filter(
+        (item) => category === "all" || item.category === category
+      ),
+    [members, events, memories, category]
+  );
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">

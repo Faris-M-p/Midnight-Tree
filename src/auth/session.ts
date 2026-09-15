@@ -3,14 +3,16 @@
  * (admin password login or access-token login).
  */
 
-import { clearAuthSession, getAccessToken, getAuthSession, saveAuthSession } from "../services/authSessionService";
+import { clearAuthSession, getAuthSession, hasAuthSession, saveAuthSession } from "../services/authSessionService";
+import { isFirebaseConfigured } from "../firebase/config/firebase";
+import { firebaseLogout } from "../firebase/auth/firebaseAuth";
 import type { AccessAuthType, AccessPermission, AccessScope, AuthSession } from "../types/auth";
 
 const LEGACY_TOKEN_SESSION_KEY = "midnight.token.session";
 const LEGACY_MOCK_USER_KEY = "midnight.mock.user";
 
 export function isAuthenticated() {
-  return Boolean(getAccessToken());
+  return hasAuthSession();
 }
 
 export function markPasswordLoginAdmin(username: string) {
@@ -40,11 +42,12 @@ export function applyAccessTokenSession(input: {
   tokenType?: string;
   authType: AccessAuthType;
   familyId: number;
-  tokenId: number;
+  firebaseFamilyId?: string | null;
+  tokenId: number | string;
   tokenName: string;
   permission: AccessPermission;
   scope: AccessScope;
-  scopeMemberId?: number | null;
+  scopeMemberId?: number | string | null;
 }) {
   saveAuthSession({
     accessToken: input.accessToken,
@@ -52,25 +55,35 @@ export function applyAccessTokenSession(input: {
     tokenType: input.tokenType ?? "Bearer",
     refreshToken: null,
     authType: input.authType,
+    authProvider: "firebase",
     isAdmin: false,
     familyId: input.familyId,
+    firebaseFamilyId: input.firebaseFamilyId ?? null,
     tokenId: input.tokenId,
     tokenName: input.tokenName,
     permission: input.permission,
     scope: input.scope,
     scopeMemberId: input.scopeMemberId ?? null,
     user: {
-      username: input.tokenName
+      username: input.tokenName,
+      firebaseFamilyId: input.firebaseFamilyId ?? undefined
     }
   });
   localStorage.removeItem(LEGACY_TOKEN_SESSION_KEY);
   localStorage.removeItem(LEGACY_MOCK_USER_KEY);
 }
 
-export function logout() {
+export async function logout() {
   clearAuthSession();
   localStorage.removeItem(LEGACY_TOKEN_SESSION_KEY);
   localStorage.removeItem(LEGACY_MOCK_USER_KEY);
+  if (isFirebaseConfigured()) {
+    try {
+      await firebaseLogout();
+    } catch {
+      // already signed out
+    }
+  }
 }
 
 /** @deprecated Token login now stores a JWT via applyAccessTokenSession. */

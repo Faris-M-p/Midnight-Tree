@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ImagePlus } from "lucide-react";
 import { updateFamilyCover } from "../../services/familyService";
-import { ApiClientError } from "../../services/apiClient";
+import { FirebaseClientError } from "../../firebase/errors/firebaseErrorHandler";
 import { notify } from "../../utils/notify";
 import { useActionLock } from "../../hooks/useActionLock";
 
-const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const ACCEPTED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
+import { isLikelyImageFile } from "../../utils/imageFile";
+import { BusyContent } from "../ui/RoundSpinner";
+
 const MAX_BYTES = 5 * 1024 * 1024;
 
 interface ChangeCoverModalProps {
@@ -17,9 +18,7 @@ interface ChangeCoverModalProps {
 }
 
 function isAcceptedImage(file: File): boolean {
-  if (ACCEPTED_TYPES.has(file.type)) return true;
-  const name = file.name.toLowerCase();
-  return ACCEPTED_EXTENSIONS.some((ext) => name.endsWith(ext));
+  return isLikelyImageFile(file);
 }
 
 export function ChangeCoverModal({ open, currentCoverUrl, onClose, onSaved }: ChangeCoverModalProps) {
@@ -79,7 +78,7 @@ export function ChangeCoverModal({ open, currentCoverUrl, onClose, onSaved }: Ch
         onSaved(coverUrl);
         onClose();
       } catch (error) {
-        if (error instanceof ApiClientError) notify.fromApiError(error);
+        if (error instanceof FirebaseClientError) notify.error(error.message);
         else notify.error("Unable to update the cover image right now.");
       }
     });
@@ -137,7 +136,7 @@ export function ChangeCoverModal({ open, currentCoverUrl, onClose, onSaved }: Ch
             <input
               ref={inputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+              accept="image/*"
               className="hidden"
               onChange={(event) => {
                 const next = event.target.files?.[0];
@@ -165,7 +164,7 @@ export function ChangeCoverModal({ open, currentCoverUrl, onClose, onSaved }: Ch
               disabled={isBusy || !file}
               className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
             >
-              Save Cover
+              <BusyContent busy={isBusy}>Save Cover</BusyContent>
             </button>
           </div>
         </form>

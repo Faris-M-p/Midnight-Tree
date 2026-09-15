@@ -4,6 +4,7 @@ import type { FamilyMember, MarriageUnion } from "../../types";
 import type { MemberProfile } from "../../types/member";
 import { createMember } from "../../services/memberService";
 import { ApiClientError } from "../../services/apiClient";
+import { FirebaseClientError } from "../../firebase/errors/firebaseErrorHandler";
 import { notify } from "../../utils/notify";
 import { useActionLock } from "../../hooks/useActionLock";
 import { DatePicker } from "../DatePicker";
@@ -11,6 +12,8 @@ import { ProfilePhotoPicker } from "../ui/ProfilePhotoPicker";
 import { resolveAvatarUrl } from "../../utils/defaultAvatar";
 import { computeMemberRanks, formatMemberLabel, type MemberRanks } from "../../utils/memberRanks";
 import { HIDDEN_LAST_NAME } from "../../utils/memberName";
+import { isLikelyImageFile } from "../../utils/imageFile";
+import { BusyContent } from "../ui/RoundSpinner";
 
 export interface AddMemberProps {
   open: boolean;
@@ -94,7 +97,7 @@ export function AddMember({
   const preview = photoPreview || resolveAvatarUrl("", gender);
 
   const handlePhotoSelected = (file: File) => {
-    if (!file.type.startsWith("image/")) {
+    if (!isLikelyImageFile(file)) {
       notify.validation("Please choose an image file.");
       return;
     }
@@ -140,8 +143,8 @@ export function AddMember({
             dateOfBirth: dob || undefined,
             dateOfDeath: lifeStatus === "deceased" ? dateOfDeath || undefined : undefined,
             isRoot: connection === "root",
-            parentId: connection === "child" && union ? Number(union.spouse1Id) : undefined,
-            spouseId: connection === "spouse" ? Number(targetId) : undefined
+            parentId: connection === "child" && union ? union.spouse1Id : undefined,
+            spouseId: connection === "spouse" ? targetId : undefined
           },
           photoFile
         );
@@ -150,6 +153,7 @@ export function AddMember({
         await onCreated?.(created);
       } catch (error) {
         if (error instanceof ApiClientError) notify.fromApiError(error);
+        else if (error instanceof FirebaseClientError) notify.error(error.message);
         else notify.error("Unable to create member right now.");
       }
     });
@@ -157,7 +161,7 @@ export function AddMember({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div className="absolute inset-0 bg-overlay backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-overlay backdrop-blur-sm" onClick={isBusy ? undefined : onClose} />
       <form
         onSubmit={handleSubmit}
         className="relative z-10 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-slate-800 bg-slate-950 shadow-2xl sm:rounded-2xl"
@@ -167,7 +171,7 @@ export function AddMember({
             <h2 className="text-lg font-semibold text-slate-100">Add member</h2>
             <p className="text-xs text-slate-500">Same form on Members and Family Tree. Use # numbers to pick relatives.</p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-900">
+          <button type="button" onClick={onClose} disabled={isBusy} className="rounded-lg p-2 text-slate-400 hover:bg-slate-900 disabled:opacity-60">
             <X size={16} />
           </button>
         </div>
@@ -308,9 +312,9 @@ export function AddMember({
               (connection === "child" && couples.length === 0) ||
               (connection === "spouse" && singleMembers.length === 0)
             }
-            className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
           >
-            Add member
+            <BusyContent busy={isBusy}>Add member</BusyContent>
           </button>
         </div>
       </form>

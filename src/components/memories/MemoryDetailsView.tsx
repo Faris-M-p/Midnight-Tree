@@ -6,6 +6,7 @@ import { EmptyState, ErrorState, LoadingState } from "../ui/PageStates";
 import { canEditFamily } from "../../auth/permissions";
 import { navigateTo } from "../../routing/navigate";
 import { ApiClientError } from "../../services/apiClient";
+import { FirebaseClientError } from "../../firebase/errors/firebaseErrorHandler";
 import {
   deleteMemory,
   deleteMemoryImage,
@@ -18,9 +19,10 @@ import { MEMORY_MAX_IMAGES } from "../../types/memory";
 import { formatBytes, validateMemoryImage } from "../../utils/memoryImages";
 import { notify } from "../../utils/notify";
 import { useActionLock } from "../../hooks/useActionLock";
+import { BusyContent } from "../ui/RoundSpinner";
 
 interface MemoryDetailsViewProps {
-  memoryId: number;
+  memoryId: string | number;
 }
 
 export function MemoryDetailsView({ memoryId }: MemoryDetailsViewProps) {
@@ -30,7 +32,7 @@ export function MemoryDetailsView({ memoryId }: MemoryDetailsViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [deleteMemoryOpen, setDeleteMemoryOpen] = useState(false);
-  const [deleteImageId, setDeleteImageId] = useState<number | null>(null);
+  const [deleteImageId, setDeleteImageId] = useState<string | number | null>(null);
   const { isBusy, run } = useActionLock();
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [storageInfo, setStorageInfo] = useState<{ used: number; limit: number } | null>(null);
@@ -45,7 +47,7 @@ export function MemoryDetailsView({ memoryId }: MemoryDetailsViewProps) {
       setMemory(data);
     } catch (err) {
       setMemory(null);
-      setError(err instanceof ApiClientError ? err.message : "Unable to load this memory.");
+      setError(err instanceof FirebaseClientError || err instanceof ApiClientError ? err.message : "Unable to load this memory.");
     } finally {
       setLoading(false);
     }
@@ -88,7 +90,8 @@ export function MemoryDetailsView({ memoryId }: MemoryDetailsViewProps) {
         notify.success("Photos uploaded.");
         await load();
       } catch (err) {
-        if (err instanceof ApiClientError) notify.fromApiError(err);
+        if (err instanceof FirebaseClientError) notify.error(err.message);
+        else if (err instanceof ApiClientError) notify.fromApiError(err);
         else notify.error("Unable to upload photos right now.");
       } finally {
         setUploadProgress(null);
@@ -106,7 +109,8 @@ export function MemoryDetailsView({ memoryId }: MemoryDetailsViewProps) {
         setDeleteImageId(null);
         await load();
       } catch (err) {
-        if (err instanceof ApiClientError) notify.fromApiError(err);
+        if (err instanceof FirebaseClientError) notify.error(err.message);
+        else if (err instanceof ApiClientError) notify.fromApiError(err);
         else notify.error("Unable to delete this photo.");
       }
     });
@@ -120,7 +124,8 @@ export function MemoryDetailsView({ memoryId }: MemoryDetailsViewProps) {
         notify.success("Memory deleted.");
         navigateTo("/memories");
       } catch (err) {
-        if (err instanceof ApiClientError) notify.fromApiError(err);
+        if (err instanceof FirebaseClientError) notify.error(err.message);
+        else if (err instanceof ApiClientError) notify.fromApiError(err);
         else notify.error("Unable to delete this memory.");
       }
     });
@@ -195,7 +200,9 @@ export function MemoryDetailsView({ memoryId }: MemoryDetailsViewProps) {
               onClick={() => setDeleteMemoryOpen(true)}
               className="inline-flex items-center gap-1 rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 hover:bg-rose-950/30 disabled:opacity-60"
             >
-              <Trash2 size={14} /> Delete
+              <BusyContent busy={isBusy}>
+                {isBusy ? null : <Trash2 size={14} />} Delete
+              </BusyContent>
             </button>
           </div>
         )}

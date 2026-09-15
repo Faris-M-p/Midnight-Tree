@@ -16,7 +16,7 @@ interface MemberDetailsModalProps {
   onClose: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
-  onOpenMember?: (memberId: number) => void;
+  onOpenMember?: (memberId: number | string) => void;
   showViewInTree?: boolean;
   busy?: boolean;
 }

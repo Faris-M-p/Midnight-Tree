@@ -2,6 +2,7 @@ import { Bell, Menu } from "lucide-react";
 import { useState } from "react";
 import { useFamilyBranding } from "../../hooks/useFamilyBranding";
 import { ThemeToggle } from "../theme/ThemeToggle";
+import { FamilyLogo } from "../family/FamilyLogo";
 import { NotificationDrawer, unreadNotificationCount } from "./NotificationDrawer";
 
 interface HeaderProps {
@@ -27,9 +28,9 @@ export function Header({ title, onOpenMobileNav }: HeaderProps) {
         </button>
 
         <div className="flex min-w-0 flex-1 items-center gap-2 xl:gap-3">
-          <img
+          <FamilyLogo
+            name={family.name}
             src={family.logo}
-            alt=""
             className="h-8 w-8 shrink-0 rounded-full border border-slate-700 object-cover xl:hidden"
           />
           <div className="min-w-0">

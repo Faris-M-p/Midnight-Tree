@@ -5,6 +5,7 @@ import type { MockAlbum } from "../../data/mockGallery";
 import { canEdit } from "../../auth/permissions";
 import { EmptyState } from "../../components/ui/PageStates";
 import { useActionLock } from "../../hooks/useActionLock";
+import { BusyContent } from "../../components/ui/RoundSpinner";
 
 interface GalleryPageProps {
   pathname: string;
@@ -53,9 +54,9 @@ export function GalleryPage({ pathname }: GalleryPageProps) {
                     refresh();
                   });
                 }}
-                className="rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
               >
-                Upload photo
+                <BusyContent busy={isBusy}>Upload photo</BusyContent>
               </button>
               <button
                 type="button"
@@ -66,9 +67,9 @@ export function GalleryPage({ pathname }: GalleryPageProps) {
                     navigateTo("/gallery");
                   });
                 }}
-                className="rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 disabled:opacity-60"
               >
-                Delete album
+                <BusyContent busy={isBusy}>Delete album</BusyContent>
               </button>
             </div>
           )}
@@ -117,9 +118,9 @@ export function GalleryPage({ pathname }: GalleryPageProps) {
                         refresh();
                       });
                     }}
-                    className="rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 disabled:opacity-60"
+                    className="inline-flex items-center justify-center rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 disabled:opacity-60"
                   >
-                    Delete photo
+                    <BusyContent busy={isBusy}>Delete photo</BusyContent>
                   </button>
                 )}
               </div>
@@ -170,8 +171,8 @@ export function GalleryPage({ pathname }: GalleryPageProps) {
             className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
           />
           <div className="mt-3 flex gap-2">
-            <button type="submit" disabled={isBusy} className="rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60">
-              Save
+            <button type="submit" disabled={isBusy} className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60">
+              <BusyContent busy={isBusy}>Save</BusyContent>
             </button>
             <button type="button" onClick={() => setCreating(false)} className="rounded-xl border border-slate-700 px-3 py-2 text-sm">
               Cancel

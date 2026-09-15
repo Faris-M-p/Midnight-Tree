@@ -3,6 +3,7 @@ import { matchPath, navigateTo } from "../../routing/navigate";
 import { getMemberDetails, deleteMember } from "../../services/memberService";
 import type { MemberProfile } from "../../types/member";
 import { ApiClientError } from "../../services/apiClient";
+import { FirebaseClientError } from "../../firebase/errors/firebaseErrorHandler";
 import { notify } from "../../utils/notify";
 import { useActionLock } from "../../hooks/useActionLock";
 import { logUnexpected } from "../../utils/logFailure";
@@ -17,9 +18,9 @@ interface MemberDetailsPageProps {
 
 export function MemberDetailsPage({ pathname }: MemberDetailsPageProps) {
   const match = matchPath("/members/:id", pathname);
-  const id = Number(match?.params.id);
+  const id = match?.params.id ?? "";
   const { members, memberRanks, unions, refresh } = useFamilyData();
-  const fallback = members.find((m) => m.id === String(id));
+  const fallback = members.find((m) => m.id === id);
   const [profile, setProfile] = useState<MemberProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -27,7 +28,7 @@ export function MemberDetailsPage({ pathname }: MemberDetailsPageProps) {
   const { isBusy, run } = useActionLock();
 
   useEffect(() => {
-    if (!Number.isFinite(id)) {
+    if (!id) {
       setError("Invalid member id.");
       setLoading(false);
       return;
@@ -40,7 +41,7 @@ export function MemberDetailsPage({ pathname }: MemberDetailsPageProps) {
       })
       .catch((err) => {
         logUnexpected("MemberDetails", err);
-        setError(err instanceof ApiClientError ? err.message : "Unable to load member details.");
+        setError(err instanceof ApiClientError || err instanceof FirebaseClientError ? err.message : "Unable to load member details.");
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -55,6 +56,7 @@ export function MemberDetailsPage({ pathname }: MemberDetailsPageProps) {
         navigateTo("/members");
       } catch (err) {
         if (err instanceof ApiClientError) notify.fromApiError(err);
+        else if (err instanceof FirebaseClientError) notify.error(err.message);
         else notify.error("Unable to delete member right now.");
       }
     });

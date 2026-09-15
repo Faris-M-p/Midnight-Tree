@@ -8,8 +8,10 @@ import {
   updateAccessToken
 } from "../../services/accessTokenService";
 import { ApiClientError } from "../../services/apiClient";
+import { FirebaseClientError } from "../../firebase/errors/firebaseErrorHandler";
 import { notify } from "../../utils/notify";
 import { useActionLock } from "../../hooks/useActionLock";
+import { BusyContent } from "../../components/ui/RoundSpinner";
 import { matchPath, navigateTo } from "../../routing/navigate";
 import { EmptyState, ErrorState, LoadingState } from "../../components/ui/PageStates";
 import { useFamilyData } from "../../context/FamilyDataContext";
@@ -81,7 +83,7 @@ function StatusBadge({ status }: { status: AccessTokenStatus }) {
 }
 
 interface MemberOption {
-  id: number;
+  id: number | string;
   label: string;
 }
 
@@ -140,7 +142,7 @@ function buildPayload(form: TokenFormState): CreateAccessTokenPayload {
     tokenName: form.tokenName.trim(),
     permission: "Edit",
     scope,
-    memberId: needsMember && form.memberId ? Number(form.memberId) : null,
+    memberId: needsMember && form.memberId ? form.memberId : null,
     expiryPreset: form.expiryPreset,
     customExpiresOn:
       form.expiryPreset === "Custom" && form.customExpiresOn
@@ -157,6 +159,12 @@ function validateForm(form: TokenFormState): string | null {
   }
   if (form.expiryPreset === "Custom" && !form.customExpiresOn) return "Choose a custom expiry date.";
   return null;
+}
+
+function notifyTokenError(err: unknown, fallback: string) {
+  if (err instanceof FirebaseClientError) notify.error(err.message);
+  else if (err instanceof ApiClientError) notify.fromApiError(err);
+  else notify.fromApiError({ message: fallback });
 }
 
 function ModalShell({
@@ -337,7 +345,7 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalMode>(null);
-  const [activeId, setActiveId] = useState<number | null>(null);
+  const [activeId, setActiveId] = useState<number | string | null>(null);
   const [detail, setDetail] = useState<AccessToken | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [form, setForm] = useState<TokenFormState>(emptyForm());
@@ -350,10 +358,9 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
       [...familyMembers]
         .sort((a, b) => (memberRanks[a.id] ?? 9999) - (memberRanks[b.id] ?? 9999))
         .map((m) => ({
-          id: Number(m.id),
+          id: m.id,
           label: formatMemberLabel(memberRanks, m.id, m.name)
-        }))
-        .filter((m) => Number.isFinite(m.id)),
+        })),
     [familyMembers, memberRanks]
   );
   const membersLoading = familyLoading;
@@ -365,8 +372,7 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
   const routeId = useMemo(() => {
     const raw = routeEdit?.params.id ?? routeActivity?.params.id ?? routeDetail?.params.id;
     if (!raw || raw === "generate") return null;
-    const n = Number(raw);
-    return Number.isFinite(n) ? n : null;
+    return raw;
   }, [routeEdit, routeActivity, routeDetail]);
 
   const loadTokens = useCallback(async () => {
@@ -376,9 +382,12 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
       const items = await listAccessTokens();
       setTokens(items);
     } catch (err) {
-      const message = err instanceof ApiClientError ? err.message : "Unable to load access tokens.";
+      const message =
+        err instanceof FirebaseClientError || err instanceof ApiClientError
+          ? err.message
+          : "Unable to load access tokens.";
       setError(message);
-      notify.fromApiError(err instanceof ApiClientError ? err : { message });
+      notifyTokenError(err, message);
     } finally {
       setLoading(false);
     }
@@ -399,7 +408,7 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
   }, [routeGenerate]);
 
   const openEdit = useCallback(
-    async (id: number) => {
+    async (id: number | string) => {
       setRawToken(null);
       setActiveId(id);
       setModal("edit");
@@ -410,7 +419,7 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
         setDetail(token);
         setForm(formFromToken(token));
       } catch (err) {
-        notify.fromApiError(err instanceof ApiClientError ? err : { message: "Unable to load token." });
+        notifyTokenError(err, "Unable to load token.");
         setModal(null);
         navigateTo("/access-tokens");
       } finally {
@@ -421,7 +430,7 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
   );
 
   const openView = useCallback(
-    async (id: number) => {
+    async (id: number | string) => {
       setRawToken(null);
       setActiveId(id);
       setModal("view");
@@ -431,7 +440,7 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
         const token = await getAccessToken(id);
         setDetail(token);
       } catch (err) {
-        notify.fromApiError(err instanceof ApiClientError ? err : { message: "Unable to load token." });
+        notifyTokenError(err, "Unable to load token.");
         setModal(null);
         navigateTo("/access-tokens");
       } finally {
@@ -442,7 +451,7 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
   );
 
   const openActivity = useCallback(
-    async (id: number) => {
+    async (id: number | string) => {
       setRawToken(null);
       setActiveId(id);
       setModal("activity");
@@ -452,7 +461,7 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
         const token = await getAccessToken(id);
         setDetail(token);
       } catch (err) {
-        notify.fromApiError(err instanceof ApiClientError ? err : { message: "Unable to load token." });
+        notifyTokenError(err, "Unable to load token.");
         setModal(null);
         navigateTo("/access-tokens");
       } finally {
@@ -513,7 +522,7 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
         notify.success("Token generated successfully.");
         await loadTokens();
       } catch (err) {
-        notify.fromApiError(err instanceof ApiClientError ? err : { message: "Unable to generate token." });
+        notifyTokenError(err, "Unable to generate token.");
       }
     });
   };
@@ -534,7 +543,7 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
         await loadTokens();
         closeModal();
       } catch (err) {
-        notify.fromApiError(err instanceof ApiClientError ? err : { message: "Unable to update token." });
+        notifyTokenError(err, "Unable to update token.");
       }
     });
   };
@@ -560,7 +569,7 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
           setDetail(refreshed);
         }
       } catch (err) {
-        notify.fromApiError(err instanceof ApiClientError ? err : { message: "Unable to update token status." });
+        notifyTokenError(err, "Unable to update token status.");
       }
     });
   };
@@ -575,7 +584,7 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
         await loadTokens();
         if (activeId === token.id) closeModal();
       } catch (err) {
-        notify.fromApiError(err instanceof ApiClientError ? err : { message: "Unable to delete token." });
+        notifyTokenError(err, "Unable to delete token.");
       }
     });
   };
@@ -739,9 +748,9 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
                 <button
                   type="submit"
                   disabled={isBusy}
-                  className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
                 >
-                  Generate Token
+                  <BusyContent busy={isBusy}>Generate Token</BusyContent>
                 </button>
               </div>
             </form>
@@ -769,18 +778,18 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
                       type="button"
                       disabled={isBusy}
                       onClick={() => void handleToggleStatus(detail)}
-                      className="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-200 disabled:opacity-60"
+                      className="inline-flex items-center justify-center rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-200 disabled:opacity-60"
                     >
-                      {detail.status === "Active" ? "Deactivate" : "Activate"}
+                      <BusyContent busy={isBusy}>{detail.status === "Active" ? "Deactivate" : "Activate"}</BusyContent>
                     </button>
                   )}
                   <button
                     type="button"
                     disabled={isBusy}
                     onClick={() => void handleDelete(detail)}
-                    className="rounded-xl border border-rose-500/40 px-3 py-2 text-xs text-rose-300 disabled:opacity-60"
+                    className="inline-flex items-center justify-center rounded-xl border border-rose-500/40 px-3 py-2 text-xs text-rose-300 disabled:opacity-60"
                   >
-                    Delete
+                    <BusyContent busy={isBusy}>Delete</BusyContent>
                   </button>
                 </div>
                 <div className="flex flex-col-reverse gap-2 sm:flex-row">
@@ -790,9 +799,9 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
                   <button
                     type="submit"
                     disabled={isBusy}
-                    className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+                    className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
                   >
-                    Save Changes
+                    <BusyContent busy={isBusy}>Save Changes</BusyContent>
                   </button>
                 </div>
               </div>
@@ -868,18 +877,18 @@ export function AccessTokensPage({ pathname }: AccessTokensPageProps) {
                     type="button"
                     disabled={isBusy}
                     onClick={() => void handleToggleStatus(detail)}
-                    className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs disabled:opacity-60"
+                    className="inline-flex items-center justify-center rounded-xl border border-slate-700 px-3 py-1.5 text-xs disabled:opacity-60"
                   >
-                    {detail.status === "Active" ? "Deactivate" : "Activate"}
+                    <BusyContent busy={isBusy}>{detail.status === "Active" ? "Deactivate" : "Activate"}</BusyContent>
                   </button>
                 )}
                 <button
                   type="button"
                   disabled={isBusy}
                   onClick={() => void handleDelete(detail)}
-                  className="rounded-xl border border-rose-500/40 px-3 py-1.5 text-xs text-rose-300 disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-xl border border-rose-500/40 px-3 py-1.5 text-xs text-rose-300 disabled:opacity-60"
                 >
-                  Delete
+                  <BusyContent busy={isBusy}>Delete</BusyContent>
                 </button>
               </div>
             </div>

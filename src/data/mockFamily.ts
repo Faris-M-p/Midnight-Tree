@@ -10,6 +10,9 @@ export interface MockFamily {
   location: string;
 }
 
+export const DEFAULT_FAMILY_COVER =
+  "https://images.unsplash.com/photo-1511895426328-dc8714191300?w=1600&h=600&fit=crop&q=80";
+
 export const mockFamily: MockFamily = {
   name: "Mehta Family",
   code: "MEHTA-1945",
@@ -19,8 +22,7 @@ export const mockFamily: MockFamily = {
   history:
     "The Mehta household began with Ramesh and Savita in 1969. Over decades the family grew across Kerala, Pune, and Bengaluru — carrying forward a tradition of education, service, and gathering every summer in the ancestral home.",
   logo: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=200&h=200&fit=crop",
-  cover:
-    "https://images.unsplash.com/photo-1511895426328-dc8714191300?w=1600&h=600&fit=crop&q=80",
+  cover: DEFAULT_FAMILY_COVER,
   foundedYear: 1945,
   location: "Pune & Kerala, India"
 };

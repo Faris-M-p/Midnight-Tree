@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { subscribeApiLoading } from "../../services/loadingTracker";
+import { RoundSpinner } from "./RoundSpinner";
 
 /**
- * Single full-screen loader for in-flight API requests.
+ * Single full-screen round loader for in-flight create / update / delete.
  * Render once at the app root. No label — the overlay is the signal.
  */
 export function GlobalLoader() {
@@ -20,10 +21,7 @@ export function GlobalLoader() {
       aria-busy="true"
       aria-label="Loading"
     >
-      <div
-        className="h-12 w-12 rounded-full border-[3px] border-accent/25 border-t-accent animate-spin"
-        aria-hidden="true"
-      />
+      <RoundSpinner size="lg" className="border-accent/25 border-t-accent" />
     </div>
   );
 }

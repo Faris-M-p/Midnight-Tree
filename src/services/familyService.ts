@@ -1,4 +1,14 @@
-import { apiFormRequest, apiRequest } from "./apiClient";
+/**
+ * Family profile now reads/writes Firestore only.
+ */
+
+import { DEFAULT_FAMILY_COVER } from "../data/mockFamily";
+import { ensureCurrentFamilyId } from "../firebase/auth/currentFamily";
+import {
+  getFamily as getFirebaseFamily,
+  updateFamily as updateFirebaseFamily
+} from "../firebase/firestore/familyService";
+import { uploadFamilyImage } from "../firebase/storage/uploadImage";
 
 export interface FamilyProfile {
   id: number;
@@ -9,50 +19,59 @@ export interface FamilyProfile {
   coverUrl?: string | null;
 }
 
-interface ApiFamily {
-  id?: number;
-  iD_Families?: number;
-  id_Families?: number;
-  familyCode?: string;
-  familyName?: string;
-  description?: string | null;
-  photoUrl?: string | null;
-  coverUrl?: string | null;
-}
-
-function mapFamily(data: ApiFamily): FamilyProfile {
+function toProfile(
+  familyId: string,
+  family: {
+    name?: string;
+    description?: string;
+    photoUrl?: string | null;
+    coverUrl?: string | null;
+  } | null
+): FamilyProfile {
   return {
-    id: data.id || data.iD_Families || data.id_Families || 0,
-    familyCode: data.familyCode || "",
-    familyName: data.familyName || "",
-    description: data.description,
-    photoUrl: data.photoUrl,
-    coverUrl: data.coverUrl
+    id: 0,
+    familyCode: familyId,
+    familyName: family?.name || "Your Family",
+    description: family?.description ?? "",
+    photoUrl: family?.photoUrl ?? null,
+    coverUrl: family?.coverUrl || DEFAULT_FAMILY_COVER
   };
 }
 
 export async function getFamily(): Promise<FamilyProfile> {
-  const data = await apiRequest<ApiFamily>("/api/family");
-  return mapFamily(data);
+  const familyId = await ensureCurrentFamilyId();
+  const family = await getFirebaseFamily(familyId);
+  return toProfile(familyId, family);
 }
 
 export async function updateFamily(
   payload: { familyName: string; description?: string; photoUrl?: string | null },
   photo?: File | null
 ): Promise<FamilyProfile> {
-  const form = new FormData();
-  form.append("familyName", payload.familyName);
-  if (payload.description) form.append("description", payload.description);
-  if (payload.photoUrl) form.append("photoUrl", payload.photoUrl);
-  if (photo) form.append("familyPhoto", photo);
-
-  await apiFormRequest("/api/family", form, "PUT");
+  const familyId = await ensureCurrentFamilyId();
+  let photoUrl = payload.photoUrl;
+  if (photo) {
+    photoUrl = await uploadFamilyImage({
+      familyId,
+      path: "logo",
+      file: photo
+    });
+  }
+  await updateFirebaseFamily(familyId, {
+    name: payload.familyName,
+    description: payload.description,
+    photoUrl
+  });
   return getFamily();
 }
 
 export async function updateFamilyCover(cover: File): Promise<FamilyProfile> {
-  const form = new FormData();
-  form.append("familyCover", cover);
-  await apiFormRequest("/api/family/cover", form, "PUT");
+  const familyId = await ensureCurrentFamilyId();
+  const coverUrl = await uploadFamilyImage({
+    familyId,
+    path: "cover",
+    file: cover
+  });
+  await updateFirebaseFamily(familyId, { coverUrl });
   return getFamily();
 }

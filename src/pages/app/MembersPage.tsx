@@ -11,6 +11,7 @@ import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
 import { useActionLock } from "../../hooks/useActionLock";
 import { matchesMemberRank, memberDisplayId } from "../../utils/memberRanks";
+import { RoundSpinner } from "../../components/ui/RoundSpinner";
 
 const PAGE_SIZE = 12;
 
@@ -21,7 +22,7 @@ export function MembersPage() {
   const [sort, setSort] = useState<"number" | "name" | "dob" | "location">("number");
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const { isBusy, run } = useActionLock();
 
   const filtered = useMemo(() => {
@@ -55,7 +56,7 @@ export function MembersPage() {
     if (!window.confirm(`Delete ${name}? This cannot be undone.`)) return;
     await run(async () => {
       try {
-        await deleteMember(Number(id));
+        await deleteMember(id);
         notify.success("Member deleted successfully.");
         await refresh();
       } catch (err) {
@@ -177,7 +178,7 @@ export function MembersPage() {
                         {canEditMember(member.id, unions) && (
                           <button
                             type="button"
-                            onClick={() => setEditId(Number(member.id))}
+                            onClick={() => setEditId(member.id)}
                             className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-800"
                           >
                             <Pencil size={14} />
@@ -189,8 +190,9 @@ export function MembersPage() {
                             onClick={() => void handleDelete(member.id, member.name)}
                             disabled={isBusy}
                             className="rounded-lg p-1.5 text-rose-300 hover:bg-rose-950/40 disabled:opacity-40"
+                            aria-label="Delete member"
                           >
-                            <Trash2 size={14} />
+                            {isBusy ? <RoundSpinner /> : <Trash2 size={14} />}
                           </button>
                         )}
                       </div>
@@ -225,7 +227,7 @@ export function MembersPage() {
                     View
                   </button>
                   {canEditMember(member.id, unions) && (
-                    <button type="button" onClick={() => setEditId(Number(member.id))} className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs">
+                    <button type="button" onClick={() => setEditId(member.id)} className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs">
                       Edit
                     </button>
                   )}
@@ -271,7 +273,7 @@ export function MembersPage() {
       <EditMember
         open={editId != null}
         memberId={editId}
-        fallback={members.find((m) => Number(m.id) === editId)}
+        fallback={members.find((m) => m.id === editId)}
         onClose={() => setEditId(null)}
         onSaved={refresh}
       />

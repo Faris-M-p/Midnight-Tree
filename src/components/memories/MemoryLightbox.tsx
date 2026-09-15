@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 
 interface MemoryLightboxProps {
-  images: Array<{ id: number; url: string; alt?: string }>;
+  images: Array<{ id: number | string; url: string; alt?: string }>;
   index: number;
   onClose: () => void;
   onChangeIndex: (index: number) => void;

@@ -6,6 +6,7 @@ import { ApiClientError } from "../../services/apiClient";
 import { notify } from "../../utils/notify";
 import { useActionLock } from "../../hooks/useActionLock";
 import { formatMemberLabel, matchesMemberRank, type MemberRanks } from "../../utils/memberRanks";
+import { BusyContent } from "../ui/RoundSpinner";
 
 interface MapSpouseModalProps {
   open: boolean;
@@ -125,7 +126,7 @@ export function MapSpouseModal({ open, onClose, members, unions, memberRanks, on
     if (!canSubmit) return;
     void run(async () => {
       try {
-        await mapSpouse(Number(memberAId), Number(memberBId));
+        await mapSpouse(memberAId, memberBId);
         notify.success("Spouse relationship mapped successfully.");
         await onMapped();
         onClose();
@@ -191,9 +192,9 @@ export function MapSpouseModal({ open, onClose, members, unions, memberRanks, on
             type="button"
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Map Spouse
+            <BusyContent busy={isBusy}>Map Spouse</BusyContent>
           </button>
         </div>
       </div>

@@ -1,24 +1,42 @@
-import { apiFormRequest, apiRequest } from "./apiClient";
+import { FirebaseClientError } from "../firebase/errors/firebaseErrorHandler";
+import { getCurrentFirebaseUser } from "../firebase/auth/firebaseAuth";
+import { ensureCurrentFamilyId } from "../firebase/auth/currentFamily";
+import {
+  createMemory as createFirebaseMemory,
+  createMemoryPhoto,
+  deleteMemory as deleteFirebaseMemory,
+  deleteMemoryPhoto,
+  getMemoriesByFamily,
+  getMemory as getFirebaseMemory,
+  getMemoryPhotos,
+  updateMemory as updateFirebaseMemory,
+  updateMemoryPhoto
+} from "../firebase/firestore/memoryService";
+import type { FirebaseMemory, FirebaseMemoryPhoto } from "../firebase/types/firebaseTypes";
+import { fileToCompressedDataUrl, isLikelyImageFile } from "../utils/imageFile";
 import type {
   MemoryDetail,
   MemoryImageAction,
+  MemoryImageItem,
   MemoryListItem,
   MemoryListQuery,
-  MemoryImageItem,
-  MemoryCover,
   PagedMemories
 } from "../types/memory";
+import { MEMORY_MAX_IMAGE_BYTES, MEMORY_MAX_IMAGES } from "../types/memory";
 
-type AnyRecord = Record<string, unknown>;
-
-function asRecord(value: unknown): AnyRecord {
-  return value && typeof value === "object" ? (value as AnyRecord) : {};
+function asId(value: string | number | null | undefined): string {
+  return value == null ? "" : String(value);
 }
 
-function pick<T>(obj: AnyRecord, ...keys: string[]): T | undefined {
-  for (const key of keys) {
-    if (obj[key] !== undefined && obj[key] !== null) {
-      return obj[key] as T;
+function timestampToIso(value: unknown): string | undefined {
+  if (!value) return undefined;
+  if (typeof value === "string") return value;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "object" && value !== null && "toDate" in value) {
+    try {
+      return (value as { toDate: () => Date }).toDate().toISOString();
+    } catch {
+      return undefined;
     }
   }
   return undefined;
@@ -36,110 +54,155 @@ function toIsoDateInput(value?: string | null): string {
   return `${y}-${m}-${d}`;
 }
 
-function mapListItem(raw: unknown): MemoryListItem {
-  const item = asRecord(raw);
-  return {
-    id: Number(pick<number>(item, "id", "Id") ?? 0),
-    title: String(pick<string>(item, "title", "Title") ?? ""),
-    description: pick<string | null>(item, "description", "Description") ?? null,
-    memoryDate: String(pick<string>(item, "memoryDate", "MemoryDate") ?? ""),
-    location: pick<string | null>(item, "location", "Location") ?? null,
-    coverImageId: pick<number | null>(item, "coverImageId", "CoverImageId", "coverMediaId", "CoverMediaId") ?? null,
-    coverUrl: pick<string | null>(item, "coverUrl", "CoverUrl", "coverImageUrl", "CoverImageUrl") ?? null,
-    imageCount: Number(pick<number>(item, "imageCount", "ImageCount") ?? 0),
-    createdOn: pick<string>(item, "createdOn", "CreatedOn")
-  };
+async function compressMemoryImage(file: File): Promise<{ url: string; fileName: string; fileSize: number }> {
+  if (!isLikelyImageFile(file)) {
+    throw new FirebaseClientError("Please choose a JPG, JPEG, PNG, or WEBP image.", "invalid-argument");
+  }
+  if (file.size > MEMORY_MAX_IMAGE_BYTES) {
+    throw new FirebaseClientError("Image must be 10 MB or smaller.", "invalid-argument");
+  }
+  try {
+    const url = await fileToCompressedDataUrl(file, 1000, 0.78);
+    return { url, fileName: file.name, fileSize: url.length };
+  } catch {
+    throw new FirebaseClientError("Could not read this image. Try a JPG or PNG.", "invalid-argument");
+  }
 }
 
-function mapMedia(raw: unknown): MemoryImageItem {
-  const item = asRecord(raw);
-  const imageUrl = pick<string | null>(item, "imageUrl", "ImageUrl", "fileUrl", "FileUrl") ?? null;
-  const isCover = Boolean(pick<boolean>(item, "isCoverImage", "IsCoverImage", "isCover", "IsCover"));
-  return {
-    id: Number(pick<number>(item, "id", "Id") ?? 0),
-    fileName: pick<string | null>(item, "fileName", "FileName") ?? null,
-    storageKey: pick<string | null>(item, "storageKey", "StorageKey") ?? null,
-    imageUrl,
-    fileUrl: imageUrl,
-    mimeType: pick<string | null>(item, "mimeType", "MimeType") ?? null,
-    fileSize: pick<number | null>(item, "fileSize", "FileSize") ?? null,
-    sortOrder: Number(pick<number>(item, "sortOrder", "SortOrder") ?? 0),
-    isCoverImage: isCover,
-    isCover
-  };
-}
-
-function mapCover(raw: unknown): MemoryCover | null {
-  const cover = asRecord(raw);
-  const id = Number(pick<number>(cover, "id", "Id") ?? 0);
-  if (!id) return null;
-  const imageUrl = pick<string | null>(cover, "imageUrl", "ImageUrl", "fileUrl", "FileUrl") ?? null;
+function toImageItem(photo: FirebaseMemoryPhoto, index: number): MemoryImageItem {
+  const id = photo.id || String(index);
   return {
     id,
-    fileName: pick<string | null>(cover, "fileName", "FileName") ?? null,
-    storageKey: pick<string | null>(cover, "storageKey", "StorageKey") ?? null,
-    imageUrl,
-    fileUrl: imageUrl,
-    mimeType: pick<string | null>(cover, "mimeType", "MimeType") ?? null,
-    fileSize: pick<number | null>(cover, "fileSize", "FileSize") ?? null
+    fileName: photo.fileName ?? null,
+    imageUrl: photo.fileUrl,
+    fileUrl: photo.fileUrl,
+    fileSize: photo.fileSize ?? null,
+    sortOrder: photo.sortOrder ?? index,
+    isCoverImage: Boolean(photo.isCover),
+    isCover: Boolean(photo.isCover)
   };
 }
 
-function mapDetail(raw: unknown): MemoryDetail {
-  const data = asRecord(raw);
-  const imagesRaw = pick<unknown[]>(data, "images", "Images") ?? [];
+function toListItem(memory: FirebaseMemory): MemoryListItem {
+  const id = memory.id ?? "";
   return {
-    id: Number(pick<number>(data, "id", "Id") ?? 0),
-    title: String(pick<string>(data, "title", "Title") ?? ""),
-    description: pick<string | null>(data, "description", "Description") ?? null,
-    memoryDate: String(pick<string>(data, "memoryDate", "MemoryDate") ?? ""),
-    location: pick<string | null>(data, "location", "Location") ?? null,
-    coverImageId: pick<number | null>(data, "coverImageId", "CoverImageId", "coverMediaId", "CoverMediaId") ?? null,
-    coverUrl: pick<string | null>(data, "coverUrl", "CoverUrl", "coverImageUrl", "CoverImageUrl") ?? null,
-    cover: mapCover(pick(data, "cover", "Cover")),
-    images: Array.isArray(imagesRaw) ? imagesRaw.map(mapMedia) : [],
-    createdOn: pick<string>(data, "createdOn", "CreatedOn"),
-    updatedOn: pick<string | null>(data, "updatedOn", "UpdatedOn") ?? null
+    id,
+    title: memory.title,
+    description: memory.description ?? null,
+    memoryDate: memory.memoryDate,
+    location: memory.location ?? null,
+    coverImageId: memory.coverPhotoId ?? null,
+    coverUrl: memory.coverUrl ?? null,
+    imageCount: memory.imageCount ?? 0,
+    createdOn: timestampToIso(memory.createdAt)
   };
 }
 
-function mapImageAction(raw: unknown): MemoryImageAction {
-  const data = asRecord(raw);
+function toDetail(memory: FirebaseMemory, photos: FirebaseMemoryPhoto[]): MemoryDetail {
+  const id = memory.id ?? "";
+  let images = photos.map((photo, index) => toImageItem(photo, index));
+  if (images.length === 0 && memory.coverUrl) {
+    images = [
+      {
+        id: memory.coverPhotoId || `${id}-cover`,
+        imageUrl: memory.coverUrl,
+        fileUrl: memory.coverUrl,
+        sortOrder: 0,
+        isCoverImage: true,
+        isCover: true
+      }
+    ];
+  }
+  const cover = images.find((image) => image.isCover) ?? images[0] ?? null;
   return {
-    imageId: Number(pick<number>(data, "imageId", "ImageId", "mediaId", "MediaId") ?? 0),
-    url: pick<string | null>(data, "url", "Url") ?? null,
-    fileSize: Number(pick<number>(data, "fileSize", "FileSize") ?? 0),
-    imageCount: Number(pick<number>(data, "imageCount", "ImageCount") ?? 0),
-    maxImageCount: Number(pick<number>(data, "maxImageCount", "MaxImageCount") ?? 10),
-    storageUsedBytes: Number(pick<number>(data, "storageUsedBytes", "StorageUsedBytes") ?? 0),
-    storageLimitBytes: Number(pick<number>(data, "storageLimitBytes", "StorageLimitBytes") ?? 0)
+    id,
+    title: memory.title,
+    description: memory.description ?? null,
+    memoryDate: memory.memoryDate,
+    location: memory.location ?? null,
+    coverImageId: cover?.id ?? memory.coverPhotoId ?? null,
+    coverUrl: cover?.fileUrl ?? memory.coverUrl ?? null,
+    cover: cover
+      ? {
+          id: cover.id,
+          fileName: cover.fileName,
+          imageUrl: cover.fileUrl,
+          fileUrl: cover.fileUrl,
+          fileSize: cover.fileSize
+        }
+      : null,
+    images,
+    createdOn: timestampToIso(memory.createdAt),
+    updatedOn: timestampToIso(memory.updatedAt) ?? null
   };
 }
 
-function buildListQuery(query: MemoryListQuery = {}): string {
-  const params = new URLSearchParams();
-  if (query.search?.trim()) params.set("search", query.search.trim());
-  if (query.sortBy) params.set("sortBy", query.sortBy);
-  if (query.page) params.set("page", String(query.page));
-  if (query.pageSize) params.set("pageSize", String(query.pageSize));
-  const qs = params.toString();
-  return qs ? `?${qs}` : "";
+function storageAction(imageId: string | number, images: MemoryImageItem[], fileSize = 0): MemoryImageAction {
+  return {
+    imageId,
+    url: images.find((image) => String(image.id) === String(imageId))?.fileUrl ?? null,
+    fileSize,
+    imageCount: images.length,
+    maxImageCount: MEMORY_MAX_IMAGES,
+    storageUsedBytes: images.reduce((sum, image) => sum + (image.fileSize ?? 0), 0),
+    storageLimitBytes: 0
+  };
+}
+
+async function loadDetail(memoryId: string): Promise<MemoryDetail> {
+  const memory = await getFirebaseMemory(memoryId);
+  if (!memory?.id) {
+    throw new FirebaseClientError("Memory not found.", "not-found");
+  }
+  const photos = await getMemoryPhotos(memoryId);
+  return toDetail(memory, photos);
+}
+
+async function syncCoverAndCount(memoryId: string, photos: FirebaseMemoryPhoto[]): Promise<void> {
+  const cover = photos.find((photo) => photo.isCover) ?? photos[0] ?? null;
+  await updateFirebaseMemory(memoryId, {
+    coverUrl: cover?.fileUrl ?? null,
+    coverPhotoId: cover?.id ?? null,
+    imageCount: photos.length
+  });
 }
 
 export async function listMemories(query: MemoryListQuery = {}): Promise<PagedMemories> {
-  const data = asRecord(await apiRequest<unknown>(`/api/memories${buildListQuery(query)}`));
-  const itemsRaw = pick<unknown[]>(data, "items", "Items") ?? [];
+  const familyId = await ensureCurrentFamilyId();
+  const page = Math.max(1, query.page ?? 1);
+  const pageSize = Math.max(1, query.pageSize ?? 12);
+  const search = (query.search ?? "").trim().toLowerCase();
+
+  let rows = await getMemoriesByFamily(familyId);
+  if (search) {
+    rows = rows.filter((memory) => {
+      const haystack = `${memory.title} ${memory.description ?? ""} ${memory.location ?? ""}`.toLowerCase();
+      return haystack.includes(search);
+    });
+  }
+
+  rows.sort((left, right) => {
+    if (query.sortBy === "title") return left.title.localeCompare(right.title);
+    const leftDate = left.memoryDate || timestampToIso(left.createdAt) || "";
+    const rightDate = right.memoryDate || timestampToIso(right.createdAt) || "";
+    const compared = leftDate.localeCompare(rightDate);
+    return query.sortBy === "oldest" ? compared : -compared;
+  });
+
+  const totalCount = rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const start = (page - 1) * pageSize;
   return {
-    items: Array.isArray(itemsRaw) ? itemsRaw.map(mapListItem) : [],
-    page: Number(pick<number>(data, "page", "Page") ?? 1),
-    pageSize: Number(pick<number>(data, "pageSize", "PageSize") ?? 12),
-    totalCount: Number(pick<number>(data, "totalCount", "TotalCount") ?? 0),
-    totalPages: Number(pick<number>(data, "totalPages", "TotalPages") ?? 0)
+    items: rows.slice(start, start + pageSize).map(toListItem),
+    page,
+    pageSize,
+    totalCount,
+    totalPages
   };
 }
 
-export async function getMemory(id: number): Promise<MemoryDetail> {
-  return mapDetail(await apiRequest<unknown>(`/api/memories/${id}`));
+export async function getMemory(id: string | number): Promise<MemoryDetail> {
+  return loadDetail(asId(id));
 }
 
 export async function createMemory(input: {
@@ -150,20 +213,59 @@ export async function createMemory(input: {
   coverImage: File;
   images?: File[];
 }): Promise<MemoryDetail> {
-  const form = new FormData();
-  form.append("Title", input.title);
-  form.append("Description", input.description);
-  form.append("MemoryDate", input.memoryDate);
-  if (input.location?.trim()) form.append("Location", input.location.trim());
-  form.append("CoverImage", input.coverImage);
-  for (const image of input.images ?? []) {
-    form.append("Images", image);
+  const familyId = await ensureCurrentFamilyId();
+  const user = getCurrentFirebaseUser();
+  const extraFiles = (input.images ?? []).slice(0, Math.max(0, MEMORY_MAX_IMAGES - 1));
+  const cover = await compressMemoryImage(input.coverImage);
+  const extras = await Promise.all(extraFiles.map((file) => compressMemoryImage(file)));
+
+  const created = await createFirebaseMemory({
+    familyId,
+    title: input.title,
+    description: input.description,
+    memoryDate: input.memoryDate,
+    location: input.location,
+    coverUrl: cover.url,
+    coverPhotoId: null,
+    imageCount: 1 + extras.length,
+    createdBy: user?.uid ?? "unknown"
+  });
+  const memoryId = created.id ?? "";
+  if (!memoryId) {
+    throw new FirebaseClientError("Memory could not be created.", "failed-precondition");
   }
-  return mapDetail(await apiFormRequest<unknown>("/api/memories", form, "POST"));
+
+  const coverPhoto = await createMemoryPhoto({
+    familyId,
+    memoryId,
+    fileUrl: cover.url,
+    fileName: cover.fileName,
+    fileSize: cover.fileSize,
+    sortOrder: 0,
+    isCover: true
+  });
+
+  for (let index = 0; index < extras.length; index += 1) {
+    await createMemoryPhoto({
+      familyId,
+      memoryId,
+      fileUrl: extras[index].url,
+      fileName: extras[index].fileName,
+      fileSize: extras[index].fileSize,
+      sortOrder: index + 1,
+      isCover: false
+    });
+  }
+
+  if (coverPhoto.id) {
+    await updateFirebaseMemory(memoryId, { coverPhotoId: coverPhoto.id });
+  }
+
+  return loadDetail(memoryId);
 }
 
 export async function updateMemory(
-  id: number,
+  id: string | number,
   input: {
     title: string;
     description: string;
@@ -172,38 +274,101 @@ export async function updateMemory(
     coverImage?: File | null;
   }
 ): Promise<MemoryDetail> {
-  const form = new FormData();
-  form.append("Title", input.title);
-  form.append("Description", input.description);
-  form.append("MemoryDate", input.memoryDate);
-  if (input.location?.trim()) form.append("Location", input.location.trim());
-  if (input.coverImage) form.append("CoverImage", input.coverImage);
-  return mapDetail(await apiFormRequest<unknown>(`/api/memories/${id}`, form, "PUT"));
+  const memoryId = asId(id);
+  const familyId = await ensureCurrentFamilyId();
+  const updates: Parameters<typeof updateFirebaseMemory>[1] = {
+    title: input.title,
+    description: input.description,
+    memoryDate: input.memoryDate,
+    location: input.location || ""
+  };
+
+  if (input.coverImage) {
+    const photos = await getMemoryPhotos(memoryId);
+    const cover = await compressMemoryImage(input.coverImage);
+    const existingCover = photos.find((photo) => photo.isCover);
+    if (existingCover?.id) {
+      await deleteMemoryPhoto(existingCover.id);
+    }
+    const coverPhoto = await createMemoryPhoto({
+      familyId,
+      memoryId,
+      fileUrl: cover.url,
+      fileName: cover.fileName,
+      fileSize: cover.fileSize,
+      sortOrder: 0,
+      isCover: true
+    });
+    updates.coverUrl = cover.url;
+    updates.coverPhotoId = coverPhoto.id ?? null;
+    updates.imageCount = photos.length - (existingCover ? 1 : 0) + 1;
+  }
+
+  await updateFirebaseMemory(memoryId, updates);
+  return loadDetail(memoryId);
 }
 
-export async function deleteMemory(id: number): Promise<void> {
-  await apiRequest(`/api/memories/${id}`, { method: "DELETE" });
+export async function deleteMemory(id: string | number): Promise<void> {
+  const memoryId = asId(id);
+  const photos = await getMemoryPhotos(memoryId);
+  await Promise.all(photos.map((photo) => (photo.id ? deleteMemoryPhoto(photo.id) : Promise.resolve())));
+  await deleteFirebaseMemory(memoryId);
 }
 
-export async function uploadMemoryImage(memoryId: number, image: File): Promise<MemoryImageAction> {
-  const form = new FormData();
-  form.append("Image", image);
-  return mapImageAction(await apiFormRequest<unknown>(`/api/memories/${memoryId}/images`, form, "POST"));
+export async function uploadMemoryImage(memoryId: string | number, image: File): Promise<MemoryImageAction> {
+  const id = asId(memoryId);
+  const familyId = await ensureCurrentFamilyId();
+  const photos = await getMemoryPhotos(id);
+  if (photos.length >= MEMORY_MAX_IMAGES) {
+    throw new FirebaseClientError("A memory can have at most 10 images.", "invalid-argument");
+  }
+  const compressed = await compressMemoryImage(image);
+  const isFirst = photos.length === 0;
+  const created = await createMemoryPhoto({
+    familyId,
+    memoryId: id,
+    fileUrl: compressed.url,
+    fileName: compressed.fileName,
+    fileSize: compressed.fileSize,
+    sortOrder: photos.length,
+    isCover: isFirst
+  });
+  const nextPhotos = [...photos, created];
+  await syncCoverAndCount(id, nextPhotos);
+  const detail = await loadDetail(id);
+  return storageAction(created.id ?? detail.images.at(-1)?.id ?? "0", detail.images, compressed.fileSize);
 }
 
-export async function deleteMemoryImage(memoryId: number, imageId: number): Promise<MemoryImageAction> {
-  return mapImageAction(
-    await apiRequest<unknown>(`/api/memories/${memoryId}/images/${imageId}`, { method: "DELETE" })
-  );
+export async function deleteMemoryImage(memoryId: string | number, imageId: string | number): Promise<MemoryImageAction> {
+  const id = asId(memoryId);
+  const photoId = asId(imageId);
+  const photos = await getMemoryPhotos(id);
+  const remaining = photos.filter((photo) => photo.id !== photoId);
+  await deleteMemoryPhoto(photoId);
+  if (photos.find((photo) => photo.id === photoId)?.isCover && remaining[0]?.id) {
+    await updateMemoryPhoto(remaining[0].id, { isCover: true });
+    remaining[0] = { ...remaining[0], isCover: true };
+  }
+  await syncCoverAndCount(id, remaining);
+  const detail = await loadDetail(id);
+  return storageAction(photoId, detail.images);
 }
 
-export async function setMemoryCover(memoryId: number, imageId: number): Promise<MemoryDetail> {
-  return mapDetail(
-    await apiRequest<unknown, { imageId: number }>(`/api/memories/${memoryId}/cover`, {
-      method: "PUT",
-      body: { imageId }
+export async function setMemoryCover(memoryId: string | number, imageId: string | number): Promise<MemoryDetail> {
+  const id = asId(memoryId);
+  const photoId = asId(imageId);
+  const photos = await getMemoryPhotos(id);
+  const next = await Promise.all(
+    photos.map(async (photo) => {
+      const isCover = photo.id === photoId;
+      if (photo.id && photo.isCover !== isCover) {
+        await updateMemoryPhoto(photo.id, { isCover });
+      }
+      return { ...photo, isCover };
     })
   );
+  await syncCoverAndCount(id, next);
+  return loadDetail(id);
 }
 
 export function memoryDateInputValue(value?: string | null): string {

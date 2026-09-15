@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "rea
 import { X } from "lucide-react";
 import type { MemberProfile, UpdateMemberPayload } from "../../types/member";
 import { getMemberDetails, updateMember } from "../../services/memberService";
-import { ApiClientError } from "../../services/apiClient";
+import { FirebaseClientError } from "../../firebase/errors/firebaseErrorHandler";
 import { notify } from "../../utils/notify";
 import { useActionLock } from "../../hooks/useActionLock";
 import { logUnexpected } from "../../utils/logFailure";
@@ -12,6 +12,8 @@ import { LocationPicker } from "./LocationPicker";
 import { ErrorState, LoadingState } from "../ui/PageStates";
 import { resolveAvatarUrl } from "../../utils/defaultAvatar";
 import { HIDDEN_LAST_NAME } from "../../utils/memberName";
+import { isLikelyImageFile } from "../../utils/imageFile";
+import { BusyContent } from "../ui/RoundSpinner";
 
 export interface EditMemberFallback {
   location?: string;
@@ -21,7 +23,7 @@ export interface EditMemberFallback {
 
 export interface EditMemberProps {
   open: boolean;
-  memberId: number | null;
+  memberId: number | string | null;
   onClose: () => void;
   onSaved?: (updated: MemberProfile) => Promise<void> | void;
   fallback?: EditMemberFallback | null;
@@ -92,14 +94,15 @@ export function EditMember({
   fallbackRef.current = fallback;
 
   useEffect(() => {
-    if (!open || memberId == null || !Number.isFinite(memberId)) {
+    const id = memberId == null ? "" : String(memberId).trim();
+    if (!open || !id) {
       return;
     }
 
     const extra = fallbackRef.current;
     setLoading(true);
     setError("");
-    getMemberDetails(memberId)
+    getMemberDetails(id)
       .then((data) => {
         setProfile(data);
         setLifeStatus(data.dateOfDeath ? "deceased" : "alive");
@@ -131,7 +134,7 @@ export function EditMember({
       .catch((err) => {
         logUnexpected("EditMember", err);
         setProfile(null);
-        setError(err instanceof ApiClientError ? err.message : "Unable to load member.");
+        setError(err instanceof FirebaseClientError ? err.message : err instanceof Error ? err.message : "Unable to load member.");
       })
       .finally(() => setLoading(false));
   }, [open, memberId]);
@@ -148,7 +151,7 @@ export function EditMember({
     setForm((current) => ({ ...current, [key]: value }));
 
   const handlePhotoSelected = (file: File) => {
-    if (!file.type.startsWith("image/")) {
+    if (!isLikelyImageFile(file)) {
       notify.validation("Please choose an image file.");
       return;
     }
@@ -200,13 +203,13 @@ export function EditMember({
         await onSaved?.(updated);
         onClose();
       } catch (err) {
-        if (err instanceof ApiClientError) notify.fromApiError(err);
+        if (err instanceof FirebaseClientError) notify.error(err.message);
         else notify.error("Unable to update member right now.");
       }
     });
   };
 
-  const preview = photoPreview || existingPhoto(profile) || resolveAvatarUrl("", genderKey(form.gender));
+  const preview = photoPreview || resolveAvatarUrl(existingPhoto(profile), genderKey(form.gender));
 
   const formBody = (
     <>
@@ -345,8 +348,8 @@ export function EditMember({
         {formBody}
         {!loading && profile ? (
           <div className="flex gap-2">
-            <button type="submit" disabled={isBusy} className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60">
-              Save member
+            <button type="submit" disabled={isBusy} className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60">
+              <BusyContent busy={isBusy}>Save member</BusyContent>
             </button>
             <button type="button" onClick={onClose} className="rounded-xl border border-slate-700 px-4 py-2 text-sm">
               Cancel
@@ -359,7 +362,7 @@ export function EditMember({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
-      <div className="absolute inset-0 bg-overlay backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-overlay backdrop-blur-sm" onClick={isBusy ? undefined : onClose} />
       <form
         onSubmit={handleSubmit}
         className="relative z-10 flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-slate-800 bg-slate-950 shadow-2xl sm:rounded-2xl"
@@ -369,22 +372,22 @@ export function EditMember({
             <h2 className="text-lg font-semibold text-slate-100">Edit member</h2>
             <p className="text-xs text-slate-500">Same form on Members and Family Tree.</p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-900">
+          <button type="button" onClick={onClose} disabled={isBusy} className="rounded-lg p-2 text-slate-400 hover:bg-slate-900 disabled:opacity-60">
             <X size={16} />
           </button>
         </div>
         <div className="space-y-4 overflow-y-auto px-5 py-4">{formBody}</div>
         {!loading && profile ? (
           <div className="flex justify-end gap-2 border-t border-slate-800 px-5 py-4">
-            <button type="button" onClick={onClose} className="rounded-xl border border-slate-700 px-4 py-2 text-sm">
+            <button type="button" onClick={onClose} disabled={isBusy} className="rounded-xl border border-slate-700 px-4 py-2 text-sm disabled:opacity-60">
               Cancel
             </button>
             <button
               type="submit"
               disabled={isBusy}
-              className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
             >
-              Save member
+              <BusyContent busy={isBusy}>Save member</BusyContent>
             </button>
           </div>
         ) : null}

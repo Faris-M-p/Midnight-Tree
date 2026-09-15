@@ -33,11 +33,13 @@ import { useFamilyData } from '../../context/FamilyDataContext';
 import { getFamilyTreeData } from '../../services/treeService';
 import { notify } from '../../utils/notify';
 import { useActionLock } from '../../hooks/useActionLock';
+import { RoundSpinner } from '../../components/ui/RoundSpinner';
 import { logFailure, logUnexpected } from '../../utils/logFailure';
 import { readThemeCssVar } from '../../theme';
 import { computeMemberRanks } from '../../utils/memberRanks';
 import type { MemberProfile } from '../../types/member';
 import { canCreateMember } from '../../auth/permissions';
+import { resolveAvatarUrl } from '../../utils/defaultAvatar';
 
 import '@xyflow/react/dist/style.css';
 
@@ -404,16 +406,13 @@ function AppContent() {
     return 'other';
   };
 
-  const defaultAvatar = (gender: 'male' | 'female' | 'other'): string => {
-    if (gender === 'male') return 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=faces&q=80';
-    if (gender === 'female') return 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=faces&q=80';
-    return 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150&h=150&fit=crop&crop=faces&q=80';
-  };
-
   const mapProfileToMember = (profile: MemberProfile, fallback?: FamilyMember): FamilyMember => {
     const gender = mapGender(profile.gender);
     const photos = (profile.images ?? []).map((x) => x.imageUrl);
-    const avatar = profile.images?.find((x) => x.isPrimary)?.imageUrl || photos[0] || fallback?.avatar || defaultAvatar(gender);
+    const avatar = resolveAvatarUrl(
+      profile.images?.find((x) => x.isPrimary)?.imageUrl || photos[0] || fallback?.avatar,
+      gender
+    );
     const findSocial = (needle: string) => profile.socialLinks?.find((x) => x.platform.toLowerCase().includes(needle))?.url;
     const nickname = profile.nickname?.trim() || fallback?.nickname;
 
@@ -527,14 +526,9 @@ function AppContent() {
   const handleDeleteMember = async () => {
     if (!selectedMember) return;
     const id = selectedMember.id;
-    const memberId = Number(id);
-    if (!Number.isFinite(memberId)) {
-      notify.error('Invalid member id.');
-      return;
-    }
 
     const childCountFromProfile =
-      selectedProfile?.id === memberId ? selectedProfile.children?.length ?? 0 : 0;
+      selectedProfile && String(selectedProfile.id) === id ? selectedProfile.children?.length ?? 0 : 0;
     const hasUnionChildren = unions.some(
       (u) => (u.spouse1Id === id || u.spouse2Id === id) && u.childrenIds.length > 0
     );
@@ -548,7 +542,7 @@ function AppContent() {
 
     await run(async () => {
       try {
-        await deleteMember(memberId);
+        await deleteMember(id);
         closeMemberSheets();
         await loadTreeData();
         await refreshFamilyData();
@@ -865,7 +859,7 @@ function AppContent() {
     setEditOpen(false);
     setIsDetailsLoading(true);
     try {
-      const profile = await getMemberDetails(Number(member.id));
+      const profile = await getMemberDetails(member.id);
       setSelectedProfile(profile);
       setSelectedMember(mapProfileToMember(profile, member));
     } catch (error) {
@@ -900,7 +894,7 @@ function AppContent() {
           {isTreeLoading ? (
             <div className="flex h-full w-full items-center justify-center px-4">
               <div className="inline-flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 px-5 py-4 text-sm text-slate-300">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+                <RoundSpinner className="border-emerald-400 border-t-transparent" />
                 Loading family tree...
               </div>
             </div>
@@ -988,7 +982,7 @@ function AppContent() {
 
       <EditMember
         open={editOpen}
-        memberId={selectedMember ? Number(selectedMember.id) : null}
+        memberId={selectedMember ? selectedMember.id : null}
         fallback={selectedMember}
         onClose={() => setEditOpen(false)}
         onSaved={async (updated) => {

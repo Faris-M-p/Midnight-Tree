@@ -4,11 +4,13 @@ import { DatePicker } from "../DatePicker";
 import { canEditFamily } from "../../auth/permissions";
 import { navigateTo } from "../../routing/navigate";
 import { ApiClientError } from "../../services/apiClient";
+import { FirebaseClientError } from "../../firebase/errors/firebaseErrorHandler";
 import { createMemory } from "../../services/memoryService";
 import { MEMORY_MAX_IMAGES } from "../../types/memory";
 import { memoryInputClass, memoryLabelClass, validateMemoryImage } from "../../utils/memoryImages";
 import { notify } from "../../utils/notify";
 import { useActionLock } from "../../hooks/useActionLock";
+import { BusyContent } from "../ui/RoundSpinner";
 
 interface LocalPhoto {
   id: string;
@@ -134,7 +136,8 @@ export function MemoryCreateView() {
         notify.success("Memory created successfully.");
         navigateTo(`/memories/${created.id}`);
       } catch (error) {
-        if (error instanceof ApiClientError) notify.fromApiError(error);
+        if (error instanceof FirebaseClientError) notify.error(error.message);
+        else if (error instanceof ApiClientError) notify.fromApiError(error);
         else notify.error("Unable to create memory right now.");
       }
     });
@@ -270,9 +273,9 @@ export function MemoryCreateView() {
         <button
           type="submit"
           disabled={isBusy}
-          className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
+          className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
         >
-          Create Memory
+          <BusyContent busy={isBusy}>Create Memory</BusyContent>
         </button>
         <button
           type="button"

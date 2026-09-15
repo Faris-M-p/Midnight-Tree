@@ -1,4 +1,5 @@
 import { useFamilyBranding } from "../../hooks/useFamilyBranding";
+import { FamilyLogo } from "../family/FamilyLogo";
 import { AppNavItems } from "./AppNavItems";
 
 interface SidebarProps {
@@ -11,9 +12,9 @@ export function Sidebar({ pathname }: SidebarProps) {
   return (
     <aside className="hidden h-full w-64 shrink-0 flex-col border-r border-edge bg-sidebar xl:flex">
       <div className="flex shrink-0 items-center gap-3 border-b border-edge px-4 py-4">
-        <img
+        <FamilyLogo
+          name={family.name}
           src={family.logo}
-          alt=""
           className="h-10 w-10 rounded-xl border border-input-border object-cover"
         />
         <div className="min-w-0">

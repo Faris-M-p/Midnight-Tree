@@ -6,6 +6,7 @@ import { canEdit } from "../../auth/permissions";
 import { EmptyState } from "../../components/ui/PageStates";
 import { mockMemberName } from "../../data/mockMembers";
 import { useActionLock } from "../../hooks/useActionLock";
+import { BusyContent } from "../../components/ui/RoundSpinner";
 
 interface StoriesPageProps {
   pathname: string;
@@ -82,8 +83,8 @@ function StoryForm({ initial, onCancel }: { initial?: MockStory; onCancel: () =>
         </label>
       </div>
       <div className="flex gap-2">
-        <button type="submit" disabled={isBusy} className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60">
-          Save story
+        <button type="submit" disabled={isBusy} className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60">
+          <BusyContent busy={isBusy}>Save story</BusyContent>
         </button>
         <button type="button" onClick={onCancel} className="rounded-xl border border-slate-700 px-4 py-2 text-sm">
           Cancel
@@ -140,9 +141,9 @@ export function StoriesPage({ pathname }: StoriesPageProps) {
                     refresh();
                   });
                 }}
-                className="rounded-xl border border-slate-700 px-3 py-2 text-sm disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-xl border border-slate-700 px-3 py-2 text-sm disabled:opacity-60"
               >
-                {story.status === "published" ? "Unpublish" : "Publish"}
+                <BusyContent busy={isBusy}>{story.status === "published" ? "Unpublish" : "Publish"}</BusyContent>
               </button>
               <button
                 type="button"
@@ -153,9 +154,9 @@ export function StoriesPage({ pathname }: StoriesPageProps) {
                     navigateTo("/stories");
                   });
                 }}
-                className="rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 disabled:opacity-60"
               >
-                Delete
+                <BusyContent busy={isBusy}>Delete</BusyContent>
               </button>
             </div>
           )}

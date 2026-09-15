@@ -47,10 +47,22 @@ export function getAuthSession(): AuthSession | null {
   }
 }
 
-/** Convenience helper used by apiClient for the Bearer token */
+export function isFirebaseAuthSession(session = getAuthSession()): boolean {
+  return session?.authProvider === "firebase";
+}
+
+export function hasAuthSession(): boolean {
+  return Boolean(getAuthSession()?.accessToken?.trim());
+}
+
+/** MidnightApi Bearer token only. Firebase ID tokens must not be sent to the .NET API. */
 export function getAccessToken(): string | null {
-  const token = getAuthSession()?.accessToken?.trim();
-  return token || null;
+  const session = getAuthSession();
+  const token = session?.accessToken?.trim();
+  if (!token || isFirebaseAuthSession(session)) {
+    return null;
+  }
+  return token;
 }
 
 /** Remove session on logout */

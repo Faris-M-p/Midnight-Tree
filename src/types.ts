@@ -34,6 +34,8 @@ export interface FamilyMember {
   isDeceased?: boolean;
   /** True when this person is the family root ancestor */
   isRoot?: boolean;
+  /** ISO timestamp from Firestore, used for recently-added ordering */
+  createdAt?: string;
   socials?: {
     facebook?: string;
     instagram?: string;

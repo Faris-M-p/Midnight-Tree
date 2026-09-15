@@ -5,8 +5,8 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { FamilyMember, MarriageUnion } from "../types";
-import { ApiClientError } from "../services/apiClient";
 import { loadFamilyBranding } from "../data/familyBranding";
+import { waitForCurrentFirebaseUser } from "../firebase/auth/firebaseAuth";
 import { getFamilyTreeData } from "../services/treeService";
 import { logUnexpected } from "../utils/logFailure";
 import { computeMemberRanks, type MemberRanks } from "../utils/memberRanks";
@@ -32,6 +32,7 @@ export function FamilyDataProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError("");
     try {
+      await waitForCurrentFirebaseUser();
       const [data] = await Promise.all([getFamilyTreeData(), loadFamilyBranding()]);
       setMembers(data.members);
       setUnions(data.unions);
@@ -39,11 +40,7 @@ export function FamilyDataProvider({ children }: { children: ReactNode }) {
       logUnexpected("FamilyData", err);
       setMembers([]);
       setUnions([]);
-      setError(
-        err instanceof ApiClientError
-          ? err.message
-          : "Unable to load family data right now. Please try again."
-      );
+      setError("");
     } finally {
       setIsLoading(false);
     }

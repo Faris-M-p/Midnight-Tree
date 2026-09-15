@@ -8,11 +8,11 @@
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { PublicHeader } from "../components/layout/PublicHeader";
-import { ApiClientError } from "../services/apiClient";
-import { registerAccount } from "../services/authService";
-import { setPendingVerificationEmail } from "../auth/pendingAuth";
+import { FirebaseClientError } from "../firebase/errors/firebaseErrorHandler";
+import { registerWithFirebase } from "../firebase/auth/firebaseAccount";
 import { notify } from "../utils/notify";
 import { useActionLock } from "../hooks/useActionLock";
+import { BusyContent } from "../components/ui/RoundSpinner";
 
 type FormField = "email" | "password" | "confirmPassword" | "familyName";
 type RegisterFormValues = Record<FormField, string>;
@@ -123,19 +123,21 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
 
     await run(async () => {
       try {
-        await registerAccount({
+        await registerWithFirebase({
           email: values.email.trim(),
           password: values.password,
           familyName: values.familyName.trim()
         });
 
-        setPendingVerificationEmail(values.email.trim());
-        notify.info("We've sent a verification code to your email.");
+        notify.success("Your account has been created.");
         setValues(initialValues);
-        onNavigate("/verify-email");
+        onNavigate("/home");
       } catch (error) {
-        if (error instanceof ApiClientError) {
-          notify.fromApiError(error);
+        if (error instanceof FirebaseClientError) {
+          notify.error(error.message);
+          if (error.code === "auth/email-already-in-use") {
+            setErrors((current) => ({ ...current, email: error.message }));
+          }
         } else {
           notify.error("Unable to register right now. Please try again.");
         }
@@ -202,7 +204,7 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                   : "cursor-not-allowed bg-emerald-500/60 text-slate-900"
               }`}
             >
-              Register
+              <BusyContent busy={isBusy}>Register</BusyContent>
             </button>
 
             <p className="text-center text-sm text-slate-400">

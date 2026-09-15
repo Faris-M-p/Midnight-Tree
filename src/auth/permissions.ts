@@ -15,10 +15,10 @@ export interface AccessContext {
   isAdmin: boolean;
   permission: AccessPermission;
   scope: AccessScope;
-  scopeMemberId: number | null;
+  scopeMemberId: number | string | null;
   tokenName?: string | null;
   familyId?: number | null;
-  tokenId?: number | null;
+  tokenId?: number | string | null;
   displayName: string;
 }
 

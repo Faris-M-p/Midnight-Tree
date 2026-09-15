@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { RoundSpinner } from "./RoundSpinner";
 
 export function EmptyState({ title, message, action }: { title: string; message: string; action?: ReactNode }) {
   return (
@@ -13,7 +14,7 @@ export function EmptyState({ title, message, action }: { title: string; message:
 export function LoadingState({ label = "Loading..." }: { label?: string }) {
   return (
     <div className="flex items-center justify-center py-16 text-sm text-slate-400">
-      <span className="mr-3 h-4 w-4 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+      <RoundSpinner className="mr-3 border-emerald-400 border-t-transparent" />
       {label}
     </div>
   );

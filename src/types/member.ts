@@ -18,7 +18,7 @@ import type { FamilyMember, MarriageUnion } from "../types";
 
 /** One row from the paged members list */
 export interface MemberListItem {
-  id: number;
+  id: number | string;
   firstName: string;
   lastName: string;
   fullName: string;
@@ -39,7 +39,7 @@ export interface PagedMembersResponse {
 
 /** Lightweight relative (parent / spouse / child) on a profile */
 export interface MemberRelationSummary {
-  id: number;
+  id: number | string;
   firstName: string;
   lastName: string;
   fullName: string;
@@ -65,7 +65,7 @@ export interface MemberSocialLinkItem {
 
 /** Full member profile returned by GET /api/members/{id} */
 export interface MemberProfile {
-  id: number;
+  id: number | string;
   firstName: string;
   lastName: string;
   fullName: string;
@@ -99,8 +99,8 @@ export interface CreateMemberPayload {
   nickname?: string;
   biography?: string;
   profession?: string;
-  parentId?: number;
-  spouseId?: number;
+  parentId?: number | string;
+  spouseId?: number | string;
   email?: string;
   phone?: string;
   locationName?: string;

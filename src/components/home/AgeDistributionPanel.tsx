@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { homeAgeFallback, type HomeAgeBucket } from "../../data/mockHome";
+import { type HomeAgeBucket } from "../../data/mockHome";
 import type { FamilyMember } from "../../types";
 import { AgeBars } from "./HomeCharts";
 
@@ -63,7 +63,7 @@ function buildBuckets(
   }
 
   if (scope === "living" && found === 0 && members.length === 0) {
-    return { buckets: homeAgeFallback, usedFallback: true };
+    return { buckets: emptyBuckets(), usedFallback: false };
   }
 
   return {

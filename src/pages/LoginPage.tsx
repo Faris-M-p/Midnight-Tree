@@ -3,7 +3,7 @@
  * FILE: src/pages/LoginPage.tsx
  * ROLE: Sign-in screen
  * =============================================================================
- * Email/password → admin JWT session.
+ * Email/password → Firebase Auth session.
  * Access Token only → scoped JWT session (family code is embedded in the token).
  * =============================================================================
  */
@@ -11,13 +11,13 @@
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { PublicHeader } from "../components/layout/PublicHeader";
-import { ApiClientError } from "../services/apiClient";
-import { loginAndPersistSession } from "../services/authService";
-import { loginWithAccessTokenAndPersist } from "../services/accessTokenService";
+import { FirebaseClientError } from "../firebase/errors/firebaseErrorHandler";
+import { loginWithFirebase } from "../firebase/auth/firebaseAccount";
 import { notify } from "../utils/notify";
 import { logout, markPasswordLoginAdmin } from "../auth/session";
-import { setPendingVerificationEmail } from "../auth/pendingAuth";
+import { loginWithAccessTokenAndPersist } from "../services/accessTokenService";
 import { useActionLock } from "../hooks/useActionLock";
+import { BusyContent } from "../components/ui/RoundSpinner";
 
 type LoginField = "email" | "password";
 type LoginFormValues = Record<LoginField, string>;
@@ -74,28 +74,18 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
 
     await run(async () => {
       try {
-        // Auth state must come from this login response only — drop any prior JWT first.
-        logout();
-        const response = await loginAndPersistSession({
+        await logout();
+        await loginWithFirebase({
           email: values.email.trim(),
           password: values.password
         });
-
-        if (response.requiresEmailVerification) {
-          const email = response.email?.trim() || values.email.trim();
-          if (email) setPendingVerificationEmail(email);
-          notify.info("We've sent a verification code to your email.");
-          onNavigate("/verify-email");
-          return;
-        }
-
-        markPasswordLoginAdmin(response.username?.trim() || values.email.trim());
+        markPasswordLoginAdmin(values.email.trim());
         notify.success("You have signed in successfully.");
         onNavigate("/home");
       } catch (error) {
-        logout();
-        if (error instanceof ApiClientError) {
-          notify.fromApiError(error);
+        await logout();
+        if (error instanceof FirebaseClientError) {
+          notify.error(error.message);
         } else {
           notify.error("Unable to sign in. Please try again.");
         }
@@ -108,8 +98,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
     event.preventDefault();
     if (!canSubmit) return;
 
-    const token = accessToken.trim();
-    if (!token) {
+    if (!accessToken.trim()) {
       setTokenError("Access token is required.");
       return;
     }
@@ -117,20 +106,16 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
     setTokenError("");
     await run(async () => {
       try {
-        // Auth state must come from this login response only — drop any prior JWT first.
-        logout();
-        await loginWithAccessTokenAndPersist({ accessToken: token });
+        await logout();
+        await loginWithAccessTokenAndPersist({ accessToken: accessToken.trim() });
         notify.success("You have signed in successfully.");
         onNavigate("/home");
       } catch (error) {
-        logout();
+        await logout();
         const message =
-          error instanceof ApiClientError
-            ? error.message
-            : "Unable to sign in with this token.";
+          error instanceof FirebaseClientError ? error.message : "Unable to sign in with this access token.";
         setTokenError(message);
-        notify.fromApiError(error instanceof ApiClientError ? error : { message });
-        setAccessToken("");
+        notify.error(message);
       }
     });
   };
@@ -192,7 +177,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                 disabled={!canSubmit}
                 className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Login with Token
+                <BusyContent busy={isBusy}>Login with Token</BusyContent>
               </button>
             </form>
           ) : null}
@@ -266,7 +251,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                     : "cursor-not-allowed bg-emerald-500/60 text-slate-900"
                 }`}
               >
-                Login
+                <BusyContent busy={isBusy}>Login</BusyContent>
               </button>
             </form>
           ) : null}

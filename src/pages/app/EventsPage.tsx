@@ -7,8 +7,10 @@ import { LocationPicker } from "../../components/members/LocationPicker";
 import { MemberMultiSelect } from "../../components/members/MemberMultiSelect";
 import { EmptyState, ErrorState, LoadingState } from "../../components/ui/PageStates";
 import { useActionLock } from "../../hooks/useActionLock";
+import { BusyContent } from "../../components/ui/RoundSpinner";
 import { useFamilyData } from "../../context/FamilyDataContext";
 import { ApiClientError } from "../../services/apiClient";
+import { FirebaseClientError } from "../../firebase/errors/firebaseErrorHandler";
 import {
   createEvent,
   deleteEvent,
@@ -35,7 +37,7 @@ interface EventFormState {
   eventDateTime: string;
   location: EventLocationValue;
   description: string;
-  memberIds: number[];
+  memberIds: Array<number | string>;
 }
 
 function emptyForm(): EventFormState {
@@ -73,7 +75,7 @@ function EventForm({
   onCancel
 }: {
   initial?: EventFormState;
-  eventId?: number;
+  eventId?: number | string;
   existingCoverUrl?: string | null;
   onCancel: () => void;
 }) {
@@ -83,7 +85,7 @@ function EventForm({
   const [removeCover, setRemoveCover] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const { isBusy, run } = useActionLock();
-  const isEdit = typeof eventId === "number";
+  const isEdit = eventId != null && String(eventId).trim() !== "";
 
   useEffect(() => {
     return () => {
@@ -152,11 +154,12 @@ function EventForm({
 
     void run(async () => {
       try {
-        const saved = isEdit ? await updateEvent(eventId, payload) : await createEvent(payload);
+        const saved = isEdit && eventId != null ? await updateEvent(eventId, payload) : await createEvent(payload);
         notify.success(isEdit ? "Event updated successfully." : "Event created successfully.");
         navigateTo(`/events/${saved.id}`);
       } catch (err) {
-        if (err instanceof ApiClientError) notify.fromApiError(err);
+        if (err instanceof FirebaseClientError) notify.error(err.message);
+        else if (err instanceof ApiClientError) notify.fromApiError(err);
         else notify.error(isEdit ? "Unable to update event." : "Unable to create event.");
       }
     });
@@ -290,9 +293,9 @@ function EventForm({
         <button
           type="submit"
           disabled={isBusy}
-          className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+          className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
         >
-          {isEdit ? "Save changes" : "Create event"}
+          <BusyContent busy={isBusy}>{isEdit ? "Save changes" : "Create event"}</BusyContent>
         </button>
         <button
           type="button"
@@ -307,7 +310,7 @@ function EventForm({
   );
 }
 
-function EventEditLoader({ eventId }: { eventId: number }) {
+function EventEditLoader({ eventId }: { eventId: number | string }) {
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -323,7 +326,7 @@ function EventEditLoader({ eventId }: { eventId: number }) {
       .catch((err) => {
         if (!cancelled) {
           setEvent(null);
-          setError(err instanceof ApiClientError ? err.message : "Unable to load event.");
+          setError(err instanceof FirebaseClientError || err instanceof ApiClientError ? err.message : "Unable to load event.");
         }
       })
       .finally(() => {
@@ -348,7 +351,7 @@ function EventEditLoader({ eventId }: { eventId: number }) {
   );
 }
 
-function EventDetailsView({ eventId }: { eventId: number }) {
+function EventDetailsView({ eventId }: { eventId: number | string }) {
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -362,7 +365,7 @@ function EventDetailsView({ eventId }: { eventId: number }) {
       setEvent(await getEvent(eventId));
     } catch (err) {
       setEvent(null);
-      setError(err instanceof ApiClientError ? err.message : "Unable to load event.");
+      setError(err instanceof FirebaseClientError || err instanceof ApiClientError ? err.message : "Unable to load event.");
     } finally {
       setLoading(false);
     }
@@ -444,14 +447,15 @@ function EventDetailsView({ eventId }: { eventId: number }) {
                   notify.success("Event deleted successfully.");
                   navigateTo("/events");
                 } catch (err) {
-                  if (err instanceof ApiClientError) notify.fromApiError(err);
+                  if (err instanceof FirebaseClientError) notify.error(err.message);
+                  else if (err instanceof ApiClientError) notify.fromApiError(err);
                   else notify.error("Unable to delete event.");
                 }
               });
             }}
-            className="rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded-xl border border-rose-500/40 px-3 py-2 text-sm text-rose-300 disabled:opacity-60"
           >
-            Delete
+            <BusyContent busy={isBusy}>Delete</BusyContent>
           </button>
         </div>
       )}
@@ -587,7 +591,7 @@ function EventsListView() {
       setEvents(data.items);
     } catch (err) {
       setEvents([]);
-      setError(err instanceof ApiClientError ? err.message : "Unable to load events.");
+      setError(err instanceof FirebaseClientError || err instanceof ApiClientError ? err.message : "Unable to load events.");
     } finally {
       setLoading(false);
     }
@@ -693,8 +697,8 @@ export function EventsPage({ pathname }: EventsPageProps) {
 
   const editMatch = matchPath("/events/:id/edit", pathname);
   if (editMatch) {
-    const id = Number(editMatch.params.id);
-    if (!Number.isFinite(id) || id <= 0) {
+    const id = editMatch.params.id?.trim() ?? "";
+    if (!id || id === "create") {
       return <EmptyState title="Event not found" message="This event is no longer available." />;
     }
     return (
@@ -709,8 +713,8 @@ export function EventsPage({ pathname }: EventsPageProps) {
 
   const detailMatch = matchPath("/events/:id", pathname);
   if (detailMatch && detailMatch.params.id !== "create") {
-    const id = Number(detailMatch.params.id);
-    if (!Number.isFinite(id) || id <= 0) {
+    const id = detailMatch.params.id?.trim() ?? "";
+    if (!id) {
       return <EmptyState title="Event not found" message="This event is no longer available." />;
     }
     return <EventDetailsView eventId={id} />;

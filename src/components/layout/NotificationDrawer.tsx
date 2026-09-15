@@ -1,6 +1,5 @@
-import { Bell, BookOpen, CalendarDays, Gift, Heart, Image, X } from "lucide-react";
-import { mockNotifications, type NotificationKind } from "../../data/mockNotifications";
-import { navigateTo } from "../../routing/navigate";
+import { X } from "lucide-react";
+import { EmptyState } from "../ui/PageStates";
 import { DrawerPortal } from "./DrawerPortal";
 
 interface NotificationDrawerProps {
@@ -8,16 +7,8 @@ interface NotificationDrawerProps {
   onClose: () => void;
 }
 
-const kindIcon: Record<NotificationKind, typeof Bell> = {
-  birthday: Gift,
-  anniversary: Heart,
-  event: CalendarDays,
-  story: BookOpen,
-  other: Image
-};
-
 export function unreadNotificationCount() {
-  return mockNotifications.filter((n) => !n.read).length;
+  return 0;
 }
 
 export function NotificationDrawer({ open, onClose }: NotificationDrawerProps) {
@@ -42,34 +33,8 @@ export function NotificationDrawer({ open, onClose }: NotificationDrawerProps) {
           </button>
         </div>
 
-        <div className="h-[calc(100%-72px)] overflow-y-auto p-4 space-y-2">
-          {mockNotifications.map((item) => {
-            const Icon = kindIcon[item.kind];
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  onClose();
-                  navigateTo(item.href);
-                }}
-                className={`w-full rounded-xl border p-3 text-left transition hover:border-emerald-500/40 ${
-                  item.read ? "border-slate-800 bg-slate-900/40" : "border-emerald-500/20 bg-emerald-500/5"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 rounded-full bg-slate-900 p-2 text-emerald-400">
-                    <Icon size={14} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-100">{item.title}</p>
-                    <p className="mt-0.5 text-xs text-slate-400">{item.message}</p>
-                  </div>
-                  {!item.read && <span className="ml-auto mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-400" />}
-                </div>
-              </button>
-            );
-          })}
+        <div className="h-[calc(100%-72px)] overflow-y-auto p-4">
+          <EmptyState title="No notifications" message="Family updates will appear here." />
         </div>
       </aside>
     </div>

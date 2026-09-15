@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { Pencil } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Pencil, User } from "lucide-react";
 
 interface ProfilePhotoPickerProps {
   previewUrl: string;
@@ -13,23 +13,41 @@ export function ProfilePhotoPicker({
   sizeClassName = "h-20 w-20"
 }: ProfilePhotoPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [broken, setBroken] = useState(false);
+
+  useEffect(() => {
+    setBroken(false);
+  }, [previewUrl]);
+
+  const showImage = Boolean(previewUrl) && !broken;
 
   return (
     <div className={`relative shrink-0 ${sizeClassName}`}>
-      <img src={previewUrl} alt="" className={`rounded-xl border border-slate-800 object-cover ${sizeClassName}`} />
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className="absolute -bottom-1 -right-1 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-emerald-400 shadow hover:bg-slate-800"
+        className={`flex ${sizeClassName} items-center justify-center overflow-hidden rounded-xl border border-slate-800 bg-slate-900`}
         aria-label="Choose profile photo"
         title="Choose profile photo"
       >
-        <Pencil size={14} />
+        {showImage ? (
+          <img
+            src={previewUrl}
+            alt=""
+            className={`h-full w-full object-cover ${sizeClassName}`}
+            onError={() => setBroken(true)}
+          />
+        ) : (
+          <User className="text-slate-500" size={28} />
+        )}
       </button>
+      <span className="pointer-events-none absolute -bottom-1 -right-1 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-emerald-400 shadow">
+        <Pencil size={14} />
+      </span>
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept="image/*"
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];

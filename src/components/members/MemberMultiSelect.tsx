@@ -5,8 +5,8 @@ import { formatMemberLabel } from "../../utils/memberRanks";
 import { eventInputClass } from "../../utils/eventImages";
 
 interface MemberMultiSelectProps {
-  selectedIds: number[];
-  onChange: (ids: number[]) => void;
+  selectedIds: Array<number | string>;
+  onChange: (ids: Array<number | string>) => void;
   disabled?: boolean;
 }
 
@@ -16,12 +16,12 @@ export function MemberMultiSelect({ selectedIds, onChange, disabled }: MemberMul
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const selectedSet = useMemo(() => new Set(selectedIds.map((id) => String(id))), [selectedIds]);
 
   const selectedMembers = useMemo(
     () =>
       selectedIds
-        .map((id) => members.find((m) => Number(m.id) === id))
+        .map((id) => members.find((m) => String(m.id) === String(id)))
         .filter((m): m is NonNullable<typeof m> => Boolean(m)),
     [members, selectedIds]
   );
@@ -29,7 +29,7 @@ export function MemberMultiSelect({ selectedIds, onChange, disabled }: MemberMul
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const rows = [...members]
-      .filter((m) => !selectedSet.has(Number(m.id)))
+      .filter((m) => !selectedSet.has(String(m.id)))
       .sort((a, b) => (memberRanks[a.id] ?? 9999) - (memberRanks[b.id] ?? 9999));
     if (!q) return rows;
     return rows.filter((m) => {
@@ -58,16 +58,16 @@ export function MemberMultiSelect({ selectedIds, onChange, disabled }: MemberMul
     };
   }, [open]);
 
-  const addMember = (id: number) => {
+  const addMember = (id: string) => {
     if (disabled || selectedSet.has(id)) return;
     onChange([...selectedIds, id]);
     setQuery("");
     setOpen(false);
   };
 
-  const removeMember = (id: number) => {
+  const removeMember = (id: string) => {
     if (disabled) return;
-    onChange(selectedIds.filter((x) => x !== id));
+    onChange(selectedIds.filter((x) => String(x) !== id));
   };
 
   return (
@@ -90,7 +90,7 @@ export function MemberMultiSelect({ selectedIds, onChange, disabled }: MemberMul
               <button
                 type="button"
                 disabled={disabled}
-                onClick={() => removeMember(Number(member.id))}
+                onClick={() => removeMember(String(member.id))}
                 className="rounded-full p-0.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 disabled:opacity-60"
                 aria-label="Remove member"
               >
@@ -137,7 +137,7 @@ export function MemberMultiSelect({ selectedIds, onChange, disabled }: MemberMul
                     key={member.id}
                     type="button"
                     disabled={disabled}
-                    onClick={() => addMember(Number(member.id))}
+                    onClick={() => addMember(String(member.id))}
                     className="flex w-full items-center gap-3 border-b border-slate-900/60 px-3 py-2 text-left last:border-b-0 hover:bg-slate-900/50"
                   >
                     <img

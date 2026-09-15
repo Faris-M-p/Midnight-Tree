@@ -9,12 +9,12 @@ export type AccessTokenStatus = "Active" | "Inactive" | "Expired";
 export type AccessTokenExpiryPreset = "30Days" | "90Days" | "6Months" | "1Year" | "Custom";
 
 export interface AccessToken {
-  id: number;
+  id: number | string;
   tokenName: string;
   status: AccessTokenStatus;
   permission: AccessTokenPermission;
   scope: AccessTokenScope;
-  memberId?: number | null;
+  memberId?: number | string | null;
   memberName?: string | null;
   tokenPreview: string;
   createdOn: string;
@@ -28,7 +28,7 @@ export interface CreateAccessTokenPayload {
   tokenName: string;
   permission: AccessTokenPermission;
   scope: AccessTokenScope;
-  memberId?: number | null;
+  memberId?: number | string | null;
   expiryPreset: AccessTokenExpiryPreset;
   customExpiresOn?: string | null;
 }
@@ -36,7 +36,7 @@ export interface CreateAccessTokenPayload {
 export type UpdateAccessTokenPayload = CreateAccessTokenPayload;
 
 export interface CreateAccessTokenResult {
-  id: number;
+  id: number | string;
   rawToken: string;
   token: AccessToken;
 }
