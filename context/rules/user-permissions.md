@@ -1,44 +1,36 @@
 # User permissions
 
-Permission checks live in `src/auth/permissions.ts`. The file comment says UI checks are for visibility only. Firestore rules do not repeat them. See `rules/security-rules.md`.
+Two layers. Never conflate them.
 
-## Session shapes
+## Account layer (Account Owner only)
 
-| Session | How it is created | `isAdmin` | Permission | Scope |
+- Subscription / billing
+- Create and manage **public access tokens**
+- Account security settings
+- Create owned families (within plan)
+
+Family Admin / Editor / Viewer **never** get these.
+
+## Family layer
+
+| Capability | Owner | Admin | Editor | Viewer |
 |---|---|---|---|---|
-| Email/password | `persistFirebaseSession` | true | `ADMIN_FULL` | `EntireFamily` |
-| Access token | `applyAccessTokenSession` | false | `View` or `Edit` from the token | `EntireFamily`, `SelectedMember`, or `MemberDescendants` |
-| Missing / empty token | `getAccessContext` fallback | false | `View` | `EntireFamily`, display name Guest |
+| View tree / profiles | yes | yes | yes | yes |
+| Add / edit members | yes | yes | yes | no |
+| Manage relationships | yes | yes | yes | no |
+| Delete members | yes | yes | limited | no |
+| Family settings | yes | limited | no | no |
+| Invite collaborators | yes | yes | no | no |
+| Manage family roles | yes | limited | no | no |
+| Delete family / transfer ownership | yes | no | no | no |
+| Billing / account tokens | account only | no | no | no |
 
-A session with no `authType`, `authType === "admin"`, or `isAdmin` is treated as admin. That includes older sessions saved before `authType` existed.
+## Token sessions
 
-## Helpers
+- Token grants only explicitly assigned families + permission (View/Edit + optional scope).
+- Token cannot open Account Token Management or billing.
+- Deactivated / expired / revoked tokens deny access immediately (enforced server-side).
 
-| Helper | True when |
-|---|---|
-| `canView` | A session `accessToken` exists |
-| `isAdmin` | Access context is admin |
-| `canEdit` | Admin, or token permission is `Edit` |
-| `canEditFamily` | Admin only |
-| `canCreateMember` | Admin, or Edit on `EntireFamily` or `MemberDescendants`. Edit on `SelectedMember` cannot create. |
-| `canEditMember` / `canDeleteMember` | Admin; or Edit + entire family; or Edit + selected member id match; or Edit + member-and-descendants (the scope member or anyone below them in `MarriageUnion.childrenIds`) |
-| `canDelete` | Deprecated. Returns `isAdmin()` only. Call sites should use `canDeleteMember`. |
+## UI is not security
 
-Descendants are walked from union children. Spouses of descendants are not added unless they appear as children.
-
-## Where the UI applies them
-
-| Area | Check |
-|---|---|
-| Access Tokens nav and page | `isAdmin` / `requiresAdmin` |
-| Family profile edits and cover | `canEditFamily` |
-| Memories create, edit, delete, images | `canEditFamily` |
-| Events create, edit, delete | `canEditFamily` |
-| Add member | `canCreateMember` |
-| Edit or delete a member | `canEditMember` / `canDeleteMember` |
-| Map spouse control | `canEdit` |
-| Stories and Gallery pages | `canEdit`, but those pages are not routed |
-
-View-only token users can open the app and read what the services load. They do not get family, memory, or event write buttons. Member writes depend on scope.
-
-`familyMembers.role` (`owner`, `editor`, `viewer`) is written as `owner` at registration. The UI does not read that role. Authorization uses the auth session flags above, not the Firestore role.
+Hiding buttons is UX only. RLS + trusted functions / Edge Functions enforce access.

@@ -1,37 +1,29 @@
 # Vision
 
-The only written product vision is the public page copy. There is no separate vision document in the repo.
+## North star
 
-## Stated in the UI
+A professional family-tree SaaS where the **tree canvas is the main product**, relationships stay clear across generations, and collaboration is safe.
 
-Landing page (`src/pages/LandingPage.tsx`):
+## Reference
 
-- Label: “Family Legacy Platform”
-- Headline: “Build, preserve, and explore your family story.”
-- Supporting line: map generations, document milestones, and preserve relationships in a visual experience.
+[Lineage](https://lineage.tools/) — interaction and tree clarity only. Do not copy branding, assets, or code.
 
-About page (`src/pages/AboutPage.tsx`):
+Take from Lineage:
 
-- Families outgrow scattered albums, chat threads, and spreadsheets.
-- Midnight Chronicle is a private place for the tree, stories, photographs, and dates that matter.
-- Admins use the same family application. There is no separate admin product and no business dashboard.
-- Relatives visit with a scoped family pass (access tokens).
+- Interactive canvas: click person, search, generation filter, zoom, fit
+- One person = one card; partners linked by connectors
+- Start from any relative; grow up / down / sideways
+- Profiles, events, collaboration, privacy around the tree
 
-Features page:
+## Visual direction
 
-- The product is a private family legacy platform, not a CRM.
-- Listed promises: interactive tree, member management, timeline and history, gallery, stories and events, privacy via password and family tokens, responsive layout, search.
+- Light: plain white, neutral borders, dark typography, minimal shadow
+- Dark: full dark theme, no bright white panels
+- Font: Inter (or similar industry UI font)
+- Avoid gradients, glassmorphism, oversized decorative cards, AI-dashboard chrome
 
-## How the stated flow is described
+## Non-goals (early phases)
 
-About page, “How it works”:
-
-1. Register the family and sign in with the admin account.
-2. Add members and grow the tree with parent, spouse, and child connections.
-3. Collect stories, albums, timeline moments, and events.
-
-Step 3 is only partly implemented. See `project/roadmap.md`.
-
-## Not written down
-
-Mission, target market, pricing promise, multi-family membership, and long-term product principles beyond the pages above are **TBD**. Do not treat marketing feature cards as proof that gallery or stories are live.
+- Historical records search marketplace
+- GEDCOM import/export (later unless prioritized)
+- Image upload to Supabase Storage or R2 before the R2 phase

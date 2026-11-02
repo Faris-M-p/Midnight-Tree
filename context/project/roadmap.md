@@ -1,40 +1,50 @@
 # Roadmap
 
-There is no roadmap file in the application repo. This page records what the code does today. Items under “Not a committed roadmap” are gaps, not scheduled work.
+## Scaffold (done when this folder exists)
 
-## Implemented and routed
+- [x] Create `midnight-web` Next.js app (isolated from Midnight-Tree)
+- [x] Create `context/` with rules and module map
 
-- Email/password register and login (Firebase Auth)
-- Password reset email (Firebase `sendPasswordResetEmail`)
-- One family per registering user, created at signup
-- Family profile: name, description, logo, cover
-- Members: list, details, create, update, delete, location
-- Relationships: spouse and parent links stored in Firestore
-- Family tree canvas (React Flow)
-- Home dashboard computed from members, events, and memories
-- Memories with up to 10 images
-- Events (birthday, anniversary, memorial, gathering, achievement, custom)
-- Timeline page built from those records
-- Access tokens: create, list, update, activate/deactivate, delete, login
-- Theme switch: Midnight and Ocean Breeze
-- Vercel SPA rewrite
+## Phase 2 — Supabase foundation
 
-## Present in code, not in the live app shell
+- Env template, Supabase client
+- Schema: profiles, families, memberships, plans
+- RLS stubs
+- No tree rewrite yet
 
-- `StoriesPage` and `GalleryPage` render mock data from `src/data/stores.ts`. `App.tsx` does not mount them. Nav does not link to them.
-- Firestore services exist for `stories`, `albums`, and `albumPhotos`. No page calls them.
-- `src/data/mockNotifications.ts` exists. The notification drawer does not read it.
-- `planService` and `subscriptionService` exist. No page imports them.
-- `FirebaseTest.tsx` is a dev helper. It is not mounted by `App.tsx`.
+## Phase 3 — Auth + onboarding
 
-## Not implemented
+- Register / login / session
+- Create family (no mandatory “create myself”)
+- Account Owner membership
 
-- .NET / MidnightApi backend. `src/services/apiClient.ts` throws “This app uses Firebase only.”
-- Email OTP verification. `/verify-email` redirects to `/login` and says verification is no longer required.
-- In-app OTP password reset. `/forgot-password/verify` and `/forgot-password/reset` redirect away. Reset is the Firebase email link.
-- Payment capture or marking a subscription active. `subscriptionService` always writes `status: "pending"` and its comment says payment success is for a later server-side function.
-- Push notifications, email notifications, and a notifications collection. **Not implemented.**
-- Server-side authorization. Permission checks are client-side. See `rules/security-rules.md`.
-- Firebase Storage uploads from the browser. Images are compressed data URLs on Firestore documents. See `architecture/storage.md`.
-- Multiple families per user. **Not implemented.** `ensureCurrentFamilyId` keeps a single `familyId` on the user profile.
-- A written product roadmap. **TBD.**
+## Phase 4 — Family tree UI
+
+- Lineage-style canvas on React Flow (or chosen engine)
+- Separate person cards, zoom/fit/search
+
+## Phase 5 — Members + relationships
+
+- UUID + display codes
+- Placeholders, existing-member marriage, integrity
+
+## Phase 6 — Images (local only)
+
+- Select / preview / size validation
+- No DB binary / no Storage / no R2 yet
+
+## Phase 7 — Plans / entitlements
+
+- Free / Family / Family Plus from DB config
+
+## Phase 8 — Razorpay
+
+- Edge Functions: order, verify, webhook
+
+## Phase 9 — Collaboration + content
+
+- Email invitations, access tokens, events, settings, dashboard
+
+## Phase 10 — Security review
+
+- Role matrix, RLS isolation, payment/token tests

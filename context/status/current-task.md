@@ -1,7 +1,5 @@
 # Current task
 
-No product feature is in progress in the source tree.
+Scaffold complete: Next.js project + context documentation.
 
-The latest completed documentation task is this `context/` set, written from the code on 25 Sep 2026. Files were empty before that and now describe the inspected app.
-
-Next product task: **TBD**. Do not assume stories, gallery, notifications, or billing are the assigned work unless a new task says so.
+Awaiting: **Execute Phase 2** (Supabase foundation) when ready.
