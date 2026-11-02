@@ -4,24 +4,25 @@
 
 - [x] Create `midnight-web` Next.js app (isolated from Midnight-Tree)
 - [x] Create `context/` with rules and module map
+- [x] After-each-task cadence (Done → Next → Later)
 
 ## Phase 2 — Supabase foundation
 
-- Env template, Supabase client
-- Schema: profiles, families, memberships, plans
-- RLS stubs
-- No tree rewrite yet
+- [x] Env template, Supabase client / server / middleware
+- [x] Schema SQL: profiles, families, memberships, plans + RLS stubs
+- [x] No tree rewrite in this phase
 
 ## Phase 3 — Auth + onboarding
 
-- Register / login / session
-- Create family (no mandatory “create myself”)
-- Account Owner membership
+- [x] Register / login / logout
+- [x] Create family (no mandatory “create myself”)
+- [x] Account Owner membership + family list / workspace shell
 
 ## Phase 4 — Family tree UI
 
-- Lineage-style canvas on React Flow (or chosen engine)
-- Separate person cards, zoom/fit/search
+- [ ] Lineage-style canvas on React Flow (or chosen engine) — stubs only today
+- [ ] Separate person cards, zoom/fit/search
+- Feature folders: `src/features/tree|members|relationships`
 
 ## Phase 5 — Members + relationships
 

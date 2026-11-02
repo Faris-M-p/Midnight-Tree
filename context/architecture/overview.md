@@ -22,6 +22,13 @@ No separate .NET / Python / custom Node API host.
 
 `d:\WorkSpace\Midnight\midnight-web`
 
+## Phase 2 foundation (in repo)
+
+- Client/server/middleware: `src/lib/supabase/`
+- Types: `src/types/database.ts`
+- SQL: `supabase/migrations/20261102120000_phase2_foundation.sql`
+- Apply steps: `supabase/README.md`
+
 ## Suggested app folders (evolve as modules land)
 
 ```text

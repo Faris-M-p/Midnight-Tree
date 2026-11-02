@@ -1,5 +1,5 @@
 # Current task
 
-Scaffold complete: Next.js project + context documentation.
+**Waiting on Supabase keys** — paste into chat or add `midnight-web/.env.local`, then ask to “wire env and verify”.
 
-Awaiting: **Execute Phase 2** (Supabase foundation) when ready.
+After keys: apply migrations, smoke-test register → create family → add members → tree.
