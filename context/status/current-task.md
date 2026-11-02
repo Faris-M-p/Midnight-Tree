@@ -1,5 +1,7 @@
 # Current task
 
-**Waiting on Supabase keys** — paste into chat or add `midnight-web/.env.local`, then ask to “wire env and verify”.
+`.env.local` is configured for project `wczhrfhwbhrwmqmcbxai`.
 
-After keys: apply migrations, smoke-test register → create family → add members → tree.
+**You:** run both SQL migrations in Supabase SQL Editor (foundation, then tree/collab).
+
+**Then:** `npm run dev` in `midnight-web` and smoke-test register → create family → tree.
