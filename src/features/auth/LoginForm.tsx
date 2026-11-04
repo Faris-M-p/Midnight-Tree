@@ -3,12 +3,15 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { loginAction, type AuthActionState } from "./actions";
+import { useAuthErrorLog } from "./useAuthErrorLog";
+import { PasswordField } from "@/components/forms/PasswordField";
 import { buttonClass, cardClass, fieldClass, labelClass } from "@/components/forms/AuthFormStyles";
 
 const initial: AuthActionState = { error: null };
 
 export function LoginForm() {
   const [state, action, pending] = useActionState(loginAction, initial);
+  useAuthErrorLog("login", state);
 
   return (
     <form action={action} className={cardClass}>
@@ -22,16 +25,7 @@ export function LoginForm() {
           Email
           <input className={fieldClass} name="email" type="email" autoComplete="email" required />
         </label>
-        <label className={labelClass}>
-          Password
-          <input
-            className={fieldClass}
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-          />
-        </label>
+        <PasswordField label="Password" name="password" autoComplete="current-password" />
       </div>
 
       {state.error ? (

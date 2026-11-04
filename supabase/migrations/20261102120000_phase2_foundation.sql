@@ -207,7 +207,10 @@ drop policy if exists "families_select_member" on public.families;
 create policy "families_select_member"
   on public.families for select
   to authenticated
-  using (public.is_family_member(id));
+  using (
+    created_by = auth.uid()
+    or public.is_family_member(id)
+  );
 
 drop policy if exists "families_insert_authenticated" on public.families;
 create policy "families_insert_authenticated"

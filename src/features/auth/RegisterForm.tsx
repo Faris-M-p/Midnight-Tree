@@ -3,12 +3,15 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { registerAction, type AuthActionState } from "./actions";
+import { useAuthErrorLog } from "./useAuthErrorLog";
+import { PasswordField } from "@/components/forms/PasswordField";
 import { buttonClass, cardClass, fieldClass, labelClass } from "@/components/forms/AuthFormStyles";
 
 const initial: AuthActionState = { error: null };
 
 export function RegisterForm() {
   const [state, action, pending] = useActionState(registerAction, initial);
+  useAuthErrorLog("register", state);
 
   return (
     <form action={action} className={cardClass}>
@@ -26,28 +29,18 @@ export function RegisterForm() {
           Email
           <input className={fieldClass} name="email" type="email" autoComplete="email" required />
         </label>
-        <label className={labelClass}>
-          Password
-          <input
-            className={fieldClass}
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            minLength={8}
-            required
-          />
-        </label>
-        <label className={labelClass}>
-          Confirm password
-          <input
-            className={fieldClass}
-            name="confirmPassword"
-            type="password"
-            autoComplete="new-password"
-            minLength={8}
-            required
-          />
-        </label>
+        <PasswordField
+          label="Password"
+          name="password"
+          autoComplete="new-password"
+          minLength={8}
+        />
+        <PasswordField
+          label="Confirm password"
+          name="confirmPassword"
+          autoComplete="new-password"
+          minLength={8}
+        />
       </div>
 
       {state.error ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { createFamilyAction, type FamilyActionState } from "./actions";
 import { buttonClass, cardClass, fieldClass, labelClass } from "@/components/forms/AuthFormStyles";
 
@@ -8,6 +8,15 @@ const initial: FamilyActionState = { error: null };
 
 export function CreateFamilyForm() {
   const [state, action, pending] = useActionState(createFamilyAction, initial);
+
+  useEffect(() => {
+    if (!state.error) return;
+    console.error("[family:create] UI error", {
+      message: state.error,
+      code: state.code ?? null,
+      at: new Date().toISOString()
+    });
+  }, [state.error, state.code]);
 
   return (
     <form action={action} className={cardClass}>
